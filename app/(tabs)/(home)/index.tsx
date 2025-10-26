@@ -1,0 +1,929 @@
+import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useGame } from '@/contexts/GameContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock } from 'lucide-react-native';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import type { Quest } from '@/types';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+export default function HomeScreen() {
+  const { theme } = useTheme();
+  const { profile, quests, progressMap, recordQuestOutcome, addAIQuest } = useGame();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
+  const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
+  const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
+
+  const activeQuests = quests.filter(q => !q.completed && (q.source === 'user' || q.source === 'ai'));
+
+  const styles = createStyles(theme.colors);
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <LinearGradient
+        colors={[theme.colors.backgroundTertiary, theme.colors.background]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      <View style={styles.header}>
+        <View style={styles.statsRow}>
+          <View style={styles.statBadge}>
+            <Text style={[styles.statValue, { color: theme.colors.error }]}>🔥 {profile.streak}</Text>
+          </View>
+          <View style={styles.statBadge}>
+            <Text style={[styles.statValue, { color: theme.colors.warning }]}>🏆 {profile.totalRejections}</Text>
+          </View>
+          <View style={styles.statBadge}>
+            <Text style={[styles.statValue, { color: theme.colors.primary }]}>💎 {profile.totalPoints}</Text>
+          </View>
+        </View>
+
+        <View style={styles.headerActions}>
+          <Pressable
+            style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
+            onPress={() => router.push('/profile' as any)}
+          >
+            <Bell size={20} color={theme.colors.text} />
+          </Pressable>
+          <Pressable
+            style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
+            onPress={() => router.push('/settings' as any)}
+          >
+            <Settings size={20} color={theme.colors.text} />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.cardsContainer} testID="home-cards-container">
+        {isGeneratingQuest ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingTitle, { color: theme.colors.text }]}>Generating Your Next Quest...</Text>
+            <Text style={[styles.loadingSubtitle, { color: theme.colors.textSecondary }]}>
+              Creating a personalized challenge just for you
+            </Text>
+          </View>
+        ) : activeQuests.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Active Quests</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+              Tap the + button to create a new quest
+            </Text>
+          </View>
+        ) : (
+          activeQuests.map((quest, index) => {
+            if (index < currentIndex) return null;
+            return (
+              <QuestCard
+                key={quest.id}
+                quest={quest}
+                index={index}
+                currentIndex={currentIndex}
+                onSwipeLeft={() => {
+                  recordQuestOutcome(quest.id, 'yes');
+                  return false;
+                }}
+                onSwipeRight={() => {
+                  const prog = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 };
+                  const nextNo = prog.noCount + 1;
+                  const minNo = typeof quest.minNoRequired === 'number' ? quest.minNoRequired : 0;
+                  recordQuestOutcome(quest.id, 'no');
+                  const shouldAdvance = minNo > 0 && nextNo >= minNo;
+                  if (shouldAdvance) {
+                    setCurrentIndex((i) => i + 1);
+                    setTimeout(() => {
+                      const rank = Math.floor(Math.random() * 100) + 1;
+                      setCompletionData({ quest, newStreak: profile.streak + 1, leaderboardRank: rank });
+                      setShowCompletionModal(true);
+                    }, 500);
+                  }
+                  return shouldAdvance;
+                }}
+                theme={theme.colors}
+              />
+            );
+          }).reverse()
+        )}
+      </View>
+
+      <View style={[styles.instructions, { paddingBottom: insets.bottom + 20 }]}>
+        <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
+          Complete your quests in order • Friend quests can be done anytime
+        </Text>
+        <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
+          Max 2 active quests • Extra quests go to queue
+        </Text>
+      </View>
+
+      <QuestCompletionModal
+        visible={showCompletionModal}
+        quest={completionData?.quest}
+        newStreak={completionData?.newStreak ?? 0}
+        leaderboardRank={completionData?.leaderboardRank ?? 0}
+        onClose={() => setShowCompletionModal(false)}
+        onNextQuest={async () => {
+          setIsGeneratingQuest(true);
+          try {
+            console.log('Generating new AI quest based on completed quest...');
+            const completedQuest = completionData?.quest;
+            const currentDifficulty = completedQuest?.difficulty ?? 'easy';
+            const difficultyProgression: Record<string, 'easy' | 'medium' | 'hard' | 'extreme'> = {
+              easy: 'easy',
+              medium: 'medium',
+              hard: 'hard',
+              extreme: 'extreme',
+            };
+            const nextDifficulty = difficultyProgression[currentDifficulty] ?? 'medium';
+            const newQuest = await addAIQuest(nextDifficulty, false, completedQuest);
+            console.log('New sequential quest generated successfully:', newQuest);
+            
+            setShowCompletionModal(false);
+            setCompletionData(null);
+            setCurrentIndex(0);
+          } catch (error) {
+            console.error('Failed to generate quest:', error);
+            Alert.alert('Error', 'Failed to generate quest. Please try again.');
+          } finally {
+            setIsGeneratingQuest(false);
+          }
+        }}
+        onCreateCustom={() => {
+          setShowCompletionModal(false);
+          router.push('/create-quest' as any);
+        }}
+        isGeneratingQuest={isGeneratingQuest}
+        theme={theme.colors}
+      />
+    </View>
+  );
+}
+
+interface QuestCardProps {
+  quest: Quest;
+  index: number;
+  currentIndex: number;
+  onSwipeLeft: () => boolean;
+  onSwipeRight: () => boolean;
+  theme: any;
+}
+
+function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, theme }: QuestCardProps) {
+  const { progressMap, completeQuest } = useGame();
+  const progress = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 } as { noCount: number; yesCount: number };
+  const minNo = quest.minNoRequired ?? 0;
+  const pan = useRef(new Animated.ValueXY()).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) => {
+        return Math.abs(gesture.dx) > 8 || Math.abs(gesture.dy) > 8;
+      },
+      onPanResponderGrant: () => {
+        pan.setOffset({ x: (pan.x as any)._value ?? 0, y: (pan.y as any)._value ?? 0 });
+        pan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        pan.setValue({ x: gesture.dx, y: gesture.dy });
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        pan.flattenOffset();
+        const threshold = SCREEN_WIDTH * 0.25;
+        if (gesture.dx > threshold) {
+          handleSwipe('right');
+        } else if (gesture.dx < -threshold) {
+          handleSwipe('left');
+        } else {
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        pan.flattenOffset();
+        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+      },
+    })
+  ).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(index === currentIndex ? 1 : 0.95)).current;
+  const [expanded, setExpanded] = useState<boolean>(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timerExpired, setTimerExpired] = useState<boolean>(false);
+
+  const rotate = pan.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: ['-15deg', '0deg', '15deg'],
+    extrapolate: 'clamp',
+  });
+
+  const yesOpacity = pan.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: [0, 0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const noOpacity = pan.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: [1, 0, 0],
+    extrapolate: 'clamp',
+  });
+
+  useEffect(() => {
+    if (!quest.timerEndAt || index !== currentIndex) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const end = new Date(quest.timerEndAt!).getTime();
+      const remaining = Math.max(0, end - now);
+      setTimeRemaining(remaining);
+
+      if (remaining === 0 && !timerExpired) {
+        setTimerExpired(true);
+        setTimeout(() => {
+          Alert.alert(
+            'Quest Time Expired',
+            `You gained ${quest.xp} XP and ${quest.points} points!`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  completeQuest(quest.id);
+                },
+              },
+            ]
+          );
+        }, 100);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [quest.timerEndAt, quest.id, quest.xp, quest.points, index, currentIndex, timerExpired, completeQuest]);
+
+  const handleSwipe = useCallback((direction: 'left' | 'right') => {
+    const toValue = direction === 'right' ? SCREEN_WIDTH * 1.2 : -SCREEN_WIDTH * 1.2;
+
+    Animated.parallel([
+      Animated.timing(pan, {
+        toValue: { x: toValue, y: 0 },
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0.4,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      const advance = direction === 'right' ? onSwipeRight() : onSwipeLeft();
+      if (!advance) {
+        Animated.parallel([
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+        ]).start();
+      }
+    });
+
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [pan, opacity, onSwipeRight, onSwipeLeft]);
+
+  const difficultyColors = {
+    easy: '#10B981',
+    medium: '#F59E0B',
+    hard: '#EF4444',
+    extreme: '#8B5CF6',
+  };
+
+  const styles = createCardStyles(theme);
+
+  const isTopCard = index === currentIndex;
+
+  return (
+    <Animated.View
+      testID={`quest-card-${quest.id}`}
+      {...(isTopCard ? panResponder.panHandlers : {})}
+      style={[
+        styles.card,
+        {
+          transform: [
+            { translateX: isTopCard ? pan.x : 0 },
+            { translateY: isTopCard ? pan.y : 0 },
+            { rotate: isTopCard ? rotate : '0deg' },
+            { scale },
+          ],
+          opacity,
+          zIndex: 1000 - index,
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={[theme.backgroundTertiary, theme.card]}
+        style={styles.cardGradient}
+      >
+        <Animated.View style={[styles.overlay, styles.noOverlay, { opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)) }]}>
+          <View style={styles.overlayBadge}>
+            <Text style={styles.overlayTextBig}>NO</Text>
+            <Text style={[styles.overlaySubText, { color: '#10B981' }]}>Success!</Text>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.overlay, styles.yesOverlay, { opacity: Animated.multiply(noOpacity, new Animated.Value(0.6)) }]}>
+          <View style={styles.overlayBadge}>
+            <Text style={styles.overlayTextBig}>YES</Text>
+            <Text style={[styles.overlaySubText, { color: '#EF4444' }]}>Try Again</Text>
+          </View>
+        </Animated.View>
+
+        <View style={styles.cardContent}>
+          <View style={[styles.difficultyBadge, { backgroundColor: `${difficultyColors[quest.difficulty]}20` }]}>
+            <Text style={[styles.difficultyText, { color: difficultyColors[quest.difficulty] }]}>
+              {quest.difficulty.toUpperCase()}
+            </Text>
+          </View>
+
+          <Text style={[styles.questTitle, { color: theme.text }]}>{quest.title}</Text>
+          <Text style={[styles.questDescription, { color: theme.textSecondary }]} numberOfLines={expanded ? undefined : 2}>
+            {truncateToWords(quest.description ?? '', expanded ? undefined : 10)}
+          </Text
+>
+
+          {quest.minNoRequired && (
+            <View style={[styles.noRequirementBadge, { backgroundColor: '#10B98120', borderColor: '#10B981' }]}>
+              <Text style={[styles.noRequirementText, { color: '#10B981' }]}>
+                Goal: Collect {quest.minNoRequired} NO{quest.minNoRequired > 1 ? "'s" : ''}
+              </Text>
+            </View>
+          )}
+
+          {quest.timerEndAt && timeRemaining !== null ? (
+            <View style={[styles.timerContainer, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B' }]}>
+              <Clock size={20} color="#F59E0B" />
+              <Text style={[styles.timerText, { color: '#F59E0B' }]}>
+                {formatTime(timeRemaining)}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.rewardsRow}>
+              <View style={styles.rewardBadge}>
+                <Text style={[styles.rewardText, { color: theme.text }]}>+{quest.xp} XP</Text>
+              </View>
+              <View style={styles.rewardBadge}>
+                <Text style={[styles.rewardText, { color: theme.text }]}>+{quest.points} pts</Text>
+              </View>
+            </View>
+          )}
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={[styles.rewardBadge, { backgroundColor: '#10B98120' }]}>
+                <Text style={[styles.rewardText, { color: '#10B981' }]}>NOs: {progress.noCount}{minNo > 0 ? `/${minNo}` : ''}</Text>
+              </View>
+              <View style={[styles.rewardBadge, { backgroundColor: '#EF444420' }]}>
+                <Text style={[styles.rewardText, { color: '#EF4444' }]}>YES: {progress.yesCount}</Text>
+              </View>
+            </View>
+            {minNo > 0 && (
+              <View style={{ height: 10, backgroundColor: '#ffffff30', borderRadius: 6, overflow: 'hidden' }}>
+                <View style={{ width: `${Math.min(100, Math.round((progress.noCount / minNo) * 100))}%`, backgroundColor: '#10B981', height: 10 }} />
+              </View>
+            )}
+          </View>
+          {!expanded && (
+            <Pressable onPress={() => setExpanded(true)} testID={`see-more-${quest.id}`} style={{ alignSelf: 'flex-start' }}>
+              <Text style={{ color: '#7DD3FC', fontWeight: '700' as const }}>See more</Text>
+            </Pressable>
+          )}
+          </View>
+
+        {isTopCard && (
+          <View style={styles.actionsRow}>
+            <Pressable
+              style={[styles.actionButton, styles.yesButton]}
+              testID={`quest-yes-${quest.id}`}
+              onPress={() => handleSwipe('left')}
+            >
+              <Text style={styles.actionButtonText}>YES</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.actionButton, styles.noButton]}
+              testID={`quest-no-${quest.id}`}
+              onPress={() => handleSwipe('right')}
+            >
+              <Text style={styles.actionButtonText}>NO</Text>
+            </Pressable>
+          </View>
+        )}
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+interface QuestCompletionModalProps {
+  visible: boolean;
+  quest?: Quest;
+  newStreak: number;
+  leaderboardRank: number;
+  onClose: () => void;
+  onNextQuest: () => void;
+  onCreateCustom: () => void;
+  theme: any;
+  isGeneratingQuest?: boolean;
+}
+
+function QuestCompletionModal({
+  visible,
+  quest,
+  newStreak,
+  leaderboardRank,
+  onClose,
+  onNextQuest,
+  onCreateCustom,
+  theme,
+  isGeneratingQuest = false,
+}: QuestCompletionModalProps) {
+  const modalScale = useRef(new Animated.Value(0)).current;
+  const confettiOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(modalScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }),
+        Animated.timing(confettiOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      modalScale.setValue(0);
+      confettiOpacity.setValue(0);
+    }
+  }, [visible, modalScale, confettiOpacity]);
+
+  if (!quest) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.backdrop}>
+        <Animated.View
+          style={[
+            modalStyles.container,
+            { backgroundColor: theme.card, transform: [{ scale: modalScale }] },
+          ]}
+        >
+          <LinearGradient
+            colors={['#10B98140', theme.card]}
+            style={modalStyles.gradient}
+          >
+            <View style={modalStyles.header}>
+              <Trophy size={64} color="#10B981" />
+              <Text style={[modalStyles.title, { color: theme.text }]}>Quest Complete!</Text>
+              <Text style={[modalStyles.subtitle, { color: theme.textSecondary }]}>
+                {quest.title}
+              </Text>
+            </View>
+
+            <View style={modalStyles.stats}>
+              <View style={[modalStyles.statCard, { backgroundColor: '#10B98120' }]}>
+                <Flame size={32} color="#EF4444" />
+                <Text style={[modalStyles.statValue, { color: '#EF4444' }]}>{newStreak}</Text>
+                <Text style={[modalStyles.statLabel, { color: theme.textSecondary }]}>Day Streak</Text>
+              </View>
+
+              <View style={[modalStyles.statCard, { backgroundColor: '#F59E0B20' }]}>
+                <Trophy size={32} color="#F59E0B" />
+                <Text style={[modalStyles.statValue, { color: '#F59E0B' }]}>#{leaderboardRank}</Text>
+                <Text style={[modalStyles.statLabel, { color: theme.textSecondary }]}>Rank</Text>
+              </View>
+            </View>
+
+            <View style={modalStyles.rewards}>
+              <View style={[modalStyles.rewardItem, { backgroundColor: theme.backgroundTertiary }]}>
+                <Text style={[modalStyles.rewardText, { color: theme.text }]}>+{quest.xp} XP</Text>
+              </View>
+              <View style={[modalStyles.rewardItem, { backgroundColor: theme.backgroundTertiary }]}>
+                <Text style={[modalStyles.rewardText, { color: theme.text }]}>+{quest.points} Points</Text>
+              </View>
+            </View>
+
+            <View style={modalStyles.actions}>
+              <Pressable
+                style={[modalStyles.actionButton, { backgroundColor: theme.primary, opacity: isGeneratingQuest ? 0.6 : 1 }]}
+                onPress={onNextQuest}
+                disabled={isGeneratingQuest}
+              >
+                {isGeneratingQuest ? (
+                  <Text style={modalStyles.actionButtonText}>Generating Quest...</Text>
+                ) : (
+                  <>
+                    <Text style={modalStyles.actionButtonText}>Continue</Text>
+                    <ArrowRight size={20} color="#FFFFFF" />
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={[modalStyles.actionButtonSecondary, { borderColor: theme.border, backgroundColor: theme.backgroundTertiary }]}
+                onPress={onCreateCustom}
+              >
+                <Plus size={20} color={theme.text} />
+                <Text style={[modalStyles.actionButtonTextSecondary, { color: theme.text }]}>Custom Quest</Text>
+              </Pressable>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+function truncateToWords(text: string, maxWords?: number) {
+  if (!maxWords) return text;
+  const parts = text.split(/\s+/);
+  if (parts.length <= maxWords) return text;
+  return parts.slice(0, maxWords).join(' ') + '…';
+}
+
+function formatTime(milliseconds: number): string {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function createStyles(colors: any) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    statBadge: {
+      backgroundColor: colors.card,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statValue: {
+      fontSize: 14,
+      fontWeight: '700' as const,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardsContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyState: {
+      alignItems: 'center',
+      padding: 40,
+    },
+    emptyTitle: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 16,
+      textAlign: 'center',
+    },
+    loadingState: {
+      alignItems: 'center',
+      padding: 40,
+      gap: 16,
+    },
+    loadingTitle: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    loadingSubtitle: {
+      fontSize: 16,
+      textAlign: 'center',
+    },
+    instructions: {
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      gap: 4,
+    },
+    instructionsText: {
+      fontSize: 12,
+      textAlign: 'center',
+    },
+
+  });
+}
+
+function createCardStyles(colors: any) {
+  return StyleSheet.create({
+    card: {
+      position: 'absolute',
+      width: SCREEN_WIDTH - 40,
+      height: SCREEN_HEIGHT * 0.65,
+      borderRadius: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    cardGradient: {
+      flex: 1,
+      borderRadius: 24,
+      padding: 24,
+      justifyContent: 'space-between',
+    },
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 24,
+      borderWidth: 2,
+    },
+    yesOverlay: {
+      borderColor: '#EF4444',
+      backgroundColor: '#EF444418',
+    },
+    noOverlay: {
+      borderColor: '#10B981',
+      backgroundColor: '#10B98118',
+    },
+    overlayBadge: {
+      alignItems: 'center',
+      gap: 12,
+    },
+    overlayText: {
+      fontSize: 48,
+      fontWeight: '900' as const,
+      color: '#FFFFFF',
+      textShadowColor: 'rgba(0, 0, 0, 0.5)',
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 4,
+    },
+    overlayTextBig: {
+      fontSize: 48,
+      fontWeight: '900' as const,
+      color: '#FFFFFF',
+      textShadowColor: 'rgba(0, 0, 0, 0.5)',
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 4,
+    },
+    overlaySubText: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    noRequirementBadge: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 2,
+      alignSelf: 'flex-start',
+    },
+    noRequirementText: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+    },
+    cardContent: {
+      flex: 1,
+      justifyContent: 'center',
+      gap: 20,
+    },
+    difficultyBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 12,
+    },
+    difficultyText: {
+      fontSize: 12,
+      fontWeight: '700' as const,
+    },
+    questTitle: {
+      fontSize: 32,
+      fontWeight: '800' as const,
+      lineHeight: 40,
+    },
+    questDescription: {
+      fontSize: 18,
+      lineHeight: 26,
+    },
+    rewardsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 12,
+    },
+    rewardBadge: {
+      backgroundColor: colors.primary + '20',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    timerContainer: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderRadius: 16,
+      borderWidth: 2,
+      alignSelf: 'flex-start' as const,
+    },
+    timerText: {
+      fontSize: 24,
+      fontWeight: '800' as const,
+      letterSpacing: 1,
+    },
+    rewardText: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingTop: 20,
+      opacity: 0.95,
+    },
+    actionButton: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    noButton: {
+      backgroundColor: '#10B981',
+      opacity: 0.9,
+    },
+    yesButton: {
+      backgroundColor: '#EF4444',
+      opacity: 0.9,
+    },
+    actionButtonText: {
+      fontSize: 24,
+      fontWeight: '900' as const,
+      color: '#FFFFFF',
+    },
+  });
+}
+
+const modalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  container: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  gradient: {
+    padding: 32,
+  },
+  header: {
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 32,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '900' as const,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '900' as const,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  rewards: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 28,
+    justifyContent: 'center',
+  },
+  rewardItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  rewardText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  actions: {
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  actionButtonSecondary: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+    borderWidth: 2,
+  },
+  actionButtonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+});
