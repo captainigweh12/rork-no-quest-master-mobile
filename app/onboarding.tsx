@@ -5,15 +5,20 @@ import { Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLocalization } from '@/contexts/LocalizationContext';
 
 export default function OnboardingScreen() {
   const { prefs, update } = useOnboarding();
   const { theme } = useTheme();
+  const { user, updateRelationshipStatus } = useAuth();
+  const { t } = useLocalization();
 
   const [goal, setGoal] = useState<string>(prefs.goal ?? '');
   const [personality, setPersonality] = useState<'introvert' | 'extrovert' | 'ambivert'>(prefs.personality ?? 'ambivert');
   const [preferredTime, setPreferredTime] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>(prefs.preferredTime ?? 'anytime');
   const [dailyQuests, setDailyQuests] = useState<string>(String(prefs.dailyQuests ?? 2));
+  const [relationshipStatus, setRelationshipStatus] = useState<'single' | 'married'>(user?.relationshipStatus || 'single');
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const styles = useMemo(() => createStyles(theme.colors), [theme.colors]);
@@ -22,6 +27,7 @@ export default function OnboardingScreen() {
     const parsedDaily = Math.max(1, Math.min(10, Number.isNaN(Number(dailyQuests)) ? 2 : Number(dailyQuests)));
     setIsSaving(true);
     try {
+      await updateRelationshipStatus(relationshipStatus);
       await update({ 
         goal: goal.trim() || prefs.goal, 
         personality, 
@@ -45,13 +51,13 @@ export default function OnboardingScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
 
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Let’s personalize your quests</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>We’ll tailor challenges to your goals and rhythm</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>{t('onboarding.title')}</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>{t('onboarding.subtitle')}</Text>
       </View>
 
       <View style={styles.form}>
         <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Your main goal</Text>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{t('onboarding.goal')}</Text>
           <TextInput
             value={goal}
             onChangeText={setGoal}
@@ -63,7 +69,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>How would you describe yourself?</Text>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{t('onboarding.personality')}</Text>
           <View style={styles.segmentRow}>
             {(['introvert','ambivert','extrovert'] as const).map(opt => (
               <Pressable
@@ -73,7 +79,7 @@ export default function OnboardingScreen() {
                 testID={`onboarding-personality-${opt}`}
               >
                 <Text style={[styles.segmentText, { color: personality === opt ? '#FFFFFF' : theme.colors.text }]}>
-                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  {t(`onboarding.${opt}`)}
                 </Text>
               </Pressable>
             ))}
@@ -81,7 +87,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Preferred time to start quests</Text>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{t('onboarding.preferredTime')}</Text>
           <View style={styles.segmentRow}>
             {(['morning','afternoon','evening','anytime'] as const).map(opt => (
               <Pressable
@@ -91,7 +97,7 @@ export default function OnboardingScreen() {
                 testID={`onboarding-time-${opt}`}
               >
                 <Text style={[styles.segmentText, { color: preferredTime === opt ? '#FFFFFF' : theme.colors.text }]}>
-                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  {t(`onboarding.${opt}`)}
                 </Text>
               </Pressable>
             ))}
@@ -99,7 +105,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Quests per day</Text>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{t('onboarding.dailyQuests')}</Text>
           <TextInput
             value={dailyQuests}
             onChangeText={setDailyQuests}
@@ -107,6 +113,25 @@ export default function OnboardingScreen() {
             style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
             testID="onboarding-daily"
           />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{t('onboarding.relationshipStatus')}</Text>
+          <Text style={[styles.fieldDescription, { color: theme.colors.textSecondary }]}>{t('onboarding.relationshipDescription')}</Text>
+          <View style={styles.segmentRow}>
+            {(['single', 'married'] as const).map(opt => (
+              <Pressable
+                key={opt}
+                onPress={() => setRelationshipStatus(opt)}
+                style={[styles.segment, { borderColor: theme.colors.border, backgroundColor: relationshipStatus === opt ? theme.colors.primary : theme.colors.card }]}
+                testID={`onboarding-relationship-${opt}`}
+              >
+                <Text style={[styles.segmentText, { color: relationshipStatus === opt ? '#FFFFFF' : theme.colors.text }]}>
+                  {t(`onboarding.${opt}`)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
 
@@ -119,7 +144,7 @@ export default function OnboardingScreen() {
         {isSaving ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.ctaText}>Continue</Text>
+          <Text style={styles.ctaText}>{t('onboarding.continue')}</Text>
         )}
       </Pressable>
       </SafeAreaView>
@@ -136,6 +161,7 @@ function createStyles(colors: any) {
     subtitle: { fontSize: 14 },
     form: { gap: 16, flex: 1 },
     field: { gap: 8 },
+    fieldDescription: { fontSize: 12, lineHeight: 16, marginTop: -4 },
     label: { fontSize: 12, fontWeight: '700' as const, letterSpacing: 0.4 },
     input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
     segmentRow: { flexDirection: 'row' as const, gap: 8 },

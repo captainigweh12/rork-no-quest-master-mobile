@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, User, Award, Target, TrendingUp, Heart } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useLocalization } from '@/contexts/LocalizationContext';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
@@ -14,6 +15,7 @@ export default function ProfileScreen() {
   const { user, updateRelationshipStatus } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLocalization();
   const [isUpdating, setIsUpdating] = useState(false);
 
   const styles = createStyles(theme.colors);
@@ -38,7 +40,7 @@ export default function ProfileScreen() {
       />
 
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Profile</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('profile.title')}</Text>
         <Pressable onPress={() => router.back()} style={styles.closeButton}>
           <X size={24} color={theme.colors.text} />
         </Pressable>
@@ -60,7 +62,7 @@ export default function ProfileScreen() {
 
           <Text style={[styles.profileName, { color: theme.colors.text }]}>{profile.name}</Text>
           <View style={[styles.levelBadge, { backgroundColor: theme.colors.primary + '20' }]}>
-            <Text style={[styles.levelText, { color: theme.colors.primary }]}>Level {profile.level}</Text>
+            <Text style={[styles.levelText, { color: theme.colors.primary }]}>{t('profile.level')} {profile.level}</Text>
           </View>
         </View>
 
@@ -70,7 +72,7 @@ export default function ProfileScreen() {
               <Target size={24} color={theme.colors.primary} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{profile.totalRejections}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Total Rejections</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>{t('profile.totalRejections')}</Text>
           </View>
 
           <View style={styles.statItem}>
@@ -78,7 +80,7 @@ export default function ProfileScreen() {
               <Award size={24} color={theme.colors.warning} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{profile.totalPoints}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Total Points</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>{t('profile.totalPoints')}</Text>
           </View>
 
           <View style={styles.statItem}>
@@ -86,7 +88,7 @@ export default function ProfileScreen() {
               <TrendingUp size={24} color={theme.colors.error} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{profile.streak}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Day Streak</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>{t('profile.dayStreak')}</Text>
           </View>
 
           <View style={styles.statItem}>
@@ -94,12 +96,12 @@ export default function ProfileScreen() {
               <User size={24} color={theme.colors.success} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{profile.currentXP}</Text>
-            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Current XP</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>{t('profile.currentXP')}</Text>
           </View>
         </View>
 
         <View style={[styles.progressCard, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.progressTitle, { color: theme.colors.text }]}>Level Progress</Text>
+          <Text style={[styles.progressTitle, { color: theme.colors.text }]}>{t('profile.levelProgress')}</Text>
           <View style={styles.progressBar}>
             <View style={[styles.progressBarTrack, { backgroundColor: theme.colors.backgroundSecondary }]}>
               <LinearGradient
@@ -111,17 +113,17 @@ export default function ProfileScreen() {
             </View>
           </View>
           <Text style={[styles.progressText, { color: theme.colors.textSecondary }]}>
-            {profile.currentXP} / {profile.xpToNextLevel} XP to Level {profile.level + 1}
+            {profile.currentXP} / {profile.xpToNextLevel} {t('profile.xpToLevel')} {profile.level + 1}
           </Text>
         </View>
 
         <View style={[styles.relationshipCard, { backgroundColor: theme.colors.card }]}>
           <View style={styles.relationshipHeader}>
             <Heart size={24} color={theme.colors.primary} />
-            <Text style={[styles.relationshipTitle, { color: theme.colors.text }]}>Relationship Status</Text>
+            <Text style={[styles.relationshipTitle, { color: theme.colors.text }]}>{t('profile.relationshipStatus')}</Text>
           </View>
           <Text style={[styles.relationshipDescription, { color: theme.colors.textSecondary }]}>
-            AI will curate quests based on your dating status
+            {t('profile.relationshipDescription')}
           </Text>
           <View style={styles.relationshipButtons}>
             <Pressable
@@ -142,7 +144,7 @@ export default function ProfileScreen() {
                     : { color: theme.colors.textSecondary }
                 ]}
               >
-                Single
+                {t('profile.single')}
               </Text>
             </Pressable>
             <Pressable
@@ -163,7 +165,7 @@ export default function ProfileScreen() {
                     : { color: theme.colors.textSecondary }
                 ]}
               >
-                Married
+                {t('profile.married')}
               </Text>
             </Pressable>
           </View>

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Moon, Sun, Bell, Shield, LogOut, Globe, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useLocalization } from '@/contexts/LocalizationContext';
 
 const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const { signOut, user, updatePreferredLanguage } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLocalization();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const styles = createStyles(theme.colors);
@@ -50,7 +52,7 @@ export default function SettingsScreen() {
       />
 
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{t('settings.title')}</Text>
         <Pressable onPress={() => router.back()} style={styles.closeButton}>
           <X size={24} color={theme.colors.text} />
         </Pressable>
@@ -61,7 +63,7 @@ export default function SettingsScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
       >
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.appearance')}</Text>
 
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
@@ -71,9 +73,9 @@ export default function SettingsScreen() {
                 <Sun size={20} color={theme.colors.text} />
               )}
               <View>
-                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Theme</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.theme')}</Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {themeMode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                  {themeMode === 'dark' ? t('settings.darkMode') : t('settings.lightMode')}
                 </Text>
               </View>
             </View>
@@ -87,7 +89,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Preferences</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.preferences')}</Text>
 
           <Pressable
             style={styles.settingRow}
@@ -96,7 +98,7 @@ export default function SettingsScreen() {
             <View style={styles.settingLeft}>
               <Globe size={20} color={theme.colors.text} />
               <View>
-                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Language</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.language')}</Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
                   {selectedLanguage.nativeName}
                 </Text>
@@ -107,15 +109,15 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Notifications</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.notifications')}</Text>
 
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
               <Bell size={20} color={theme.colors.text} />
               <View>
-                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Quest Reminders</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.questReminders')}</Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  Get notified to complete daily quests
+                  {t('settings.questRemindersDesc')}
                 </Text>
               </View>
             </View>
@@ -128,7 +130,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Legal</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.legal')}</Text>
 
           <Pressable
             style={styles.settingRow}
@@ -137,9 +139,9 @@ export default function SettingsScreen() {
             <View style={styles.settingLeft}>
               <Shield size={20} color={theme.colors.text} />
               <View>
-                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Safety Guidelines</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.safetyGuidelines')}</Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  Read important safety information
+                  {t('settings.safetyGuidelinesDesc')}
                 </Text>
               </View>
             </View>
@@ -147,18 +149,18 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Account</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.account')}</Text>
 
           <Pressable
             style={styles.settingRow}
             onPress={() => {
               Alert.alert(
-                'Sign Out',
-                'Are you sure you want to sign out?',
+                t('settings.signOut'),
+                t('settings.signOutConfirm'),
                 [
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: t('settings.cancel'), style: 'cancel' },
                   {
-                    text: 'Sign Out',
+                    text: t('settings.signOut'),
                     style: 'destructive',
                     onPress: async () => {
                       try {
@@ -176,9 +178,9 @@ export default function SettingsScreen() {
             <View style={styles.settingLeft}>
               <LogOut size={20} color={theme.colors.error} />
               <View>
-                <Text style={[styles.settingLabel, { color: theme.colors.error }]}>Sign Out</Text>
+                <Text style={[styles.settingLabel, { color: theme.colors.error }]}>{t('settings.signOut')}</Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {user?.email || 'Sign out of your account'}
+                  {user?.email || ''}
                 </Text>
               </View>
             </View>
@@ -201,7 +203,7 @@ export default function SettingsScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Select Language</Text>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{t('settings.selectLanguage')}</Text>
               <Pressable onPress={() => setShowLanguageModal(false)}>
                 <X size={24} color={theme.colors.text} />
               </Pressable>

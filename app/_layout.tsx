@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
+import { LocalizationProvider } from "@/contexts/LocalizationContext";
 
 
 LogBox.ignoreLogs([
@@ -83,17 +84,19 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ThemeProvider>
-            <OnboardingProvider>
-              <NotificationsProvider>
-                <GameProvider>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <RootLayoutNav />
-                  </GestureHandlerRootView>
-                </GameProvider>
-              </NotificationsProvider>
-            </OnboardingProvider>
-          </ThemeProvider>
+          <LocalizationProvider>
+            <ThemeProvider>
+              <OnboardingProvider>
+                <NotificationsProvider>
+                  <GameProvider>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <RootLayoutNav />
+                    </GestureHandlerRootView>
+                  </GameProvider>
+                </NotificationsProvider>
+              </OnboardingProvider>
+            </ThemeProvider>
+          </LocalizationProvider>
         </AuthProvider>
       </QueryClientProvider>
     </trpc.Provider>
