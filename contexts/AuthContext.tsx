@@ -76,13 +76,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       if (error) {
         console.error('Sign in error:', error);
+        if (error.message.includes('fetch')) {
+          throw new Error('Network error: Unable to connect to authentication server. Please check your internet connection and try again.');
+        }
         throw error;
       }
 
       console.log('Sign in successful:', data);
       return { data, error: null };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign in exception:', error);
+      if (error.message?.includes('fetch') || error.name?.includes('Fetch')) {
+        throw new Error('Network error: Unable to connect to authentication server. Please check your internet connection and try again.');
+      }
       throw error;
     }
   }, []);
