@@ -145,6 +145,73 @@ export default function DebugEmailScreen() {
     }
   };
 
+  const testAuthHook = async () => {
+    setIsLoading(true);
+    addLog('🔄 Testing Auth Hook endpoint...');
+    addLog('');
+
+    try {
+      const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || 'NOT SET';
+      const url = `${baseUrl}/api/auth/hook`;
+      
+      addLog('🌐 Making POST request to:');
+      addLog(`   ${url}`);
+      addLog('');
+      addLog('📦 Payload:');
+      addLog('   Simulating Supabase user.created event');
+      addLog('');
+
+      const payload = {
+        type: 'user.created',
+        user: {
+          email: email,
+          confirmation_url: 'https://example.com/confirm?token=TEST123',
+        }
+      };
+
+      addLog('📤 Sending payload:');
+      addLog(JSON.stringify(payload, null, 2));
+      addLog('');
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await response.json();
+      
+      addLog(`📦 Response:`);
+      addLog(`   Status: ${response.status} ${response.statusText}`);
+      addLog(`   OK: ${response.ok}`);
+      addLog('');
+      addLog('📝 Data:');
+      addLog(JSON.stringify(data, null, 2));
+      addLog('');
+      
+      if (data.success) {
+        addLog('✅ 🎉 AUTH HOOK WORKS!');
+        addLog(`   Message ID: ${data.messageId}`);
+        addLog('');
+        addLog('📧 Check your email inbox!');
+        addLog('');
+        addLog('✨ This means Supabase Auth Hooks will work!');
+      } else {
+        addLog('❌ AUTH HOOK FAILED');
+        addLog(`   Error: ${data.error}`);
+      }
+    } catch (error: any) {
+      addLog('❌ 💥 Request failed');
+      addLog('');
+      addLog(`Error: ${error?.message || String(error)}`);
+      addLog(`Stack: ${error?.stack || 'none'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const testEmailEndpoint = async () => {
     setIsLoading(true);
     addLog('🔄 Testing direct /api/test-email endpoint...');
@@ -252,6 +319,16 @@ export default function DebugEmailScreen() {
                   Test Backend Health
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.buttonPrimary]}
+                onPress={testAuthHook}
+                disabled={isLoading}
+              >
+                <Text style={styles.buttonText}>
+                  🎉 Test Auth Hook (Supabase)
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.section}>
@@ -338,6 +415,9 @@ const styles = StyleSheet.create({
   },
   buttonSecondary: {
     backgroundColor: 'rgba(91, 140, 222, 0.5)',
+  },
+  buttonPrimary: {
+    backgroundColor: '#ff8a4c',
   },
   buttonBack: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
