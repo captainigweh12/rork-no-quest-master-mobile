@@ -6,6 +6,7 @@ interface User {
   id: string;
   email: string;
   fullName: string;
+  relationshipStatus?: 'single' | 'married';
 }
 
 interface Session {
@@ -31,6 +32,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             id: sessionData.user!.id,
             email: sessionData.user!.email,
             fullName: sessionData.user!.fullName,
+            relationshipStatus: sessionData.user!.relationshipStatus,
           });
         } else {
           console.log('No session found');
@@ -71,6 +73,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         id: authUser.id,
         email: authUser.email,
         fullName: authUser.fullName,
+        relationshipStatus: authUser.relationshipStatus,
       });
 
       console.log('Sign in successful');
@@ -123,6 +126,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  const updateRelationshipStatus = useCallback(async (relationshipStatus: 'single' | 'married') => {
+    if (!user) throw new Error('No user logged in');
+    console.log('Updating relationship status:', relationshipStatus);
+    try {
+      await localStorageService.updateRelationshipStatus(user.id, relationshipStatus);
+      setUser({ ...user, relationshipStatus });
+      console.log('Relationship status updated successfully');
+    } catch (error: any) {
+      console.error('Update relationship status exception:', error);
+      throw error;
+    }
+  }, [user]);
+
   return useMemo(
     () => ({
       session,
@@ -134,7 +150,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       resetPassword,
       verifyEmail,
       resendVerificationCode,
+      updateRelationshipStatus,
     }),
-    [session, user, isLoading, signUp, signIn, signOut, resetPassword, verifyEmail, resendVerificationCode]
+    [session, user, isLoading, signUp, signIn, signOut, resetPassword, verifyEmail, resendVerificationCode, updateRelationshipStatus]
   );
 });

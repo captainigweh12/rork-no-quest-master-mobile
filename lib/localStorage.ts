@@ -26,6 +26,7 @@ interface LocalUser {
   emailVerified: boolean;
   verificationCode?: string;
   createdAt: string;
+  relationshipStatus?: 'single' | 'married';
 }
 
 interface LocalSession {
@@ -94,6 +95,7 @@ export const localStorageService = {
       emailVerified: false,
       verificationCode,
       createdAt: new Date().toISOString(),
+      relationshipStatus: 'single',
     };
 
     users.push(newUser);
@@ -604,5 +606,26 @@ export const localStorageService = {
 
   async getPendingVerification() {
     return await getItem<{ email: string; verificationCode: string }>(STORAGE_KEYS.PENDING_VERIFICATION);
+  },
+
+  async updateRelationshipStatus(userId: string, relationshipStatus: 'single' | 'married') {
+    console.log('[localStorage] Updating relationship status:', userId, relationshipStatus);
+    const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
+    const user = users.find(u => u.id === userId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    user.relationshipStatus = relationshipStatus;
+    await setItem(STORAGE_KEYS.USERS, users);
+
+    const currentUser = await getItem<LocalUser>(STORAGE_KEYS.CURRENT_USER);
+    if (currentUser && currentUser.id === userId) {
+      currentUser.relationshipStatus = relationshipStatus;
+      await setItem(STORAGE_KEYS.CURRENT_USER, currentUser);
+    }
+
+    return user;
   },
 };

@@ -2,17 +2,33 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, User, Award, Target, TrendingUp } from 'lucide-react-native';
+import { X, User, Award, Target, TrendingUp, Heart } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
   const { profile } = useGame();
+  const { user, updateRelationshipStatus } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const styles = createStyles(theme.colors);
+
+  const handleRelationshipStatusChange = async (status: 'single' | 'married') => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    try {
+      await updateRelationshipStatus(status);
+    } catch (error) {
+      console.error('Failed to update relationship status:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -97,6 +113,60 @@ export default function ProfileScreen() {
           <Text style={[styles.progressText, { color: theme.colors.textSecondary }]}>
             {profile.currentXP} / {profile.xpToNextLevel} XP to Level {profile.level + 1}
           </Text>
+        </View>
+
+        <View style={[styles.relationshipCard, { backgroundColor: theme.colors.card }]}>
+          <View style={styles.relationshipHeader}>
+            <Heart size={24} color={theme.colors.primary} />
+            <Text style={[styles.relationshipTitle, { color: theme.colors.text }]}>Relationship Status</Text>
+          </View>
+          <Text style={[styles.relationshipDescription, { color: theme.colors.textSecondary }]}>
+            AI will curate quests based on your dating status
+          </Text>
+          <View style={styles.relationshipButtons}>
+            <Pressable
+              onPress={() => handleRelationshipStatusChange('single')}
+              disabled={isUpdating}
+              style={[
+                styles.relationshipButton,
+                user?.relationshipStatus === 'single' 
+                  ? { backgroundColor: theme.colors.primary }
+                  : { backgroundColor: theme.colors.backgroundSecondary }
+              ]}
+            >
+              <Text
+                style={[
+                  styles.relationshipButtonText,
+                  user?.relationshipStatus === 'single'
+                    ? { color: '#FFFFFF' }
+                    : { color: theme.colors.textSecondary }
+                ]}
+              >
+                Single
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleRelationshipStatusChange('married')}
+              disabled={isUpdating}
+              style={[
+                styles.relationshipButton,
+                user?.relationshipStatus === 'married'
+                  ? { backgroundColor: theme.colors.primary }
+                  : { backgroundColor: theme.colors.backgroundSecondary }
+              ]}
+            >
+              <Text
+                style={[
+                  styles.relationshipButtonText,
+                  user?.relationshipStatus === 'married'
+                    ? { color: '#FFFFFF' }
+                    : { color: theme.colors.textSecondary }
+                ]}
+              >
+                Married
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -215,6 +285,41 @@ function createStyles(colors: any) {
     progressText: {
       fontSize: 14,
       textAlign: 'center',
+    },
+    relationshipCard: {
+      padding: 24,
+      borderRadius: 24,
+    },
+    relationshipHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 8,
+    },
+    relationshipTitle: {
+      fontSize: 18,
+      fontWeight: '700' as const,
+    },
+    relationshipDescription: {
+      fontSize: 14,
+      marginBottom: 20,
+      lineHeight: 20,
+    },
+    relationshipButtons: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    relationshipButton: {
+      flex: 1,
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    relationshipButtonText: {
+      fontSize: 16,
+      fontWeight: '600' as const,
     },
   });
 }

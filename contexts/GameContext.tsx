@@ -3,6 +3,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Quest, QuestDifficulty, UserProfile } from '@/types';
 import { generateQuest } from '@/services/questAI';
+import { useAuth } from '@/contexts/AuthContext';
 
 const INITIAL_PROFILE: UserProfile = {
   name: 'Hero',
@@ -84,6 +85,7 @@ const INITIAL_QUESTS: Quest[] = [
 ];
 
 export const [GameProvider, useGame] = createContextHook(() => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,6 +213,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
           personalityType: 'ambivert',
           comfortLevel: 5,
           preferredTime: 'anytime',
+          relationshipStatus: user?.relationshipStatus,
           previousQuest: previousQuest ? {
             title: previousQuest.title,
             description: previousQuest.description ?? '',
@@ -230,7 +233,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         throw error;
       }
     },
-    [quests, profile.level]
+    [quests, profile.level, user?.relationshipStatus]
   );
 
   const removeQuest = useCallback(

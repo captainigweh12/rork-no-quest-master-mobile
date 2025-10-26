@@ -9,6 +9,7 @@ export interface GenerateQuestParams {
   rank: string;
   level: number;
   isSuperQuest?: boolean;
+  relationshipStatus?: 'single' | 'married';
   previousQuest?: {
     title: string;
     description: string;
@@ -54,7 +55,63 @@ function calculateXP(difficulty: QuestDifficulty, level: number, isSuperQuest: b
   return Math.round(baseXP[difficulty] * multiplier);
 }
 
-const questTemplates = [
+const questTemplatesSingle = [
+  {
+    title: 'Ask Someone Out',
+    description: 'Ask someone you\'re interested in out for coffee or a date',
+    icon: 'coffee',
+  },
+  {
+    title: 'Ask for a Number',
+    description: 'Get a phone number from someone you find interesting',
+    icon: 'message-circle',
+  },
+  {
+    title: 'Flirt with a Stranger',
+    description: 'Give someone a genuine compliment or start a flirty conversation',
+    icon: 'flame',
+  },
+  {
+    title: 'Request a Discount',
+    description: 'Visit any store and ask for a discount on a regular-priced item',
+    icon: 'target',
+  },
+  {
+    title: 'Ask for a Date Activity',
+    description: 'Ask someone to join you for a specific activity you enjoy',
+    icon: 'trending-up',
+  },
+];
+
+const questTemplatesMarried = [
+  {
+    title: 'Plan a Surprise Date',
+    description: 'Ask your partner on a surprise date to somewhere new',
+    icon: 'coffee',
+  },
+  {
+    title: 'Request Quality Time',
+    description: 'Ask your partner to put away devices for an hour of quality time',
+    icon: 'message-circle',
+  },
+  {
+    title: 'Try Something New Together',
+    description: 'Suggest a new activity or hobby to try with your partner',
+    icon: 'flame',
+  },
+  {
+    title: 'Ask for Help',
+    description: 'Request help with something you usually handle alone',
+    icon: 'target',
+  },
+  {
+    title: 'Express a Need',
+    description: 'Share an emotional need or desire with your partner',
+    icon: 'trending-up',
+  },
+];
+
+const questTemplatesGeneral = [
   {
     title: 'Ask for a Discount',
     description: 'Visit any store and ask for a discount on a regular-priced item',
@@ -69,11 +126,6 @@ const questTemplates = [
     title: 'Negotiate at a Market',
     description: 'Try to negotiate the price at a local market or store',
     icon: 'trending-up',
-  },
-  {
-    title: 'Ask Someone Out',
-    description: 'Ask someone you\'re interested in out for coffee or a date',
-    icon: 'coffee',
   },
   {
     title: 'Request a Free Sample',
@@ -108,11 +160,19 @@ const questTemplates = [
 ];
 
 export async function generateQuest(params: GenerateQuestParams): Promise<Quest> {
-  const { difficulty, level, isSuperQuest = false } = params;
+  const { difficulty, level, isSuperQuest = false, relationshipStatus } = params;
 
   console.log('Generating quest locally with params:', params);
 
-  const randomTemplate = questTemplates[Math.floor(Math.random() * questTemplates.length)];
+  let questPool = questTemplatesGeneral;
+  
+  if (relationshipStatus === 'single') {
+    questPool = [...questTemplatesSingle, ...questTemplatesGeneral];
+  } else if (relationshipStatus === 'married') {
+    questPool = [...questTemplatesMarried, ...questTemplatesGeneral];
+  }
+
+  const randomTemplate = questPool[Math.floor(Math.random() * questPool.length)];
   const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)] as string;
 
   const minNoByDifficulty: Record<QuestDifficulty, number> = {
