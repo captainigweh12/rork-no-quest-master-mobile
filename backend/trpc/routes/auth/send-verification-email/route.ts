@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { publicProcedure } from '../../../create-context';
 import { Resend } from 'resend';
 
-const RESEND_API_KEY = 're_8NoeRnFF_PyYgE55LwbtHnUmC3TJ3CkD5';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_8NoeRnFF_PyYgE55LwbtHnUmC3TJ3CkD5';
 
 export const sendVerificationEmailProcedure = publicProcedure
   .input(
@@ -27,7 +27,9 @@ export const sendVerificationEmailProcedure = publicProcedure
       
       const resend = new Resend(RESEND_API_KEY);
 
-      const { data, error } = await resend.emails.send({
+      console.log('[Resend] Attempting to send email...');
+      
+      const result = await resend.emails.send({
         from: 'Quest App <onboarding@resend.dev>',
         to: input.email,
         subject: 'Verify Your Email - Quest App',
@@ -65,15 +67,18 @@ export const sendVerificationEmailProcedure = publicProcedure
         `,
       });
 
-      if (error) {
-        console.error('[Resend] Error sending email:', error);
-        return { success: false, error: error.message || 'Failed to send email' };
+      console.log('[Resend] Result:', result);
+
+      if (result.error) {
+        console.error('[Resend] Error sending email:', result.error);
+        return { success: false, error: result.error.message || 'Failed to send email' };
       }
 
-      console.log('[Resend] Email sent successfully:', data);
-      return { success: true, messageId: data?.id };
+      console.log('[Resend] Email sent successfully:', result.data);
+      return { success: true, messageId: result.data?.id };
     } catch (error: any) {
       console.error('[Resend] Exception sending email:', error);
+      console.error('[Resend] Error stack:', error?.stack);
       return { success: false, error: error?.message || 'Unknown error occurred' };
     }
   });

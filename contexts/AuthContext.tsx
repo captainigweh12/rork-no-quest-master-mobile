@@ -76,8 +76,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Note: You can still verify using the code:', verificationCode);
         }
       } catch (emailError: any) {
-        console.error('Error sending verification email:', emailError?.message || emailError);
+        console.error('Error sending verification email:', {
+          message: emailError?.message,
+          error: String(emailError),
+          cause: emailError?.cause
+        });
         console.log('Note: You can still verify using the code:', verificationCode);
+        console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
       }
 
       console.log('Sign up successful, verification required');
@@ -162,8 +167,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Note: You can still verify using the code:', verificationCode);
         }
       } catch (emailError: any) {
-        console.error('Error resending verification email:', emailError?.message || emailError);
+        console.error('Error resending verification email:', {
+          message: emailError?.message,
+          error: String(emailError),
+          cause: emailError?.cause
+        });
         console.log('Note: You can still verify using the code:', verificationCode);
+        console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
       }
       
       console.log('Verification code resent');
