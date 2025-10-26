@@ -1,6 +1,7 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { localStorageService } from '@/lib/localStorage';
+import { trpc } from '@/lib/trpc';
 
 interface User {
   id: string;
@@ -19,6 +20,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const sendVerificationEmailMutation = trpc.auth.sendVerificationEmail.useMutation();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -57,13 +60,31 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     try {
       const { user: newUser, verificationCode } = await localStorageService.signUp(email, password, fullName);
 
+      console.log('User created, sending verification email...');
+      
+      try {
+        const emailResult = await sendVerificationEmailMutation.mutateAsync({
+          email,
+          fullName,
+          verificationCode,
+        });
+        
+        if (emailResult.success) {
+          console.log('Verification email sent successfully');
+        } else {
+          console.error('Failed to send verification email:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+      }
+
       console.log('Sign up successful, verification required');
       return { data: { user: newUser, verificationCode }, error: null };
     } catch (error: any) {
       console.error('Sign up exception:', error);
       throw error;
     }
-  }, []);
+  }, [sendVerificationEmailMutation]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     console.log('Signing in with email:', email);
@@ -121,13 +142,33 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('Resending verification code for:', email);
     try {
       const { verificationCode } = await localStorageService.resendVerificationCode(email);
+      
+      const users = await localStorageService.getCurrentUser();
+      const fullName = users?.fullName || 'User';
+      
+      try {
+        const emailResult = await sendVerificationEmailMutation.mutateAsync({
+          email,
+          fullName,
+          verificationCode,
+        });
+        
+        if (emailResult.success) {
+          console.log('Verification email resent successfully');
+        } else {
+          console.error('Failed to resend verification email:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('Error resending verification email:', emailError);
+      }
+      
       console.log('Verification code resent');
       return { data: { verificationCode }, error: null };
     } catch (error: any) {
       console.error('Resend verification exception:', error);
       throw error;
     }
-  }, []);
+  }, [sendVerificationEmailMutation]);
 
   const updateRelationshipStatus = useCallback(async (relationshipStatus: 'single' | 'married') => {
     try {
