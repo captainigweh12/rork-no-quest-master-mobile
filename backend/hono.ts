@@ -40,7 +40,7 @@ app.get("/api/test-email", async (c) => {
     const resend = new Resend(apiKey);
 
     const { data, error } = await resend.emails.send({
-      from: "Quest App <onboarding@resend.dev>",
+      from: "Rejection Hero <onboarding@rejectionhero.com>",
       to,
       subject,
       text,

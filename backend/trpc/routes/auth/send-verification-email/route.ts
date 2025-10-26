@@ -35,7 +35,7 @@ export const sendVerificationEmailProcedure = publicProcedure
 
       console.log('[Resend] Preparing email payload...');
       const emailPayload = {
-        from: 'Quest App <onboarding@resend.dev>',
+        from: 'Rejection Hero <onboarding@rejectionhero.com>',
         to: [input.email],
         subject: 'Verify Your Email - Quest App',
         html: `

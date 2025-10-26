@@ -7,13 +7,25 @@ import Constants from "expo-constants";
 
 export const trpc = createTRPCReact<AppRouter>();
 
+function normalizeBase(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("exp://")) {
+    const host = trimmed.replace("exp://", "").replace(/\/$/, "");
+    const isSecure = host.includes(".app") || host.includes(".ngrok-free.app") || host.includes(".ngrok.io");
+    return `${isSecure ? "https" : "http"}://${host}`;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed.replace(/\/$/, "");
+  const isSecure = trimmed.includes(".app") || trimmed.includes(".ngrok-free.app") || trimmed.includes(".ngrok.io");
+  return `${isSecure ? "https" : "http"}://${trimmed.replace(/\/$/, "")}`;
+}
+
 function computeBaseUrl(): string {
   const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
-  if (envBase && envBase.trim().length > 0) return envBase;
+  if (envBase && envBase.trim().length > 0) return normalizeBase(envBase);
 
   if (Platform.OS === "web") {
-    if (typeof window !== "undefined" && window.location?.origin) {
-      return window.location.origin;
+    if (typeof window !== "undefined" && (window as any).location?.origin) {
+      return (window as any).location.origin;
     }
   }
 
