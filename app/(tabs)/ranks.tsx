@@ -1,68 +1,116 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Trophy } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { localStorageService } from '@/lib/localStorage';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGame } from '@/contexts/GameContext';
 
 interface LeaderboardEntry {
   rank: number;
+  userId: string;
   username: string;
   level: number;
   levelTitle: string;
   quests: number;
   tokens: number;
+  totalRejections: number;
   isYou?: boolean;
 }
 
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    username: 'TopDawg',
-    level: 3,
-    levelTitle: 'Novice',
-    quests: 29,
-    tokens: 3058,
-    isYou: true,
-  },
-  {
-    rank: 2,
-    username: 'Top2',
-    level: 1,
-    levelTitle: 'Noob',
-    quests: 3,
-    tokens: 175,
-  },
-  {
-    rank: 3,
-    username: 'broker',
-    level: 1,
-    levelTitle: 'Noob',
-    quests: 3,
-    tokens: 250,
-  },
-  {
-    rank: 4,
-    username: 'Julie',
-    level: 1,
-    levelTitle: 'Noob',
-    quests: 3,
-    tokens: 195,
-  },
-  {
-    rank: 5,
-    username: 'Rizn',
-    level: 1,
-    levelTitle: 'Noob',
-    quests: 1,
-    tokens: 150,
-  },
-];
+function getLevelTitle(level: number): string {
+  const rankTitles = [
+    'Noob',
+    'Novice',
+    'Explorer',
+    'Adventurer',
+    'Warrior',
+    'Champion',
+    'Legend',
+    'Master',
+    'Grandmaster',
+    'God',
+  ];
+  const index = Math.min(Math.floor((level - 1) / 5), rankTitles.length - 1);
+  return rankTitles[index];
+}
+
+function calculateScore(tokens: number, quests: number): number {
+  return tokens * 2 + quests * 100;
+}
 
 export default function RanksScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
+  const { profile, quests } = useGame();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadLeaderboard = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log('[Leaderboard] Loading user data...');
+      
+      const storedUsersStr = await localStorageService.getCurrentUser();
+      const allUsersStr = await AsyncStorage.getItem('local_users');
+      const allUsers = allUsersStr ? JSON.parse(allUsersStr) : [];
+      
+      const currentUserId = user?.id || storedUsersStr?.id;
+      console.log('[Leaderboard] Found', allUsers.length, 'users');
+
+      const completedQuests = quests.filter(q => q.completed).length;
+      const currentUserTokens = profile.totalPoints;
+
+      const leaderboardData: LeaderboardEntry[] = await Promise.all(
+        allUsers.map(async (u: any) => {
+          const userQuests = await localStorageService.getUserQuests(u.id);
+          const userCompletedQuests = userQuests.filter(q => q.completed).length;
+          
+          const tokens = u.id === currentUserId ? currentUserTokens : (u.totalPoints || 0);
+          const quests = u.id === currentUserId ? completedQuests : userCompletedQuests;
+          
+          return {
+            userId: u.id,
+            username: u.username || u.fullName || u.email.split('@')[0],
+            level: u.id === currentUserId ? profile.level : (u.level || 1),
+            levelTitle: getLevelTitle(u.id === currentUserId ? profile.level : (u.level || 1)),
+            quests,
+            tokens,
+            totalRejections: u.id === currentUserId ? profile.totalRejections : (u.totalRejections || 0),
+            isYou: u.id === currentUserId,
+            rank: 0,
+          };
+        })
+      );
+
+      leaderboardData.sort((a, b) => {
+        const scoreA = calculateScore(a.tokens, a.quests);
+        const scoreB = calculateScore(b.tokens, b.quests);
+        return scoreB - scoreA;
+      });
+
+      leaderboardData.forEach((entry, index) => {
+        entry.rank = index + 1;
+      });
+
+      console.log('[Leaderboard] Loaded', leaderboardData.length, 'entries');
+      setLeaderboard(leaderboardData);
+    } catch (error) {
+      console.error('[Leaderboard] Error loading leaderboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, profile, quests]);
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, [loadLeaderboard]);
 
   const styles = createStyles(theme.colors);
 
@@ -88,11 +136,22 @@ export default function RanksScreen() {
         Top rejection therapists
       </Text>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
-      >
-        {MOCK_LEADERBOARD.map((entry) => (
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading rankings...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        >
+          {leaderboard.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No rankings yet</Text>
+            </View>
+          ) : (
+            leaderboard.map((entry) => (
           <View
             key={entry.rank}
             style={[
@@ -138,8 +197,10 @@ export default function RanksScreen() {
               </View>
             </View>
           </View>
-        ))}
-      </ScrollView>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -289,6 +350,25 @@ function createStyles(colors: any) {
     tokenCount: {
       fontSize: 16,
       fontWeight: '700' as const,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 14,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    emptyText: {
+      fontSize: 16,
     },
   });
 }
