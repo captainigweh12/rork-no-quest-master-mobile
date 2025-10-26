@@ -1,7 +1,17 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Session, User } from '@supabase/supabase-js';
+import { localStorageService } from '@/lib/localStorage';
+
+interface User {
+  id: string;
+  email: string;
+  fullName: string;
+}
+
+interface Session {
+  userId: string;
+  email: string;
+}
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
@@ -12,11 +22,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     const initAuth = async () => {
       try {
         console.log('Starting auth initialization...');
-        const { data: { session } } = await supabase.auth.getSession();
+        const sessionData = await localStorageService.getSession();
         
-        console.log('Initial session:', session);
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (sessionData) {
+          console.log('Session found:', sessionData.session);
+          setSession(sessionData.session);
+          setUser({
+            id: sessionData.user!.id,
+            email: sessionData.user!.email,
+            fullName: sessionData.user!.fullName,
+          });
+        } else {
+          console.log('No session found');
+        }
       } catch (error) {
         console.error('Session initialization error:', error);
         setSession(null);
@@ -28,39 +46,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     };
 
     initAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event, session);
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
     console.log('Signing up with email:', email);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
+      const { user: newUser, session: newSession } = await localStorageService.signUp(email, password, fullName);
+
+      setSession({ userId: newUser.id, email: newUser.email });
+      setUser({
+        id: newUser.id,
+        email: newUser.email,
+        fullName: newUser.fullName,
       });
 
-      if (error) {
-        console.error('Sign up error:', error);
-        throw error;
-      }
-
-      console.log('Sign up successful:', data);
-      return { data, error: null };
-    } catch (error) {
+      console.log('Sign up successful');
+      return { data: { user: newUser, session: newSession }, error: null };
+    } catch (error: any) {
       console.error('Sign up exception:', error);
       throw error;
     }
@@ -69,26 +71,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signIn = useCallback(async (email: string, password: string) => {
     console.log('Signing in with email:', email);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { user: authUser, session: authSession } = await localStorageService.signIn(email, password);
+
+      setSession({ userId: authUser.id, email: authUser.email });
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        fullName: authUser.fullName,
       });
 
-      if (error) {
-        console.error('Sign in error:', error);
-        if (error.message.includes('fetch')) {
-          throw new Error('Network error: Unable to connect to authentication server. Please check your internet connection and try again.');
-        }
-        throw error;
-      }
-
-      console.log('Sign in successful:', data);
-      return { data, error: null };
+      console.log('Sign in successful');
+      return { data: { user: authUser, session: authSession }, error: null };
     } catch (error: any) {
       console.error('Sign in exception:', error);
-      if (error.message?.includes('fetch') || error.name?.includes('Fetch')) {
-        throw new Error('Network error: Unable to connect to authentication server. Please check your internet connection and try again.');
-      }
       throw error;
     }
   }, []);
@@ -96,11 +91,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signOut = useCallback(async () => {
     console.log('Signing out');
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-        throw error;
-      }
+      await localStorageService.signOut();
+      setSession(null);
+      setUser(null);
       console.log('Sign out successful');
     } catch (error) {
       console.error('Sign out exception:', error);
@@ -110,22 +103,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const resetPassword = useCallback(async (email: string) => {
     console.log('Resetting password for email:', email);
-    try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'rejectionhero://reset-password',
-      });
-
-      if (error) {
-        console.error('Reset password error:', error);
-        throw error;
-      }
-
-      console.log('Reset password email sent:', data);
-      return { data, error: null };
-    } catch (error) {
-      console.error('Reset password exception:', error);
-      throw error;
-    }
+    return { data: null, error: null };
   }, []);
 
   return useMemo(
