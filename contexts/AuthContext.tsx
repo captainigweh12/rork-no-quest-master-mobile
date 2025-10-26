@@ -76,12 +76,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Note: You can still verify using the code:', verificationCode);
         }
       } catch (emailError: any) {
+        console.log('\n🔍 DEBUGGING EMAIL ERROR - Full error object:');
+        console.log('emailError type:', typeof emailError);
+        console.log('emailError keys:', emailError ? Object.keys(emailError) : 'null');
+        console.log('emailError:', emailError);
+        console.log('emailError.message:', emailError?.message);
+        console.log('emailError.data:', emailError?.data);
+        console.log('emailError.error:', emailError?.error);
+        console.log('emailError.cause:', emailError?.cause);
+        
         let errorMessage = 'Unknown error';
         
-        if (emailError?.message) {
-          errorMessage = emailError.message;
-        } else if (emailError?.data?.message) {
+        if (emailError?.data?.message) {
           errorMessage = emailError.data.message;
+        } else if (emailError?.message) {
+          errorMessage = emailError.message;
         } else if (typeof emailError === 'string') {
           errorMessage = emailError;
         } else if (emailError?.error) {
@@ -94,8 +103,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           }
         }
         
-        console.error('Error sending verification email:', errorMessage);
-        console.log('Note: You can still verify using the code:', verificationCode);
+        console.error('❌ Error sending verification email:', errorMessage);
+        console.log('✅ Note: You can still verify using the code:', verificationCode);
         console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
       }
 
@@ -181,12 +190,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Note: You can still verify using the code:', verificationCode);
         }
       } catch (emailError: any) {
+        console.log('\n🔍 DEBUGGING RESEND ERROR - Full error object:');
+        console.log('emailError type:', typeof emailError);
+        console.log('emailError keys:', emailError ? Object.keys(emailError) : 'null');
+        console.log('emailError:', emailError);
+        console.log('emailError.message:', emailError?.message);
+        console.log('emailError.data:', emailError?.data);
+        console.log('emailError.error:', emailError?.error);
+        console.log('emailError.cause:', emailError?.cause);
+        
         let errorMessage = 'Unknown error';
         
-        if (emailError?.message) {
-          errorMessage = emailError.message;
-        } else if (emailError?.data?.message) {
+        if (emailError?.data?.message) {
           errorMessage = emailError.data.message;
+        } else if (emailError?.message) {
+          errorMessage = emailError.message;
         } else if (typeof emailError === 'string') {
           errorMessage = emailError;
         } else if (emailError?.error) {
@@ -199,8 +217,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           }
         }
         
-        console.error('Error resending verification email:', errorMessage);
-        console.log('Note: You can still verify using the code:', verificationCode);
+        console.error('❌ Error resending verification email:', errorMessage);
+        console.log('✅ Note: You can still verify using the code:', verificationCode);
         console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
       }
       
