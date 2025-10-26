@@ -75,8 +75,21 @@ export const localStorageService = {
     console.log('[localStorage] Signing up:', email);
     const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
     
-    if (users.find(u => u.email === email)) {
-      throw new Error('User with this email already exists');
+    const existingUser = users.find(u => u.email === email);
+    if (existingUser) {
+      if (existingUser.emailVerified) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      } else {
+        console.log('[localStorage] Found unverified user, regenerating verification code...');
+        const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        existingUser.verificationCode = verificationCode;
+        existingUser.password = password;
+        existingUser.fullName = fullName;
+        await setItem(STORAGE_KEYS.USERS, users);
+        await setItem(STORAGE_KEYS.PENDING_VERIFICATION, { email, verificationCode });
+        console.log(`[localStorage] New verification code for ${email}: ${verificationCode}`);
+        return { user: existingUser, verificationCode };
+      }
     }
 
     const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
