@@ -4,12 +4,17 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { LogBox } from "react-native";
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
 
+
+LogBox.ignoreLogs([
+  'Deep imports from the \'react-native\' package are deprecated',
+]);
 
 SplashScreen.preventAutoHideAsync();
 
