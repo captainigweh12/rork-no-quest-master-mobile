@@ -14,24 +14,29 @@ export const sendVerificationEmailProcedure = publicProcedure
   )
   .mutation(async ({ input }) => {
     try {
-      console.log('[Resend] Sending verification email to:', input.email);
-      console.log('[Resend] Using API key:', RESEND_API_KEY ? 'Found' : 'Missing');
+      console.log('[Resend] Starting email send process...');
+      console.log('[Resend] Target email:', input.email);
+      console.log('[Resend] Full name:', input.fullName);
+      console.log('[Resend] Verification code:', input.verificationCode);
+      console.log('[Resend] API key present:', !!RESEND_API_KEY);
+      console.log('[Resend] API key (first 10 chars):', RESEND_API_KEY?.substring(0, 10));
       
-      if (!RESEND_API_KEY) {
-        console.error('[Resend] API key is not configured');
+      if (!RESEND_API_KEY || RESEND_API_KEY === '') {
+        console.error('[Resend] ❌ API key is missing or empty');
         return { 
           success: false, 
-          error: 'Email service not configured. Please check with the code in console.' 
+          error: 'Email service not configured. API key is missing.' 
         };
       }
       
+      console.log('[Resend] Creating Resend client...');
       const resend = new Resend(RESEND_API_KEY);
+      console.log('[Resend] Resend client created successfully');
 
-      console.log('[Resend] Attempting to send email...');
-      
-      const result = await resend.emails.send({
+      console.log('[Resend] Preparing email payload...');
+      const emailPayload = {
         from: 'Quest App <onboarding@resend.dev>',
-        to: input.email,
+        to: [input.email],
         subject: 'Verify Your Email - Quest App',
         html: `
           <!DOCTYPE html>
@@ -65,21 +70,42 @@ export const sendVerificationEmailProcedure = publicProcedure
             </body>
           </html>
         `,
-      });
-
-      console.log('[Resend] Result:', result);
+      };
+      
+      console.log('[Resend] Email payload prepared:', JSON.stringify({
+        from: emailPayload.from,
+        to: emailPayload.to,
+        subject: emailPayload.subject,
+        htmlLength: emailPayload.html.length
+      }));
+      
+      console.log('[Resend] Calling resend.emails.send()...');
+      const result = await resend.emails.send(emailPayload);
+      console.log('[Resend] API call completed');
+      console.log('[Resend] Full result:', JSON.stringify(result, null, 2));
 
       if (result.error) {
-        console.error('[Resend] Error sending email:', result.error);
-        return { success: false, error: result.error.message || 'Failed to send email' };
+        console.error('[Resend] ❌ Error from Resend API:', result.error);
+        console.error('[Resend] Error details:', JSON.stringify(result.error, null, 2));
+        return { 
+          success: false, 
+          error: result.error.message || JSON.stringify(result.error) || 'Failed to send email' 
+        };
       }
 
-      console.log('[Resend] Email sent successfully:', result.data);
+      console.log('[Resend] ✅ Email sent successfully!');
+      console.log('[Resend] Message ID:', result.data?.id);
       return { success: true, messageId: result.data?.id };
     } catch (error: any) {
-      console.error('[Resend] Exception sending email:', error);
+      console.error('[Resend] ❌ Exception caught in mutation:');
+      console.error('[Resend] Error message:', error?.message);
+      console.error('[Resend] Error name:', error?.name);
       console.error('[Resend] Error stack:', error?.stack);
-      return { success: false, error: error?.message || 'Unknown error occurred' };
+      console.error('[Resend] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      return { 
+        success: false, 
+        error: error?.message || error?.toString() || 'Unknown error occurred while sending email' 
+      };
     }
   });
 
