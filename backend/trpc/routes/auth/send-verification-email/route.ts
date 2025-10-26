@@ -112,7 +112,6 @@ export const sendVerificationEmailProcedure = publicProcedure
         return {
           success: false,
           error: errorText || 'Failed to send email',
-          errorDetails: error,
         };
       }
 
@@ -130,11 +129,6 @@ export const sendVerificationEmailProcedure = publicProcedure
       return {
         success: false,
         error: errText,
-        exception: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-        } : String(error),
       };
     }
   });
