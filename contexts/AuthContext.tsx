@@ -76,8 +76,25 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Note: You can still verify using the code:', verificationCode);
         }
       } catch (emailError: any) {
-        const readable = emailError?.message || (typeof emailError === 'string' ? emailError : (() => { try { return JSON.stringify(emailError); } catch { return String(emailError); } })());
-        console.error('Error sending verification email:', readable);
+        let errorMessage = 'Unknown error';
+        
+        if (emailError?.message) {
+          errorMessage = emailError.message;
+        } else if (emailError?.data?.message) {
+          errorMessage = emailError.data.message;
+        } else if (typeof emailError === 'string') {
+          errorMessage = emailError;
+        } else if (emailError?.error) {
+          errorMessage = typeof emailError.error === 'string' ? emailError.error : JSON.stringify(emailError.error);
+        } else {
+          try {
+            errorMessage = JSON.stringify(emailError, null, 2);
+          } catch {
+            errorMessage = String(emailError);
+          }
+        }
+        
+        console.error('Error sending verification email:', errorMessage);
         console.log('Note: You can still verify using the code:', verificationCode);
         console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
       }
@@ -164,8 +181,25 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Note: You can still verify using the code:', verificationCode);
         }
       } catch (emailError: any) {
-        const readable = emailError?.message || (typeof emailError === 'string' ? emailError : (() => { try { return JSON.stringify(emailError); } catch { return String(emailError); } })());
-        console.error('Error resending verification email:', readable);
+        let errorMessage = 'Unknown error';
+        
+        if (emailError?.message) {
+          errorMessage = emailError.message;
+        } else if (emailError?.data?.message) {
+          errorMessage = emailError.data.message;
+        } else if (typeof emailError === 'string') {
+          errorMessage = emailError;
+        } else if (emailError?.error) {
+          errorMessage = typeof emailError.error === 'string' ? emailError.error : JSON.stringify(emailError.error);
+        } else {
+          try {
+            errorMessage = JSON.stringify(emailError, null, 2);
+          } catch {
+            errorMessage = String(emailError);
+          }
+        }
+        
+        console.error('Error resending verification email:', errorMessage);
         console.log('Note: You can still verify using the code:', verificationCode);
         console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
       }
