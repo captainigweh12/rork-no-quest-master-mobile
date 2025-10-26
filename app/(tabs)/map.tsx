@@ -6,8 +6,10 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Menu, Share2, Search, MapPin, Plus, Navigation, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
+import { useAuth } from '@/contexts/AuthContext';
+import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue } from '@/services/supabase/map';
 
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCHMHlOrPPSRULrUf-FqPWHz0Y6PJoPrRk';
@@ -25,16 +27,12 @@ interface Place {
   place_id: string;
 }
 
-interface QueueItem {
-  id: string;
-  place: Place;
-  questTitle?: string;
-  addedAt: Date;
-}
+
 
 export default function MapScreen() {
   const { theme } = useTheme();
   const { quests } = useGame();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -42,7 +40,8 @@ export default function MapScreen() {
   const [searchResults, setSearchResults] = useState<Place[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [showQueueModal, setShowQueueModal] = useState<boolean>(false);
-  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [queueItems, setQueueItems] = useState<any[]>([]);
+  const [isLoadingQueue, setIsLoadingQueue] = useState<boolean>(false);
 
   const styles = createStyles(theme.colors);
 
@@ -82,6 +81,30 @@ export default function MapScreen() {
     })();
   }, []);
 
+  const loadQueue = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsLoadingQueue(true);
+      const queue = await getPlaceQueue(user.id);
+      const sortedQueue = queue.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setQueueItems(sortedQueue);
+      console.log('Loaded queue:', sortedQueue.length, 'items');
+    } catch (error) {
+      console.error('Error loading queue:', error);
+    } finally {
+      setIsLoadingQueue(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadQueue();
+    }
+  }, [user?.id, loadQueue]);
+
   const handleSearch = async () => {
     if (!searchQuery.trim() || !userLocation) {
       console.log('No search query or user location');
@@ -112,16 +135,30 @@ export default function MapScreen() {
     }
   };
 
-  const handleAddToQueue = (place: Place) => {
-    const newItem: QueueItem = {
-      id: Date.now().toString() + Math.random(),
-      place,
-      questTitle: activeQuest?.title,
-      addedAt: new Date(),
-    };
-    
-    setQueueItems(prev => [...prev, newItem]);
-    console.log('Added to queue:', place.name);
+  const handleAddToQueue = async (place: Place) => {
+    if (!user?.id) {
+      console.log('User not logged in');
+      return;
+    }
+
+    try {
+      const questId = activeQuest?.id || 'no-quest';
+      await addPlaceToQueue(
+        user.id,
+        questId,
+        place.name,
+        place.vicinity || place.formatted_address,
+        place.geometry.location.lat,
+        place.geometry.location.lng,
+        activeQuest ? `For quest: ${activeQuest.title}` : undefined
+      );
+      console.log('Added to queue:', place.name);
+      await loadQueue();
+      setSearchResults([]);
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Error adding to queue:', error);
+    }
   };
 
   const handleGetDirections = (place: Place) => {
@@ -473,9 +510,19 @@ export default function MapScreen() {
         visible={showQueueModal}
         onClose={() => setShowQueueModal(false)}
         queueItems={queueItems}
-        onRemoveItem={(id) => setQueueItems(prev => prev.filter(item => item.id !== id))}
+        onRemoveItem={async (id) => {
+          if (user?.id) {
+            try {
+              await removePlaceFromQueue(id, user.id);
+              await loadQueue();
+            } catch (error) {
+              console.error('Error removing from queue:', error);
+            }
+          }
+        }}
         onGetDirections={handleGetDirections}
         theme={theme.colors}
+        isLoading={isLoadingQueue}
       />
     </View>
   );
@@ -484,13 +531,29 @@ export default function MapScreen() {
 interface QueueModalProps {
   visible: boolean;
   onClose: () => void;
-  queueItems: QueueItem[];
+  queueItems: any[];
   onRemoveItem: (id: string) => void;
   onGetDirections: (place: Place) => void;
   theme: any;
+  isLoading: boolean;
 }
 
-function QueueModal({ visible, onClose, queueItems, onRemoveItem, onGetDirections, theme }: QueueModalProps) {
+function QueueModal({ visible, onClose, queueItems, onRemoveItem, onGetDirections, theme, isLoading }: QueueModalProps) {
+  const getPlaceFromItem = (item: any): Place => {
+    return {
+      name: item.placeName,
+      vicinity: item.placeAddress,
+      formatted_address: item.placeAddress,
+      geometry: {
+        location: {
+          lat: item.latitude,
+          lng: item.longitude,
+        },
+      },
+      place_id: item.id,
+    };
+  };
+
   return (
     <Modal
       visible={visible}
@@ -507,7 +570,14 @@ function QueueModal({ visible, onClose, queueItems, onRemoveItem, onGetDirection
             </Pressable>
           </View>
 
-          {queueItems.length === 0 ? (
+          {isLoading ? (
+            <View style={queueModalStyles.emptyState}>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={[queueModalStyles.emptyText, { color: theme.textSecondary, marginTop: 16 }]}>
+                Loading places...
+              </Text>
+            </View>
+          ) : queueItems.length === 0 ? (
             <View style={queueModalStyles.emptyState}>
               <MapPin size={48} color={theme.textSecondary} />
               <Text style={[queueModalStyles.emptyText, { color: theme.textSecondary }]}>
@@ -519,37 +589,47 @@ function QueueModal({ visible, onClose, queueItems, onRemoveItem, onGetDirection
             </View>
           ) : (
             <ScrollView style={queueModalStyles.list}>
-              {queueItems.map((item) => (
-                <View key={item.id} style={[queueModalStyles.queueItem, { borderBottomColor: theme.border }]}>
-                  <View style={queueModalStyles.itemInfo}>
-                    <Text style={[queueModalStyles.itemName, { color: theme.text }]}>
-                      {item.place.name}
-                    </Text>
-                    <Text style={[queueModalStyles.itemAddress, { color: theme.textSecondary }]} numberOfLines={1}>
-                      {item.place.vicinity || item.place.formatted_address}
-                    </Text>
-                    {item.questTitle && (
-                      <Text style={[queueModalStyles.itemQuest, { color: theme.primary }]} numberOfLines={1}>
-                        Quest: {item.questTitle}
+              {queueItems.map((item, index) => {
+                const place = getPlaceFromItem(item);
+                return (
+                  <View key={item.id} style={[queueModalStyles.queueItem, { borderBottomColor: theme.border }]}>
+                    <View style={queueModalStyles.itemNumber}>
+                      <Text style={[queueModalStyles.itemNumberText, { color: theme.primary }]}>
+                        {index + 1}
                       </Text>
-                    )}
+                    </View>
+                    <View style={queueModalStyles.itemInfo}>
+                      <Text style={[queueModalStyles.itemName, { color: theme.text }]}>
+                        {item.placeName}
+                      </Text>
+                      {item.placeAddress && (
+                        <Text style={[queueModalStyles.itemAddress, { color: theme.textSecondary }]} numberOfLines={1}>
+                          {item.placeAddress}
+                        </Text>
+                      )}
+                      {item.notes && (
+                        <Text style={[queueModalStyles.itemQuest, { color: theme.primary }]} numberOfLines={1}>
+                          {item.notes}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={queueModalStyles.itemActions}>
+                      <Pressable
+                        style={[queueModalStyles.actionButton, { backgroundColor: theme.primary }]}
+                        onPress={() => onGetDirections(place)}
+                      >
+                        <Navigation size={16} color="#FFFFFF" />
+                      </Pressable>
+                      <Pressable
+                        style={[queueModalStyles.actionButton, { backgroundColor: theme.error }]}
+                        onPress={() => onRemoveItem(item.id)}
+                      >
+                        <X size={16} color="#FFFFFF" />
+                      </Pressable>
+                    </View>
                   </View>
-                  <View style={queueModalStyles.itemActions}>
-                    <Pressable
-                      style={[queueModalStyles.actionButton, { backgroundColor: theme.primary }]}
-                      onPress={() => onGetDirections(item.place)}
-                    >
-                      <Navigation size={16} color="#FFFFFF" />
-                    </Pressable>
-                    <Pressable
-                      style={[queueModalStyles.actionButton, { backgroundColor: theme.error }]}
-                      onPress={() => onRemoveItem(item.id)}
-                    >
-                      <X size={16} color="#FFFFFF" />
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           )}
         </View>
@@ -761,6 +841,19 @@ const queueModalStyles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     alignItems: 'center',
+    gap: 12,
+  },
+  itemNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemNumberText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
   },
   itemInfo: {
     flex: 1,
