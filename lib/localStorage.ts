@@ -27,6 +27,7 @@ interface LocalUser {
   verificationCode?: string;
   createdAt: string;
   relationshipStatus?: 'single' | 'married';
+  preferredLanguage?: string;
 }
 
 interface LocalSession {
@@ -96,6 +97,7 @@ export const localStorageService = {
       verificationCode,
       createdAt: new Date().toISOString(),
       relationshipStatus: 'single',
+      preferredLanguage: 'en',
     };
 
     users.push(newUser);
@@ -623,6 +625,27 @@ export const localStorageService = {
     const currentUser = await getItem<LocalUser>(STORAGE_KEYS.CURRENT_USER);
     if (currentUser && currentUser.id === userId) {
       currentUser.relationshipStatus = relationshipStatus;
+      await setItem(STORAGE_KEYS.CURRENT_USER, currentUser);
+    }
+
+    return user;
+  },
+
+  async updatePreferredLanguage(userId: string, preferredLanguage: string) {
+    console.log('[localStorage] Updating preferred language:', userId, preferredLanguage);
+    const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
+    const user = users.find(u => u.id === userId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    user.preferredLanguage = preferredLanguage;
+    await setItem(STORAGE_KEYS.USERS, users);
+
+    const currentUser = await getItem<LocalUser>(STORAGE_KEYS.CURRENT_USER);
+    if (currentUser && currentUser.id === userId) {
+      currentUser.preferredLanguage = preferredLanguage;
       await setItem(STORAGE_KEYS.CURRENT_USER, currentUser);
     }
 

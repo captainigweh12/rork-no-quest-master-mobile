@@ -7,6 +7,7 @@ interface User {
   email: string;
   fullName: string;
   relationshipStatus?: 'single' | 'married';
+  preferredLanguage?: string;
 }
 
 interface Session {
@@ -33,6 +34,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             email: sessionData.user!.email,
             fullName: sessionData.user!.fullName,
             relationshipStatus: sessionData.user!.relationshipStatus,
+            preferredLanguage: sessionData.user!.preferredLanguage,
           });
         } else {
           console.log('No session found');
@@ -74,6 +76,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         email: authUser.email,
         fullName: authUser.fullName,
         relationshipStatus: authUser.relationshipStatus,
+        preferredLanguage: authUser.preferredLanguage,
       });
 
       console.log('Sign in successful');
@@ -138,11 +141,34 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         email: currentUser.email,
         fullName: currentUser.fullName,
         relationshipStatus,
+        preferredLanguage: currentUser.preferredLanguage,
       };
       
       setUser(updatedUser);
     } catch (error: any) {
       console.error('Update relationship status exception:', error);
+      throw error;
+    }
+  }, []);
+
+  const updatePreferredLanguage = useCallback(async (preferredLanguage: string) => {
+    try {
+      const currentUser = await localStorageService.getCurrentUser();
+      if (!currentUser) throw new Error('No user logged in');
+      
+      await localStorageService.updatePreferredLanguage(currentUser.id, preferredLanguage);
+      
+      const updatedUser: User = {
+        id: currentUser.id,
+        email: currentUser.email,
+        fullName: currentUser.fullName,
+        relationshipStatus: currentUser.relationshipStatus,
+        preferredLanguage,
+      };
+      
+      setUser(updatedUser);
+    } catch (error: any) {
+      console.error('Update preferred language exception:', error);
       throw error;
     }
   }, []);
@@ -159,7 +185,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       verifyEmail,
       resendVerificationCode,
       updateRelationshipStatus,
+      updatePreferredLanguage,
     }),
-    [session, user, isLoading, signUp, signIn, signOut, resetPassword, verifyEmail, resendVerificationCode, updateRelationshipStatus]
+    [session, user, isLoading, signUp, signIn, signOut, resetPassword, verifyEmail, resendVerificationCode, updateRelationshipStatus, updatePreferredLanguage]
   );
 });
