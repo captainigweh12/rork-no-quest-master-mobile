@@ -4,6 +4,10 @@ import { Resend } from 'resend';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
 
+console.log('\n🔑 [EMAIL ROUTE] Module loaded');
+console.log('   RESEND_API_KEY exists:', !!RESEND_API_KEY);
+console.log('   RESEND_API_KEY preview:', RESEND_API_KEY ? RESEND_API_KEY.substring(0, 10) + '...' : 'NOT SET');
+
 function toErrorString(err: unknown): string {
   if (!err) return 'Unknown error';
   if (typeof err === 'string') return err;
@@ -24,27 +28,36 @@ export const sendVerificationEmailProcedure = publicProcedure
     })
   )
   .mutation(async ({ input }) => {
+    console.log('\n📧 [tRPC EMAIL] Mutation called');
+    console.log('   Email:', input.email);
+    console.log('   Full name:', input.fullName);
+    console.log('   Verification code:', input.verificationCode);
+    console.log('   API key at runtime:', !!process.env.RESEND_API_KEY);
+    console.log('   API key preview:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
+    
     try {
-      console.log('[Resend] Starting email send process...');
-      console.log('[Resend] Target email:', input.email);
-      console.log('[Resend] Full name:', input.fullName);
-      console.log('[Resend] Verification code:', input.verificationCode);
-      console.log('[Resend] API key present:', RESEND_API_KEY.length > 5);
-      console.log('[Resend] API key (first 6 chars):', RESEND_API_KEY.slice(0, 6));
 
-      if (!RESEND_API_KEY) {
-        console.error('[Resend] ❌ API key is missing or empty');
+      const apiKey = process.env.RESEND_API_KEY ?? RESEND_API_KEY;
+      
+      if (!apiKey) {
+        console.error('   ❌ RESEND_API_KEY is not set');
+        console.error('   Available env vars:', Object.keys(process.env).filter(k => k.includes('RESEND')));
         return {
           success: false,
-          error: 'Email service not configured. Set RESEND_API_KEY in your environment.'
+          error: 'Email service not configured. RESEND_API_KEY is missing.',
+          debug: {
+            env_resend_keys: Object.keys(process.env).filter(k => k.includes('RESEND')),
+            total_env_keys: Object.keys(process.env).length,
+          }
         };
       }
 
-      console.log('[Resend] Creating Resend client...');
-      const resend = new Resend(RESEND_API_KEY);
-      console.log('[Resend] Resend client created successfully');
+      console.log('   Creating Resend client...');
+      const resend = new Resend(apiKey);
+      console.log('   Resend client created');
+      console.log('   Using API key:', apiKey.substring(0, 10) + '...');
 
-      console.log('[Resend] Preparing email payload...');
+      console.log('   Preparing email payload...');
       const emailPayload = {
         from: 'Rejection Hero <onboarding@rejectionhero.com>',
         to: [input.email] as string[],
@@ -79,35 +92,49 @@ export const sendVerificationEmailProcedure = publicProcedure
         `,
       };
 
-      console.log('[Resend] Email payload prepared:', JSON.stringify({
-        from: emailPayload.from,
-        to: emailPayload.to,
-        subject: emailPayload.subject,
-        htmlLength: emailPayload.html.length,
-      }));
+      console.log('   Email from:', emailPayload.from);
+      console.log('   Email to:', emailPayload.to);
+      console.log('   Email subject:', emailPayload.subject);
+      console.log('   HTML length:', emailPayload.html.length);
 
-      console.log('[Resend] Calling resend.emails.send()...');
+      console.log('   Calling Resend API...');
       const { data, error } = await resend.emails.send(emailPayload);
-      console.log('[Resend] API call completed');
+      console.log('   Resend API call completed');
 
       if (error) {
+        console.error('   ❌ Resend API returned error:');
+        console.error('   Error type:', typeof error);
+        console.error('   Error:', error);
+        
         const errorText = toErrorString(error);
-        console.error('[Resend] ❌ Error from Resend API:', errorText);
+        console.error('   Error string:', errorText);
+        
         return {
           success: false,
           error: errorText || 'Failed to send email',
+          errorDetails: error,
         };
       }
 
-      console.log('[Resend] ✅ Email sent successfully!');
-      console.log('[Resend] Message ID:', data?.id);
+      console.log('   ✅ Email sent successfully!');
+      console.log('   Message ID:', data?.id);
       return { success: true, messageId: data?.id };
     } catch (error) {
+      console.error('   💥 Exception caught:');
+      console.error('   Error type:', typeof error);
+      console.error('   Error:', error);
+      
       const errText = toErrorString(error);
-      console.error('[Resend] ❌ Exception caught in mutation:', errText);
+      console.error('   Error string:', errText);
+      
       return {
         success: false,
         error: errText,
+        exception: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        } : String(error),
       };
     }
   });

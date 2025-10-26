@@ -30,10 +30,15 @@ export default function DebugEmailScreen() {
 
   const testEmail = async () => {
     setIsLoading(true);
-    addLog('🔄 Starting email test...');
+    addLog('🔄 Starting tRPC email test...');
+    addLog('');
 
     try {
-      addLog(`📧 Attempting to send to: ${email}`);
+      addLog(`📧 Calling mutation with:`);
+      addLog(`   Email: ${email}`);
+      addLog(`   Full Name: Test User`);
+      addLog(`   Code: TEST01`);
+      addLog('');
       
       const result = await sendVerificationEmailMutation.mutateAsync({
         email,
@@ -41,23 +46,45 @@ export default function DebugEmailScreen() {
         verificationCode: 'TEST01',
       });
 
-      addLog('✅ Mutation completed');
-      addLog(`Result: ${JSON.stringify(result, null, 2)}`);
+      addLog('✅ Mutation completed successfully');
+      addLog('');
+      addLog('📋 Result:');
+      addLog(JSON.stringify(result, null, 2));
+      addLog('');
 
       if (result.success) {
-        addLog('🎉 Email sent successfully!');
-        addLog(`Message ID: ${result.messageId}`);
+        addLog('🎉 ✅ EMAIL SENT SUCCESSFULLY!');
+        addLog(`🎫 Message ID: ${result.messageId}`);
+        addLog('');
+        addLog('📨 Check your inbox (and spam folder)!');
       } else {
-        addLog('❌ Email failed to send');
-        addLog(`Error: ${result.error}`);
+        addLog('❌ EMAIL FAILED TO SEND');
+        addLog('');
+        addLog('👀 Error Details:');
+        addLog(`   Error: ${result.error}`);
+        if ((result as any).debug) {
+          addLog(`   Debug: ${JSON.stringify((result as any).debug, null, 2)}`);
+        }
+        if ((result as any).errorDetails) {
+          addLog(`   Details: ${JSON.stringify((result as any).errorDetails, null, 2)}`);
+        }
+        addLog('');
+        addLog('💡 Check backend logs for more details');
       }
     } catch (error: any) {
-      addLog('💥 Exception caught');
-      addLog(`Error type: ${typeof error}`);
-      addLog(`Error keys: ${error ? Object.keys(error).join(', ') : 'none'}`);
-      addLog(`Error message: ${error?.message || 'none'}`);
-      addLog(`Error data: ${JSON.stringify(error?.data, null, 2)}`);
-      addLog(`Full error: ${JSON.stringify(error, null, 2)}`);
+      addLog('💥 EXCEPTION CAUGHT');
+      addLog('');
+      addLog('🔍 Error Analysis:');
+      addLog(`   Type: ${typeof error}`);
+      addLog(`   Constructor: ${error?.constructor?.name || 'unknown'}`);
+      addLog(`   Keys: ${error ? Object.keys(error).join(', ') : 'none'}`);
+      addLog('');
+      addLog(`   Message: ${error?.message || 'none'}`);
+      addLog(`   Data: ${JSON.stringify(error?.data, null, 2)}`);
+      addLog(`   Cause: ${error?.cause || 'none'}`);
+      addLog('');
+      addLog('📜 Full Error:');
+      addLog(JSON.stringify(error, null, 2));
     } finally {
       setIsLoading(false);
     }
@@ -66,19 +93,53 @@ export default function DebugEmailScreen() {
   const testBackendHealth = async () => {
     setIsLoading(true);
     addLog('🔄 Testing backend health...');
+    addLog('');
 
     try {
       const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || 'NOT SET';
-      addLog(`Base URL: ${baseUrl}`);
+      addLog('🌐 Backend URL:');
+      addLog(`   ${baseUrl}`);
+      addLog('');
+      addLog('📡 Sending request...');
 
       const response = await fetch(`${baseUrl}/`);
       const data = await response.json();
       
-      addLog('✅ Backend is reachable');
-      addLog(`Response: ${JSON.stringify(data, null, 2)}`);
+      addLog('✅ Backend is reachable!');
+      addLog('');
+      addLog('📊 Health Status:');
+      addLog(`   Status: ${data.status}`);
+      addLog(`   Message: ${data.message}`);
+      addLog(`   Timestamp: ${data.timestamp}`);
+      addLog('');
+      addLog('⚙️ Environment:');
+      addLog(`   Resend Configured: ${data.env?.resend_configured ? '✅ YES' : '❌ NO'}`);
+      addLog(`   Node Env: ${data.env?.node_env || 'unknown'}`);
+      addLog('');
+      
+      if (!data.env?.resend_configured) {
+        addLog('⚠️ WARNING: Resend is NOT configured!');
+        addLog('');
+        addLog('🔧 Fix:');
+        addLog('   1. Set RESEND_API_KEY in backend environment');
+        addLog('   2. Restart the backend');
+        addLog('   3. See QUICK_EMAIL_FIX.md for instructions');
+      } else {
+        addLog('✅ Resend is configured correctly');
+      }
+      
+      addLog('');
+      addLog('📝 Full Response:');
+      addLog(JSON.stringify(data, null, 2));
     } catch (error: any) {
       addLog('❌ Backend health check failed');
+      addLog('');
       addLog(`Error: ${error?.message || String(error)}`);
+      addLog('');
+      addLog('💡 Possible causes:');
+      addLog('   - Backend is not running');
+      addLog('   - Wrong URL in EXPO_PUBLIC_RORK_API_BASE_URL');
+      addLog('   - Network/CORS issue');
     } finally {
       setIsLoading(false);
     }
@@ -86,22 +147,45 @@ export default function DebugEmailScreen() {
 
   const testEmailEndpoint = async () => {
     setIsLoading(true);
-    addLog('🔄 Testing /api/test-email endpoint...');
+    addLog('🔄 Testing direct /api/test-email endpoint...');
+    addLog('');
 
     try {
       const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || 'NOT SET';
-      addLog(`Testing: ${baseUrl}/api/test-email?to=${email}`);
+      const url = `${baseUrl}/api/test-email?to=${email}&subject=Debug Test&text=This is a debug test`;
+      
+      addLog('🌐 Making request to:');
+      addLog(`   ${url}`);
+      addLog('');
 
-      const response = await fetch(
-        `${baseUrl}/api/test-email?to=${email}&subject=Debug Test&text=This is a debug test`
-      );
+      const response = await fetch(url);
       const data = await response.json();
       
-      addLog(`Status: ${response.status}`);
-      addLog(`Response: ${JSON.stringify(data, null, 2)}`);
+      addLog(`📦 Response:`);
+      addLog(`   Status: ${response.status} ${response.statusText}`);
+      addLog(`   OK: ${response.ok}`);
+      addLog('');
+      addLog('📝 Data:');
+      addLog(JSON.stringify(data, null, 2));
+      addLog('');
+      
+      if (data.success) {
+        addLog('✅ 🎉 EMAIL SENT!');
+        addLog(`   Message ID: ${data.messageId}`);
+      } else {
+        addLog('❌ EMAIL FAILED');
+        addLog(`   Error: ${data.error}`);
+        if (data.debug) {
+          addLog('');
+          addLog('👀 Debug Info:');
+          addLog(JSON.stringify(data.debug, null, 2));
+        }
+      }
     } catch (error: any) {
-      addLog('❌ Test endpoint failed');
+      addLog('❌ 💥 Request failed');
+      addLog('');
       addLog(`Error: ${error?.message || String(error)}`);
+      addLog(`Stack: ${error?.stack || 'none'}`);
     } finally {
       setIsLoading(false);
     }
