@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
-import { StartupWarning } from "@/components/StartupWarning";
+
 
 SplashScreen.preventAutoHideAsync();
 
@@ -78,7 +78,6 @@ export default function RootLayout() {
             <OnboardingProvider>
               <GameProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>
-                  <StartupWarning />
                   <RootLayoutNav />
                 </GestureHandlerRootView>
               </GameProvider>
