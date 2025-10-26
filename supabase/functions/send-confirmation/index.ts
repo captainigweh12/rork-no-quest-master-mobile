@@ -8,7 +8,21 @@ console.log('   Resend API Key exists:', !!RESEND_API_KEY)
 interface EmailRequest {
   email: string
   full_name?: string
-  confirmation_url: string
+  confirmation_url?: string
+}
+
+interface AuthHookRequest {
+  type: string
+  email: string
+  user: {
+    id: string
+    email: string
+    user_metadata?: {
+      full_name?: string
+    }
+  }
+  token_hash: string
+  redirect_to?: string
 }
 
 serve(async (req) => {
@@ -35,7 +49,32 @@ serve(async (req) => {
       )
     }
 
-    const { email, full_name, confirmation_url }: EmailRequest = await req.json()
+    const body = await req.json()
+    console.log('📦 Request body type:', body.type || 'direct')
+    
+    // Handle both Auth Hook format and direct calls
+    let email: string
+    let full_name: string | undefined
+    let confirmation_url: string
+    
+    if (body.type === 'confirmation') {
+      // Auth Hook format
+      console.log('🪝 Processing Auth Hook request')
+      const authHook = body as AuthHookRequest
+      email = authHook.email
+      full_name = authHook.user?.user_metadata?.full_name
+      
+      // Build confirmation URL from token_hash
+      const siteUrl = Deno.env.get('SITE_URL') || 'exp://192.168.1.1:8081'
+      confirmation_url = `${siteUrl}/verify-email?token_hash=${authHook.token_hash}&type=signup&redirect_to=${authHook.redirect_to || ''}`
+    } else {
+      // Direct call format
+      console.log('📞 Processing direct call')
+      const directCall = body as EmailRequest
+      email = directCall.email
+      full_name = directCall.full_name
+      confirmation_url = directCall.confirmation_url || ''
+    }
     
     console.log('📨 Sending to:', email)
     console.log('👤 Name:', full_name || 'User')
