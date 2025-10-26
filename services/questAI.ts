@@ -1,5 +1,4 @@
 import type { Quest, QuestDifficulty } from '@/types';
-import { supabase } from '@/lib/supabase';
 
 export interface GenerateQuestParams {
   userGoal?: string;
@@ -55,58 +54,87 @@ function calculateXP(difficulty: QuestDifficulty, level: number, isSuperQuest: b
   return Math.round(baseXP[difficulty] * multiplier);
 }
 
+const questTemplates = [
+  {
+    title: 'Ask for a Discount',
+    description: 'Visit any store and ask for a discount on a regular-priced item',
+    icon: 'target',
+  },
+  {
+    title: 'Request a Favor from a Stranger',
+    description: 'Ask someone you don\'t know for a small favor',
+    icon: 'message-circle',
+  },
+  {
+    title: 'Negotiate at a Market',
+    description: 'Try to negotiate the price at a local market or store',
+    icon: 'trending-up',
+  },
+  {
+    title: 'Ask Someone Out',
+    description: 'Ask someone you\'re interested in out for coffee or a date',
+    icon: 'coffee',
+  },
+  {
+    title: 'Request a Free Sample',
+    description: 'Go to a store and ask for a free sample of something',
+    icon: 'coffee',
+  },
+  {
+    title: 'Apply for a Job Above Your Level',
+    description: 'Submit an application for a position you think you\'re not qualified for',
+    icon: 'briefcase',
+  },
+  {
+    title: 'Ask for a Recommendation',
+    description: 'Request a recommendation or testimonial from someone',
+    icon: 'award',
+  },
+  {
+    title: 'Start a Conversation with a Stranger',
+    description: 'Strike up a conversation with someone new in public',
+    icon: 'message-circle',
+  },
+  {
+    title: 'Request a Meeting with a VIP',
+    description: 'Reach out to someone influential and ask for a meeting',
+    icon: 'mail',
+  },
+  {
+    title: 'Ask for Special Treatment',
+    description: 'Request a special accommodation or exception somewhere',
+    icon: 'flame',
+  },
+];
+
 export async function generateQuest(params: GenerateQuestParams): Promise<Quest> {
   const { difficulty, level, isSuperQuest = false } = params;
 
-  try {
-    console.log('[edge] invoking generate-quest with params', params);
-    const { data, error } = await supabase.functions.invoke('generate-quest', {
-      body: params,
-    });
+  console.log('Generating quest locally with params:', params);
 
-    if (error) {
-      console.error('[edge] generate-quest error', error);
-      throw error;
-    }
+  const randomTemplate = questTemplates[Math.floor(Math.random() * questTemplates.length)];
+  const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)] as string;
 
-    const parsed = data as { title?: string; description?: string; minNoRequired?: number } | null;
+  const minNoByDifficulty: Record<QuestDifficulty, number> = {
+    easy: 3,
+    medium: 5,
+    hard: 8,
+    extreme: 10,
+  };
 
-    const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)] as string;
-    const limitWords = (txt: string, n: number) => {
-      const parts = (txt ?? '').trim().split(/\s+/);
-      return parts.length > n ? parts.slice(0, n).join(' ') : (txt ?? '');
-    };
+  const quest: Quest = {
+    id: Date.now().toString(),
+    title: randomTemplate.title,
+    description: randomTemplate.description,
+    type: isSuperQuest ? 'special' : difficulty === 'easy' ? 'daily' : difficulty === 'extreme' ? 'special' : 'weekly',
+    difficulty,
+    points: calculatePoints(difficulty, level, isSuperQuest),
+    xp: calculateXP(difficulty, level, isSuperQuest),
+    completed: false,
+    icon: randomTemplate.icon || randomIcon,
+    minNoRequired: minNoByDifficulty[difficulty],
+  };
 
-    const quest: Quest = {
-      id: Date.now().toString(),
-      title: limitWords(parsed?.title || 'Mystery Quest', 10),
-      description: parsed?.description || 'Complete this challenge to earn rewards!',
-      type: isSuperQuest ? 'special' : difficulty === 'easy' ? 'daily' : difficulty === 'extreme' ? 'special' : 'weekly',
-      difficulty,
-      points: calculatePoints(difficulty, level, isSuperQuest),
-      xp: calculateXP(difficulty, level, isSuperQuest),
-      completed: false,
-      icon: randomIcon,
-      minNoRequired: parsed?.minNoRequired ?? 3,
-    };
-
-    console.log('[edge] generate-quest success', quest);
-    return quest;
-  } catch (error) {
-    console.error('Error generating quest (fallback used):', error);
-
-    const fallback: Quest = {
-      id: Date.now().toString(),
-      title: 'Ask for a Discount',
-      description: 'Visit any store and ask for a discount on a regular-priced item',
-      type: 'daily',
-      difficulty,
-      points: calculatePoints(difficulty, level, isSuperQuest),
-      xp: calculateXP(difficulty, level, isSuperQuest),
-      completed: false,
-      icon: 'target',
-      minNoRequired: 3,
-    };
-    return fallback;
-  }
+  console.log('Quest generated successfully:', quest);
+  return quest;
 }
