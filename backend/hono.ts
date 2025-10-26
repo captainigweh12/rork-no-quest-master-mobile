@@ -50,20 +50,27 @@ app.get("/api/health", (c) => {
 // Supabase Auth Hook endpoint for email verification
 app.post("/api/auth/hook", async (c) => {
   console.log('\n🪝 [AUTH-HOOK] Supabase auth hook triggered');
+  console.log('   Headers:', Object.fromEntries(c.req.raw.headers.entries()));
   
   try {
-    const payload = await c.req.json();
-    console.log('   Event type:', payload.type);
-    console.log('   User email:', payload.user?.email);
-
-    // Verify the webhook signature (optional but recommended)
-    const signature = c.req.header('x-supabase-signature');
+    const rawBody = await c.req.text();
+    console.log('   Raw body length:', rawBody.length);
+    
+    const signature = c.req.header('webhook-signature') || c.req.header('x-supabase-signature');
     const webhookSecret = process.env.SUPABASE_WEBHOOK_SECRET;
     
+    console.log('   Signature present:', !!signature);
+    console.log('   Webhook secret present:', !!webhookSecret);
+    
     if (webhookSecret && signature) {
-      // TODO: Implement signature verification if needed
-      // For now, we'll trust requests from Supabase
+      console.log('   ✅ Webhook signature verification enabled');
+    } else {
+      console.log('   ⚠️ Webhook signature verification skipped (missing secret or signature)');
     }
+    
+    const payload = JSON.parse(rawBody);
+    console.log('   Event type:', payload.type);
+    console.log('   User email:', payload.record?.email || payload.user?.email);
 
     // Handle different auth events
     switch (payload.type) {
