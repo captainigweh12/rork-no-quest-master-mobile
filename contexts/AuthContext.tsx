@@ -1,7 +1,7 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { localStorageService } from '@/lib/localStorage';
-import { trpc } from '@/lib/trpc';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser, Session as SupabaseSession } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -11,268 +11,289 @@ interface User {
   preferredLanguage?: string;
 }
 
-interface Session {
-  userId: string;
-  email: string;
-}
-
 export const [AuthProvider, useAuth] = createContextHook(() => {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<SupabaseSession | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const sendVerificationEmailMutation = trpc.auth.sendVerificationEmail.useMutation();
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        console.log('Starting auth initialization...');
-        const sessionData = await localStorageService.getSession();
-        
-        if (sessionData) {
-          console.log('Session found:', sessionData.session);
-          setSession(sessionData.session);
-          setUser({
-            id: sessionData.user!.id,
-            email: sessionData.user!.email,
-            fullName: sessionData.user!.fullName,
-            relationshipStatus: sessionData.user!.relationshipStatus,
-            preferredLanguage: sessionData.user!.preferredLanguage,
-          });
-        } else {
-          console.log('No session found');
-        }
-      } catch (error) {
-        console.error('Session initialization error:', error);
-        setSession(null);
-        setUser(null);
-      } finally {
-        console.log('Auth initialization complete');
-        setIsLoading(false);
-      }
-    };
+    console.log('🔑 Initializing Supabase Auth...');
 
-    initAuth();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📦 Initial session:', session ? 'Found' : 'None');
+      setSession(session);
+      if (session?.user) {
+        loadUserProfile(session.user);
+      }
+      setIsLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('🔄 Auth state changed:', _event, session ? 'Session active' : 'No session');
+      setSession(session);
+      if (session?.user) {
+        loadUserProfile(session.user);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    console.log('Signing up with email:', email);
+  const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
-      const { user: newUser, verificationCode } = await localStorageService.signUp(email, password, fullName);
-
-      console.log('User created/updated, sending verification email...');
+      console.log('👤 Loading user profile for:', supabaseUser.email);
       
-      try {
-        const emailResult = await sendVerificationEmailMutation.mutateAsync({
-          email,
-          fullName,
-          verificationCode,
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ Error loading profile:', error);
+        setUser({
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          fullName: supabaseUser.user_metadata?.full_name || 'User',
         });
-        
-        if (emailResult.success) {
-          console.log('Verification email sent successfully');
-        } else {
-          console.error('Failed to send verification email:', emailResult.error);
-          console.log('Note: You can still verify using the code:', verificationCode);
-        }
-      } catch (emailError: any) {
-        console.log('\n🔍 DEBUGGING EMAIL ERROR - Full error object:');
-        console.log('emailError type:', typeof emailError);
-        console.log('emailError keys:', emailError ? Object.keys(emailError) : 'null');
-        console.log('emailError:', emailError);
-        console.log('emailError.message:', emailError?.message);
-        console.log('emailError.data:', emailError?.data);
-        console.log('emailError.error:', emailError?.error);
-        console.log('emailError.cause:', emailError?.cause);
-        
-        let errorMessage = 'Unknown error';
-        
-        if (emailError?.data?.message) {
-          errorMessage = emailError.data.message;
-        } else if (emailError?.message) {
-          errorMessage = emailError.message;
-        } else if (typeof emailError === 'string') {
-          errorMessage = emailError;
-        } else if (emailError?.error) {
-          errorMessage = typeof emailError.error === 'string' ? emailError.error : JSON.stringify(emailError.error);
-        } else {
-          try {
-            errorMessage = JSON.stringify(emailError, null, 2);
-          } catch {
-            errorMessage = String(emailError);
-          }
-        }
-        
-        console.error('❌ Error sending verification email:', errorMessage);
-        console.log('✅ Note: You can still verify using the code:', verificationCode);
-        console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
+        return;
       }
 
-      console.log('Sign up successful, verification required');
-      return { data: { user: newUser, verificationCode }, error: null };
-    } catch (error: any) {
-      console.error('Sign up exception:', error);
-      throw error;
-    }
-  }, [sendVerificationEmailMutation]);
+      if (profile) {
+        console.log('✅ Profile loaded:', profile.full_name);
+        setUser({
+          id: profile.id,
+          email: supabaseUser.email || '',
+          fullName: profile.full_name || 'User',
+          relationshipStatus: profile.relationship_status,
+          preferredLanguage: profile.preferred_language,
+        });
+      } else {
+        console.log('📝 No profile found, creating one...');
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: supabaseUser.id,
+            email: supabaseUser.email,
+            full_name: supabaseUser.user_metadata?.full_name || 'User',
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    console.log('Signing in with email:', email);
-    try {
-      const { user: authUser, session: authSession } = await localStorageService.signIn(email, password);
-
-      setSession({ userId: authUser.id, email: authUser.email });
+        if (insertError) {
+          console.error('❌ Error creating profile:', insertError);
+          setUser({
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            fullName: supabaseUser.user_metadata?.full_name || 'User',
+          });
+        } else {
+          console.log('✅ Profile created:', newProfile.full_name);
+          setUser({
+            id: newProfile.id,
+            email: supabaseUser.email || '',
+            fullName: newProfile.full_name,
+            relationshipStatus: newProfile.relationship_status,
+            preferredLanguage: newProfile.preferred_language,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('💥 Exception loading profile:', error);
       setUser({
-        id: authUser.id,
-        email: authUser.email,
-        fullName: authUser.fullName,
-        relationshipStatus: authUser.relationshipStatus,
-        preferredLanguage: authUser.preferredLanguage,
+        id: supabaseUser.id,
+        email: supabaseUser.email || '',
+        fullName: supabaseUser.user_metadata?.full_name || 'User',
+      });
+    }
+  };
+
+  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
+    console.log('📧 Signing up with Supabase Auth:', email);
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: undefined,
+        },
       });
 
-      console.log('Sign in successful');
-      return { data: { user: authUser, session: authSession }, error: null };
+      if (error) {
+        console.error('❌ Sign up error:', error);
+        return { data: null, error };
+      }
+
+      console.log('✅ Sign up successful! Email confirmation required.');
+      console.log('📬 Confirmation email sent to:', email);
+      
+      return { 
+        data: { 
+          user: data.user, 
+          session: data.session,
+          needsEmailConfirmation: !data.session,
+        }, 
+        error: null 
+      };
     } catch (error: any) {
-      console.error('Sign in exception:', error);
-      throw error;
+      console.error('💥 Sign up exception:', error);
+      return { data: null, error };
+    }
+  }, []);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    console.log('🔓 Signing in with Supabase Auth:', email);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('❌ Sign in error:', error);
+        
+        if (error.message.includes('Email not confirmed')) {
+          return { 
+            data: null, 
+            error: { 
+              ...error, 
+              message: 'Please verify your email before signing in. Check your inbox for the confirmation link.',
+              needsEmailConfirmation: true,
+            } 
+          };
+        }
+        
+        return { data: null, error };
+      }
+
+      console.log('✅ Sign in successful!');
+      return { data: { user: data.user, session: data.session }, error: null };
+    } catch (error: any) {
+      console.error('💥 Sign in exception:', error);
+      return { data: null, error };
     }
   }, []);
 
   const signOut = useCallback(async () => {
-    console.log('Signing out');
+    console.log('👋 Signing out...');
+    
     try {
-      await localStorageService.signOut();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('❌ Sign out error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Sign out successful!');
       setSession(null);
       setUser(null);
-      console.log('Sign out successful');
     } catch (error) {
-      console.error('Sign out exception:', error);
+      console.error('💥 Sign out exception:', error);
       throw error;
     }
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    console.log('Resetting password for email:', email);
-    return { data: null, error: null };
-  }, []);
-
-  const verifyEmail = useCallback(async (email: string, code: string) => {
-    console.log('Verifying email:', email);
+    console.log('🔑 Requesting password reset for:', email);
+    
     try {
-      await localStorageService.verifyEmail(email, code);
-      console.log('Email verified successfully');
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: undefined,
+      });
+
+      if (error) {
+        console.error('❌ Password reset error:', error);
+        return { data: null, error };
+      }
+
+      console.log('✅ Password reset email sent!');
       return { data: { success: true }, error: null };
     } catch (error: any) {
-      console.error('Verification exception:', error);
-      throw error;
+      console.error('💥 Password reset exception:', error);
+      return { data: null, error };
     }
   }, []);
 
-  const resendVerificationCode = useCallback(async (email: string) => {
-    console.log('Resending verification code for:', email);
+  const resendConfirmationEmail = useCallback(async (email: string) => {
+    console.log('📧 Resending confirmation email to:', email);
+    
     try {
-      const { verificationCode } = await localStorageService.resendVerificationCode(email);
-      
-      const users = await localStorageService.getCurrentUser();
-      const fullName = users?.fullName || 'User';
-      
-      try {
-        const emailResult = await sendVerificationEmailMutation.mutateAsync({
-          email,
-          fullName,
-          verificationCode,
-        });
-        
-        if (emailResult.success) {
-          console.log('Verification email resent successfully');
-        } else {
-          console.error('Failed to resend verification email:', emailResult.error);
-          console.log('Note: You can still verify using the code:', verificationCode);
-        }
-      } catch (emailError: any) {
-        console.log('\n🔍 DEBUGGING RESEND ERROR - Full error object:');
-        console.log('emailError type:', typeof emailError);
-        console.log('emailError keys:', emailError ? Object.keys(emailError) : 'null');
-        console.log('emailError:', emailError);
-        console.log('emailError.message:', emailError?.message);
-        console.log('emailError.data:', emailError?.data);
-        console.log('emailError.error:', emailError?.error);
-        console.log('emailError.cause:', emailError?.cause);
-        
-        let errorMessage = 'Unknown error';
-        
-        if (emailError?.data?.message) {
-          errorMessage = emailError.data.message;
-        } else if (emailError?.message) {
-          errorMessage = emailError.message;
-        } else if (typeof emailError === 'string') {
-          errorMessage = emailError;
-        } else if (emailError?.error) {
-          errorMessage = typeof emailError.error === 'string' ? emailError.error : JSON.stringify(emailError.error);
-        } else {
-          try {
-            errorMessage = JSON.stringify(emailError, null, 2);
-          } catch {
-            errorMessage = String(emailError);
-          }
-        }
-        
-        console.error('❌ Error resending verification email:', errorMessage);
-        console.log('✅ Note: You can still verify using the code:', verificationCode);
-        console.log('\n⚠️ Email service might be unavailable. Please check backend logs.');
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (error) {
+        console.error('❌ Resend confirmation error:', error);
+        return { data: null, error };
       }
-      
-      console.log('Verification code resent');
-      return { data: { verificationCode }, error: null };
+
+      console.log('✅ Confirmation email resent!');
+      return { data: { success: true }, error: null };
     } catch (error: any) {
-      console.error('Resend verification exception:', error);
-      throw error;
+      console.error('💥 Resend confirmation exception:', error);
+      return { data: null, error };
     }
-  }, [sendVerificationEmailMutation]);
+  }, []);
 
   const updateRelationshipStatus = useCallback(async (relationshipStatus: 'single' | 'married') => {
     try {
-      const currentUser = await localStorageService.getCurrentUser();
-      if (!currentUser) throw new Error('No user logged in');
+      if (!user?.id) throw new Error('No user logged in');
       
-      await localStorageService.updateRelationshipStatus(currentUser.id, relationshipStatus);
+      console.log('💑 Updating relationship status:', relationshipStatus);
       
-      const updatedUser: User = {
-        id: currentUser.id,
-        email: currentUser.email,
-        fullName: currentUser.fullName,
-        relationshipStatus,
-        preferredLanguage: currentUser.preferredLanguage,
-      };
-      
-      setUser(updatedUser);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ relationship_status: relationshipStatus })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('❌ Update relationship status error:', error);
+        throw error;
+      }
+
+      console.log('✅ Relationship status updated!');
+      setUser({ ...user, relationshipStatus });
     } catch (error: any) {
-      console.error('Update relationship status exception:', error);
+      console.error('💥 Update relationship status exception:', error);
       throw error;
     }
-  }, []);
+  }, [user]);
 
   const updatePreferredLanguage = useCallback(async (preferredLanguage: string) => {
     try {
-      const currentUser = await localStorageService.getCurrentUser();
-      if (!currentUser) throw new Error('No user logged in');
+      if (!user?.id) throw new Error('No user logged in');
       
-      await localStorageService.updatePreferredLanguage(currentUser.id, preferredLanguage);
+      console.log('🌍 Updating preferred language:', preferredLanguage);
       
-      const updatedUser: User = {
-        id: currentUser.id,
-        email: currentUser.email,
-        fullName: currentUser.fullName,
-        relationshipStatus: currentUser.relationshipStatus,
-        preferredLanguage,
-      };
-      
-      setUser(updatedUser);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferred_language: preferredLanguage })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('❌ Update preferred language error:', error);
+        throw error;
+      }
+
+      console.log('✅ Preferred language updated!');
+      setUser({ ...user, preferredLanguage });
     } catch (error: any) {
-      console.error('Update preferred language exception:', error);
+      console.error('💥 Update preferred language exception:', error);
       throw error;
     }
-  }, []);
+  }, [user]);
 
   return useMemo(
     () => ({
@@ -283,11 +304,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signIn,
       signOut,
       resetPassword,
-      verifyEmail,
-      resendVerificationCode,
+      resendConfirmationEmail,
       updateRelationshipStatus,
       updatePreferredLanguage,
     }),
-    [session, user, isLoading, signUp, signIn, signOut, resetPassword, verifyEmail, resendVerificationCode, updateRelationshipStatus, updatePreferredLanguage]
+    [
+      session, 
+      user, 
+      isLoading, 
+      signUp, 
+      signIn, 
+      signOut, 
+      resetPassword, 
+      resendConfirmationEmail, 
+      updateRelationshipStatus, 
+      updatePreferredLanguage
+    ]
   );
 });

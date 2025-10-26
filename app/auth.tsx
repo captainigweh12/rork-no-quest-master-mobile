@@ -55,53 +55,71 @@ export default function AuthScreen() {
     try {
       if (mode === 'signin') {
         const result = await signIn(email, password);
+        
         if (result.error) {
-          Alert.alert('Sign In Failed', (result.error as any).message || 'Failed to sign in');
+          if ((result.error as any).needsEmailConfirmation) {
+            Alert.alert(
+              'Email Not Verified',
+              'Please check your email and click the confirmation link before signing in.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Go to Verification', 
+                  onPress: () => router.push(`/verify-email?email=${encodeURIComponent(email)}`)
+                }
+              ]
+            );
+          } else if (result.error.message.includes('Invalid login credentials')) {
+            Alert.alert('Sign In Failed', 'Invalid email or password. Please try again.');
+          } else {
+            Alert.alert('Sign In Failed', result.error.message || 'Failed to sign in');
+          }
         } else {
+          console.log('✅ Sign in successful, redirecting to home...');
           router.replace('/(tabs)/(home)');
         }
       } else {
         const result = await signUp(email, password, username);
+        
         if (result.error) {
-          Alert.alert('Sign Up Failed', (result.error as any).message || 'Failed to sign up');
+          if (result.error.message?.includes('User already registered')) {
+            Alert.alert(
+              'Account Exists',
+              'An account with this email already exists. Please sign in instead.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Go to Sign In', 
+                  onPress: () => {
+                    setMode('signin');
+                    setPassword('');
+                  }
+                }
+              ]
+            );
+          } else {
+            Alert.alert('Sign Up Failed', result.error.message || 'Failed to sign up');
+          }
         } else {
           setShowSuccess(true);
-          console.log('Verification code:', result.data.verificationCode);
           setTimeout(() => {
             setShowSuccess(false);
-            router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
+            Alert.alert(
+              'Check Your Email! 📧',
+              'We\'ve sent a confirmation link to your email. Please click it to verify your account before signing in.',
+              [
+                { 
+                  text: 'OK', 
+                  onPress: () => router.push(`/verify-email?email=${encodeURIComponent(email)}`)
+                }
+              ]
+            );
           }, 2000);
         }
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      
-      if (error.message && error.message.includes('account with this email already exists')) {
-        Alert.alert(
-          'Account Exists',
-          'An account with this email already exists. Please sign in instead.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Go to Sign In', 
-              onPress: () => {
-                setMode('signin');
-                setPassword('');
-              }
-            }
-          ]
-        );
-      } else if (error.message && error.message.includes('verify your email')) {
-        Alert.alert(
-          'Email Not Verified',
-          'Your email is not verified. We\'ll resend the verification code.',
-          [
-            { text: 'OK', onPress: () => router.replace(`/verify-email?email=${encodeURIComponent(email)}`) }
-          ]
-        );
-      } else {
-        Alert.alert('Error', error.message || 'An error occurred');
-      }
+      console.error('💥 Auth error:', error);
+      Alert.alert('Error', error.message || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
