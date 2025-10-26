@@ -51,17 +51,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
     console.log('Signing up with email:', email);
     try {
-      const { user: newUser, session: newSession } = await localStorageService.signUp(email, password, fullName);
+      const { user: newUser, verificationCode } = await localStorageService.signUp(email, password, fullName);
 
-      setSession({ userId: newUser.id, email: newUser.email });
-      setUser({
-        id: newUser.id,
-        email: newUser.email,
-        fullName: newUser.fullName,
-      });
-
-      console.log('Sign up successful');
-      return { data: { user: newUser, session: newSession }, error: null };
+      console.log('Sign up successful, verification required');
+      return { data: { user: newUser, verificationCode }, error: null };
     } catch (error: any) {
       console.error('Sign up exception:', error);
       throw error;
@@ -106,6 +99,30 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return { data: null, error: null };
   }, []);
 
+  const verifyEmail = useCallback(async (email: string, code: string) => {
+    console.log('Verifying email:', email);
+    try {
+      await localStorageService.verifyEmail(email, code);
+      console.log('Email verified successfully');
+      return { data: { success: true }, error: null };
+    } catch (error: any) {
+      console.error('Verification exception:', error);
+      throw error;
+    }
+  }, []);
+
+  const resendVerificationCode = useCallback(async (email: string) => {
+    console.log('Resending verification code for:', email);
+    try {
+      const { verificationCode } = await localStorageService.resendVerificationCode(email);
+      console.log('Verification code resent');
+      return { data: { verificationCode }, error: null };
+    } catch (error: any) {
+      console.error('Resend verification exception:', error);
+      throw error;
+    }
+  }, []);
+
   return useMemo(
     () => ({
       session,
@@ -115,7 +132,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signIn,
       signOut,
       resetPassword,
+      verifyEmail,
+      resendVerificationCode,
     }),
-    [session, user, isLoading, signUp, signIn, signOut, resetPassword]
+    [session, user, isLoading, signUp, signIn, signOut, resetPassword, verifyEmail, resendVerificationCode]
   );
 });

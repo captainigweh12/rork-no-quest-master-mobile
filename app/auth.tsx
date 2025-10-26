@@ -66,13 +66,10 @@ export default function AuthScreen() {
           Alert.alert('Sign Up Failed', (result.error as any).message || 'Failed to sign up');
         } else {
           setShowSuccess(true);
+          console.log('Verification code:', result.data.verificationCode);
           setTimeout(() => {
             setShowSuccess(false);
-            Alert.alert(
-              'Check Your Email',
-              'We sent you a confirmation email. Please verify your email address to continue.',
-              [{ text: 'OK', onPress: () => setMode('signin') }]
-            );
+            router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
           }, 2000);
         }
       }

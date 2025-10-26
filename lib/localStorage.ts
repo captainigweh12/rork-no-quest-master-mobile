@@ -23,6 +23,8 @@ interface LocalUser {
   totalPoints: number;
   totalRejections: number;
   streak: number;
+  emailVerified: boolean;
+  verificationCode?: string;
   createdAt: string;
 }
 
@@ -45,6 +47,7 @@ const STORAGE_KEYS = {
   PLACE_QUEUE: 'local_place_queue',
   CHAT_MESSAGES: 'local_chat_messages',
   NOTIFICATIONS: 'local_notifications',
+  PENDING_VERIFICATION: 'local_pending_verification',
 };
 
 async function getItem<T>(key: string): Promise<T | null> {
@@ -74,6 +77,8 @@ export const localStorageService = {
       throw new Error('User with this email already exists');
     }
 
+    const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const newUser: LocalUser = {
       id: Date.now().toString(),
       email,
@@ -86,21 +91,18 @@ export const localStorageService = {
       totalPoints: 0,
       totalRejections: 0,
       streak: 0,
+      emailVerified: false,
+      verificationCode,
       createdAt: new Date().toISOString(),
     };
 
     users.push(newUser);
     await setItem(STORAGE_KEYS.USERS, users);
-    
-    const session: LocalSession = {
-      userId: newUser.id,
-      email: newUser.email,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-    await setItem(STORAGE_KEYS.SESSION, session);
-    await setItem(STORAGE_KEYS.CURRENT_USER, newUser);
+    await setItem(STORAGE_KEYS.PENDING_VERIFICATION, { email, verificationCode });
 
-    return { user: newUser, session };
+    console.log(`[localStorage] Verification code for ${email}: ${verificationCode}`);
+
+    return { user: newUser, verificationCode };
   },
 
   async signIn(email: string, password: string) {
@@ -110,6 +112,10 @@ export const localStorageService = {
 
     if (!user) {
       throw new Error('Invalid email or password');
+    }
+
+    if (!user.emailVerified) {
+      throw new Error('Please verify your email before signing in. Check your email for the verification code.');
     }
 
     const session: LocalSession = {
@@ -546,5 +552,57 @@ export const localStorageService = {
       }
     });
     await setItem(STORAGE_KEYS.NOTIFICATIONS, notifications);
+  },
+
+  async verifyEmail(email: string, code: string) {
+    console.log('[localStorage] Verifying email:', email);
+    const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
+    const user = users.find(u => u.email === email);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new Error('Email already verified');
+    }
+
+    if (user.verificationCode !== code.toUpperCase()) {
+      throw new Error('Invalid verification code');
+    }
+
+    user.emailVerified = true;
+    user.verificationCode = undefined;
+    await setItem(STORAGE_KEYS.USERS, users);
+    await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_VERIFICATION);
+
+    console.log('[localStorage] Email verified successfully');
+    return { success: true };
+  },
+
+  async resendVerificationCode(email: string) {
+    console.log('[localStorage] Resending verification code for:', email);
+    const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
+    const user = users.find(u => u.email === email);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.emailVerified) {
+      throw new Error('Email already verified');
+    }
+
+    const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    user.verificationCode = verificationCode;
+    await setItem(STORAGE_KEYS.USERS, users);
+    await setItem(STORAGE_KEYS.PENDING_VERIFICATION, { email, verificationCode });
+
+    console.log(`[localStorage] New verification code for ${email}: ${verificationCode}`);
+    return { verificationCode };
+  },
+
+  async getPendingVerification() {
+    return await getItem<{ email: string; verificationCode: string }>(STORAGE_KEYS.PENDING_VERIFICATION);
   },
 };
