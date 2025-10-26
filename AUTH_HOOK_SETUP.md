@@ -1,292 +1,121 @@
-# 🪝 Supabase Auth Hook + Resend Email Setup
+# ⚠️ Supabase Auth Hook Issue - 502 Error
 
-## ✅ What's Been Done
+## Problem
 
-Your backend now has a **Supabase Auth Hook endpoint** that automatically sends beautiful emails via Resend when users sign up or reset their password.
+You're getting a **502 error** because:
+1. The Supabase Auth Hook is trying to call your E2B backend at `/api/auth/hook`
+2. E2B URLs are **not publicly accessible** from external services
+3. Supabase can't reach the webhook endpoint, causing a 502 Bad Gateway error
 
-### Backend Changes
+## Solutions
 
-1. **Auth Hook Endpoint** (`/api/auth/hook`)
-   - Handles `user.created` events (signup)
-   - Handles `user.email_verification` events (resend)
-   - Handles `password_recovery` events (forgot password)
+### ✅ RECOMMENDED: Use Supabase Built-in Email Templates (No Hook)
 
-2. **Email Templates**
-   - Beautiful HTML email for verification
-   - Password reset email template
-   - Branded with Rejection Hero theme
+Supabase has a built-in email system that works perfectly without any backend webhook.
 
----
+#### Step 1: Remove the Auth Hook
 
-## 🚀 Setup Steps
+1. Go to **Supabase Dashboard** → Your Project
+2. Navigate to **Database** → **Webhooks**
+3. Find the "Send Email Hook" you created
+4. Click **Delete** to remove it
 
-### Step 1: Test the Hook (Before Supabase)
+#### Step 2: Configure Email Templates
 
-1. Open your app and navigate to **Debug Email** screen
-2. Enter your real email address
-3. Click **"🎉 Test Auth Hook (Supabase)"**
-4. Check your email inbox (and spam folder!)
+1. Go to **Authentication** → **Email Templates**
+2. You'll see templates for:
+   - **Confirm signup** ✉️
+   - **Magic Link**
+   - **Change Email Address**
+   - **Reset Password**
 
-**Expected Result:**
-- Backend logs show: `🪝 [AUTH-HOOK] Supabase auth hook triggered`
-- Email arrives with verification button
-- Debug screen shows: `✅ 🎉 AUTH HOOK WORKS!`
+#### Step 3: Customize the Signup Email Template
 
-If this works, you're ready for Supabase configuration!
+Click on **"Confirm signup"** and replace with this:
 
----
+```html
+<h2>Welcome to Rejection Hero! 🦸</h2>
 
-### Step 2: Configure Supabase Auth Hook
+<p>Hi {{ .Name }},</p>
 
-1. **Go to Supabase Dashboard:**
-   ```
-   https://supabase.com/dashboard/project/hotbmbscjxgayivmyenb
-   ```
+<p>Thanks for joining Rejection Hero! Click the button below to verify your email and start your journey:</p>
 
-2. **Navigate to Authentication → Hooks:**
-   - Click **Authentication** in left sidebar
-   - Select **Hooks** tab
+<p><a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #FF6B2C 0%, #FF8F5C 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600;">✅ Verify My Email</a></p>
 
-3. **Add the Hook:**
-   - Find **"Send email"** section
-   - Click **"Enable Hook"**
-   - Set **Hook URL:**
-     ```
-     https://8081-ieyxozyisrhek46ra3fcz-6532622b.e2b.app/api/auth/hook
-     ```
-   - Select these events:
-     - ✅ **User created** (for signup emails)
-     - ✅ **Email confirmation** (for resend verification)
-     - ✅ **Password recovery** (for forgot password)
+<p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:<br>
+<a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a></p>
 
-4. **Save** the configuration
+<p>Ready to build confidence through rejection? Let's go! 💪</p>
 
----
-
-### Step 3: Configure Redirect URLs
-
-1. In Supabase Dashboard → **Authentication** → **URL Configuration**
-2. Add these Site URLs and Redirect URLs:
-   ```
-   exp://192.168.1.*:8081
-   exp://localhost:8081
-   myapp://
-   rejectionhero://
-   https://yourdomain.com
-   ```
-
-3. Set **Site URL** to your production domain (when deploying)
-
----
-
-### Step 4: Test Real Signup
-
-1. **In your app, go to the Auth screen**
-2. **Sign up with a new email**
-3. **Watch for:**
-   - Backend logs: `🪝 [AUTH-HOOK] Supabase auth hook triggered`
-   - Backend logs: `📧 Sending verification email to: your@email.com`
-   - Backend logs: `✅ Verification email sent!`
-4. **Check your email** for the verification email
-5. **Click the verification link**
-6. **Sign in** with your verified account
-
----
-
-## 🔍 Troubleshooting
-
-### Problem: Hook not triggering
-
-**Check:**
-1. Hook URL is correct in Supabase Dashboard
-2. Backend is running and accessible
-3. Events are selected (user.created, etc.)
-
-**Test:**
-```bash
-curl -X POST https://8081-ieyxozyisrhek46ra3fcz-6532622b.e2b.app/api/auth/hook \
-  -H "Content-Type: application/json" \
-  -d '{"type":"user.created","user":{"email":"test@example.com","confirmation_url":"https://example.com/confirm"}}'
+<hr>
+<p style="color: #999; font-size: 12px;">© {{ .CurrentYear }} Rejection Hero<br>
+Build confidence, one rejection at a time.</p>
 ```
 
-### Problem: Email not sending
-
-**Check backend logs for:**
-- `❌ RESEND_API_KEY not configured` → Add `RESEND_API_KEY` to backend `.env`
-- `❌ Resend error:` → Check Resend dashboard for rate limits or domain issues
-
-**Verify Resend setup:**
-1. Go to https://resend.com/emails
-2. Check for failed emails
-3. Verify you're using `onboarding@resend.dev` (works for any email)
-4. Or verify your own domain
-
-### Problem: Wrong confirmation URL
-
-The confirmation URL in the email comes from **Supabase**. Configure it:
-
-1. Supabase Dashboard → **Authentication** → **Email Templates**
-2. Edit **"Confirm signup"** template
-3. Make sure the URL includes your redirect URLs
-
----
-
-## 📧 Email Configuration
-
-### Using Resend Test Domain
-
-Currently set to: `onboarding@resend.dev`
-
-**Limitations:**
-- ✅ Can send to ANY email address
-- ❌ Might land in spam
-- ❌ Shows "via resend.dev" in email client
-
-### Using Your Own Domain
-
-To use `onboarding@rejectionhero.com`:
-
-1. **Add domain in Resend:**
-   - Go to https://resend.com/domains
-   - Click **"Add Domain"**
-   - Enter: `rejectionhero.com`
-
-2. **Add DNS records** (provided by Resend):
-   ```
-   TXT  _resend  [verification-code]
-   ```
-
-3. **Wait for verification** (usually 5-10 minutes)
-
-4. **Update backend code** in `backend/hono.ts`:
-   ```typescript
-   from: 'Rejection Hero <onboarding@rejectionhero.com>',
-   ```
-
----
-
-## 🎨 Customizing Email Templates
-
-Email templates are in `backend/hono.ts` in these functions:
-- `handleEmailVerification()` - Signup/verification emails
-- `handlePasswordRecovery()` - Password reset emails
-
-To customize:
-1. Edit the HTML in the template
-2. Test with **Debug Email** → **Test Auth Hook**
-3. Check your inbox to see changes
-
----
-
-## 🔐 Security Best Practices
-
-### Current Setup
-- ✅ API key is in backend (secure)
-- ✅ Hook endpoint is public (expected for webhooks)
-- ⚠️ No signature verification (optional)
-
-### Add Signature Verification (Recommended)
-
-1. **Generate webhook secret** in Supabase:
-   - Authentication → Hooks → Show secret
-
-2. **Add to backend `.env`:**
-   ```bash
-   SUPABASE_WEBHOOK_SECRET=your_webhook_secret_here
-   ```
-
-3. **Uncomment verification code** in `backend/hono.ts`:
-   ```typescript
-   if (webhookSecret && signature) {
-     // Implement signature verification
-     const isValid = verifySignature(payload, signature, webhookSecret);
-     if (!isValid) {
-       return c.json({ error: 'Invalid signature' }, 401);
-     }
-   }
-   ```
-
----
-
-## 📊 Monitoring
-
-### Backend Logs
-
-Watch for these logs when testing:
+**Subject Line:**
 ```
-🪝 [AUTH-HOOK] Supabase auth hook triggered
-   Event type: user.created
-   User email: test@example.com
-📧 Sending verification email to: test@example.com
-   🔗 Confirmation URL: https://...
-✅ Verification email sent!
-   Message ID: abc123...
+🦸 Verify Your Email - Rejection Hero
 ```
 
-### Resend Dashboard
+#### Step 4: Configure Email Settings
 
-Monitor emails at: https://resend.com/emails
+1. Go to **Authentication** → **Settings** (in sidebar)
+2. Scroll to **Email Settings**
+3. Configure:
+   - **Enable Email Confirmations**: ✅ ON
+   - **Confirm email**: ✅ ON
+   - **Secure email change**: ✅ ON
 
-- See delivery status
-- Check bounce/spam reports
-- View email content
+4. **IMPORTANT:** Under **SMTP Settings** (optional):
+   - If you want to use **Resend** for better deliverability:
+     - **Host:** `smtp.resend.com`
+     - **Port:** `587`
+     - **Username:** `resend`
+     - **Password:** `re_8NoeRnFF_PyYgE55LwbtHnUmC3TJ3CkD5`
+     - **Sender email:** `onboarding@resend.dev`
+     - **Sender name:** `Rejection Hero`
+   - Otherwise, leave blank to use Supabase's default email service
 
-### Supabase Dashboard
+#### Step 5: Test Sign Up
 
-Check auth events at:
-```
-https://supabase.com/dashboard/project/hotbmbscjxgayivmyenb/auth/users
-```
-
----
-
-## ✨ What Happens Now
-
-### When a user signs up:
-
-1. **User enters email/password** in your app
-2. **Supabase creates account** (unverified)
-3. **Supabase triggers webhook** → Your backend `/api/auth/hook`
-4. **Your backend sends email** via Resend
-5. **User receives beautiful email** with verification link
-6. **User clicks link** → Redirects to app
-7. **Supabase verifies email** → User can sign in
-
-### Benefits:
-
-- ✅ **Custom branding** - Emails match your app
-- ✅ **Full control** - Edit templates anytime
-- ✅ **Better deliverability** - Professional email service
-- ✅ **Analytics** - Track opens/clicks in Resend
-- ✅ **No code changes** for auth flow
+Now try signing up again - you should:
+1. ✅ Not get a 502 error
+2. ✅ Receive the confirmation email from Supabase
+3. ✅ Be able to verify and sign in
 
 ---
 
-## 🎯 Next Steps
+### 🔧 ALTERNATIVE: Use Supabase Edge Functions (Advanced)
 
-1. ✅ **Test the hook** with Debug Email screen
-2. ✅ **Configure Supabase** with hook URL
-3. ✅ **Test real signup** with new account
-4. 🔄 **Add custom domain** in Resend (optional)
-5. 🔒 **Add webhook signature** verification (recommended)
-6. 🎨 **Customize email templates** to match brand
+If you really want custom email logic via webhook, you need to deploy a **Supabase Edge Function** instead of using your E2B backend.
+
+**This is more complex and not necessary for basic email verification.**
+
+Let me know if you want instructions for this approach.
 
 ---
 
-## 🆘 Need Help?
+## What About Resend?
 
-**Check logs in:**
-- Backend console (E2B)
-- App Debug Email screen
-- Supabase Dashboard → Logs
-- Resend Dashboard → Emails
+You have two options:
 
-**Common URLs:**
-- Backend: https://8081-ieyxozyisrhek46ra3fcz-6532622b.e2b.app
-- Supabase: https://supabase.com/dashboard/project/hotbmbscjxgayivmyenb
-- Resend: https://resend.com
+### Option 1: Use Resend via Supabase SMTP (Recommended)
+Configure Supabase to send emails through Resend's SMTP (see Step 4 above)
 
-**Test endpoints:**
-- Health: `GET /api/health`
-- Test Email: `GET /api/test-email?to=your@email.com`
-- Auth Hook: `POST /api/auth/hook`
+### Option 2: Keep Webhook Secret for Future Use
+Your webhook secret: `v1,whsec_jcSmWGH5T217lHoXXSDfTgIQMv7mBYJ3xN2RCrQeXMZ3t23w8nGxUXK+IheRdBwHEjVPWNfmmU4k8PA6`
+
+Save this in case you deploy your backend to a public URL in the future (not E2B).
+
+---
+
+## Summary
+
+**To fix the 502 error:**
+
+1. ❌ **Delete** the Supabase Auth Hook
+2. ✅ **Use** Supabase's built-in email templates
+3. 📧 **Optionally** configure Resend SMTP in Supabase for better emails
+4. 🧪 **Test** sign up again
+
+This is the **simplest and most reliable solution** for your use case.
