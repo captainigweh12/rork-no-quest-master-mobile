@@ -74,7 +74,34 @@ export default function AuthScreen() {
         }
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An error occurred');
+      console.error('Auth error:', error);
+      
+      if (error.message && error.message.includes('account with this email already exists')) {
+        Alert.alert(
+          'Account Exists',
+          'An account with this email already exists. Please sign in instead.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Go to Sign In', 
+              onPress: () => {
+                setMode('signin');
+                setPassword('');
+              }
+            }
+          ]
+        );
+      } else if (error.message && error.message.includes('verify your email')) {
+        Alert.alert(
+          'Email Not Verified',
+          'Your email is not verified. We\'ll resend the verification code.',
+          [
+            { text: 'OK', onPress: () => router.replace(`/verify-email?email=${encodeURIComponent(email)}`) }
+          ]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'An error occurred');
+      }
     } finally {
       setIsLoading(false);
     }

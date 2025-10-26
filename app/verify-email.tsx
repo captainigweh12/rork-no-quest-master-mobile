@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ export default function VerifyEmailScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [autoResent, setAutoResent] = useState(false);
 
   const handleVerify = async () => {
     if (!code || code.length < 6) {
@@ -61,7 +62,7 @@ export default function VerifyEmailScreen() {
     }
   };
 
-  const handleResend = async () => {
+  const handleResend = useCallback(async (silent = false) => {
     if (!email) {
       Alert.alert('Error', 'Email not found');
       return;
@@ -72,13 +73,25 @@ export default function VerifyEmailScreen() {
     try {
       const result = await resendVerificationCode(email);
       console.log('New verification code:', result.data?.verificationCode);
-      Alert.alert('Code Resent', 'A new verification code has been sent. Check the console for the code.');
+      if (!silent) {
+        Alert.alert('Code Resent', 'A new verification code has been sent to your email. Check the console for the code.');
+      }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to resend code');
+      console.error('Resend error:', error);
+      if (!silent) {
+        Alert.alert('Error', error.message || 'Failed to resend code');
+      }
     } finally {
       setIsResending(false);
     }
-  };
+  }, [email, resendVerificationCode]);
+
+  useEffect(() => {
+    if (email && !autoResent) {
+      setAutoResent(true);
+      handleResend(true);
+    }
+  }, [email, autoResent, handleResend]);
 
   return (
     <>
@@ -169,7 +182,7 @@ export default function VerifyEmailScreen() {
                     <View style={styles.resendContainer}>
                       <Text style={styles.resendText}>Didn&apos;t receive the code? </Text>
                       <TouchableOpacity
-                        onPress={handleResend}
+                        onPress={() => handleResend(false)}
                         disabled={isResending}
                         activeOpacity={0.7}
                       >

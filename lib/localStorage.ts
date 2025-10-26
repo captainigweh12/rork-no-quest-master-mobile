@@ -80,7 +80,7 @@ export const localStorageService = {
       if (existingUser.emailVerified) {
         throw new Error('An account with this email already exists. Please sign in instead.');
       } else {
-        console.log('[localStorage] Found unverified user, regenerating verification code...');
+        console.log('[localStorage] Found unverified user, regenerating verification code and resending email...');
         const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         existingUser.verificationCode = verificationCode;
         existingUser.password = password;

@@ -60,7 +60,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     try {
       const { user: newUser, verificationCode } = await localStorageService.signUp(email, password, fullName);
 
-      console.log('User created, sending verification email...');
+      console.log('User created/updated, sending verification email...');
       
       try {
         const emailResult = await sendVerificationEmailMutation.mutateAsync({
