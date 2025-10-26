@@ -14,7 +14,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { theme } = useTheme();
-  const { profile, quests, progressMap, recordQuestOutcome, addAIQuest } = useGame();
+  const { profile, quests, progressMap, recordQuestOutcome, addAIQuest, failQuest } = useGame();
   const { unreadCount } = useNotifications();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -113,6 +113,16 @@ export default function HomeScreen() {
                   }
                   return shouldAdvance;
                 }}
+                onTimerExpire={(penalty) => {
+                  setCurrentIndex((i) => i + 1);
+                  setTimeout(() => {
+                    Alert.alert(
+                      'Quest Failed',
+                      `Time's up! You lost ${penalty.xp} XP and ${penalty.points} points. Your streak was reduced by 1.`,
+                      [{ text: 'OK' }]
+                    );
+                  }, 100);
+                }}
                 theme={theme.colors}
               />
             );
@@ -178,11 +188,12 @@ interface QuestCardProps {
   currentIndex: number;
   onSwipeLeft: () => boolean;
   onSwipeRight: () => boolean;
+  onTimerExpire: (penalty: { xp: number; points: number }) => void;
   theme: any;
 }
 
-function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, theme }: QuestCardProps) {
-  const { progressMap, completeQuest } = useGame();
+function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTimerExpire, theme }: QuestCardProps) {
+  const { progressMap, failQuest } = useGame();
   const progress = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 } as { noCount: number; yesCount: number };
   const minNo = quest.minNoRequired ?? 0;
   const pan = useRef(new Animated.ValueXY()).current;
@@ -250,20 +261,10 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, them
 
       if (remaining === 0 && !timerExpired) {
         setTimerExpired(true);
-        setTimeout(() => {
-          Alert.alert(
-            'Quest Time Expired',
-            `You gained ${quest.xp} XP and ${quest.points} points!`,
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  completeQuest(quest.id);
-                },
-              },
-            ]
-          );
-        }, 100);
+        const result = failQuest(quest.id);
+        if (result) {
+          onTimerExpire(result.penalty);
+        }
       }
     };
 
@@ -271,7 +272,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, them
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [quest.timerEndAt, quest.id, quest.xp, quest.points, index, currentIndex, timerExpired, completeQuest]);
+  }, [quest.timerEndAt, quest.id, index, currentIndex, timerExpired, failQuest, onTimerExpire]);
 
   const handleSwipe = useCallback((direction: 'left' | 'right') => {
     const toValue = direction === 'right' ? SCREEN_WIDTH * 1.2 : -SCREEN_WIDTH * 1.2;

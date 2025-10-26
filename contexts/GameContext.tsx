@@ -248,6 +248,41 @@ export const [GameProvider, useGame] = createContextHook(() => {
     [quests, profile, progressMap]
   );
 
+  const failQuest = useCallback(
+    (questId: string) => {
+      const quest = quests.find((q) => q.id === questId);
+      if (!quest || quest.completed) return;
+
+      const penalty = {
+        xp: Math.floor(quest.xp * 0.5),
+        points: Math.floor(quest.points * 0.5),
+      };
+
+      const newXP = Math.max(0, profile.currentXP - penalty.xp);
+      const newPoints = Math.max(0, profile.totalPoints - penalty.points);
+      const newStreak = Math.max(0, profile.streak - 1);
+
+      const newProfile: UserProfile = {
+        ...profile,
+        currentXP: newXP,
+        totalPoints: newPoints,
+        streak: newStreak,
+      };
+
+      const newQuests = quests.filter((q) => q.id !== questId);
+      const newProgress = { ...progressMap };
+      delete newProgress[questId];
+
+      setQuests(newQuests);
+      setProfile(newProfile);
+      setProgressMap(newProgress);
+      saveData(newProfile, newQuests, newProgress);
+
+      return { penalty, quest };
+    },
+    [quests, profile, progressMap]
+  );
+
   const addCustomQuest = useCallback(
     (questData: { title: string; description?: string; minNoRequired: number; durationMinutes?: number }) => {
       console.log('Adding custom quest:', questData);
@@ -332,7 +367,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
       removeQuest,
       progressMap,
       recordQuestOutcome,
+      failQuest,
     }),
-    [profile, quests, isLoading, completeQuest, resetQuest, addAIQuest, addCustomQuest, removeQuest, progressMap, recordQuestOutcome]
+    [profile, quests, isLoading, completeQuest, resetQuest, addAIQuest, addCustomQuest, removeQuest, progressMap, recordQuestOutcome, failQuest]
   );
 });
