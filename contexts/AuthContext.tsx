@@ -73,9 +73,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Verification email sent successfully');
         } else {
           console.error('Failed to send verification email:', emailResult.error);
+          console.log('Note: You can still verify using the code:', verificationCode);
         }
-      } catch (emailError) {
-        console.error('Error sending verification email:', emailError);
+      } catch (emailError: any) {
+        console.error('Error sending verification email:', emailError?.message || emailError);
+        console.log('Note: You can still verify using the code:', verificationCode);
       }
 
       console.log('Sign up successful, verification required');
@@ -157,9 +159,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('Verification email resent successfully');
         } else {
           console.error('Failed to resend verification email:', emailResult.error);
+          console.log('Note: You can still verify using the code:', verificationCode);
         }
-      } catch (emailError) {
-        console.error('Error resending verification email:', emailError);
+      } catch (emailError: any) {
+        console.error('Error resending verification email:', emailError?.message || emailError);
+        console.log('Note: You can still verify using the code:', verificationCode);
       }
       
       console.log('Verification code resent');
