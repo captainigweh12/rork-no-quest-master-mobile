@@ -42,11 +42,41 @@ function computeBaseUrl(): string {
 
 const baseUrl = computeBaseUrl();
 
+console.log('[trpc] Base URL:', baseUrl);
+console.log('[trpc] tRPC endpoint:', `${baseUrl}/api/trpc`);
+
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
       url: `${baseUrl}/api/trpc`,
       transformer: superjson,
+      fetch: async (url, options) => {
+        console.log('[trpc] Fetching:', url);
+        console.log('[trpc] Options:', JSON.stringify(options, null, 2));
+        
+        try {
+          const response = await fetch(url, options);
+          console.log('[trpc] Response status:', response.status);
+          console.log('[trpc] Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+          
+          const contentType = response.headers.get('content-type');
+          console.log('[trpc] Content-Type:', contentType);
+          
+          if (!response.ok) {
+            const text = await response.text();
+            console.error('[trpc] Error response body (first 500 chars):', text.substring(0, 500));
+            
+            if (contentType?.includes('text/html')) {
+              throw new Error(`Backend returned HTML instead of JSON. Status: ${response.status}. Backend might not be running or URL is incorrect. Check: ${baseUrl}`);
+            }
+          }
+          
+          return response;
+        } catch (error: any) {
+          console.error('[trpc] Fetch error:', error);
+          throw error;
+        }
+      },
     }),
   ],
 });

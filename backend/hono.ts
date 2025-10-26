@@ -34,6 +34,19 @@ app.get("/", (c) => {
   });
 });
 
+app.get("/api/health", (c) => {
+  console.log('\n🏥 [HEALTH] Health check requested');
+  return c.json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    backend: "running",
+    env: {
+      resend_configured: !!process.env.RESEND_API_KEY,
+      resend_api_key_preview: process.env.RESEND_API_KEY?.substring(0, 10) + '...',
+    }
+  });
+});
+
 app.get("/api/test-email", async (c) => {
   console.log('\n🧪 [TEST-EMAIL] Request received');
   try {
