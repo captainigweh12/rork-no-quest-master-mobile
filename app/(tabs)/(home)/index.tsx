@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanR
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -14,6 +15,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export default function HomeScreen() {
   const { theme } = useTheme();
   const { profile, quests, progressMap, recordQuestOutcome, addAIQuest } = useGame();
+  const { unreadCount } = useNotifications();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -48,9 +50,14 @@ export default function HomeScreen() {
         <View style={styles.headerActions}>
           <Pressable
             style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
-            onPress={() => router.push('/profile' as any)}
+            onPress={() => router.push('/notifications' as any)}
           >
             <Bell size={20} color={theme.colors.text} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
           </Pressable>
           <Pressable
             style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
@@ -657,7 +664,22 @@ function createStyles(colors: any) {
       fontSize: 12,
       textAlign: 'center',
     },
-
+    badge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    badgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700' as const,
+    },
   });
 }
 

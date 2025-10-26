@@ -2,8 +2,9 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndic
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, UserPlus, Send, X, Link as LinkIcon } from 'lucide-react-native';
+import { Search, UserPlus, Send, X, Link as LinkIcon, MessageCircle } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Friend } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +21,7 @@ export default function CommunityScreen() {
   const { user } = useAuth();
   const { quests } = useGame();
   const queryClient = useQueryClient();
+  const router = useRouter();
   
   const activeQuest = useMemo(() => {
     return quests.find((q) => !q.completed && (q.source === 'user' || q.source === 'ai'));
@@ -258,7 +260,23 @@ export default function CommunityScreen() {
 
                   <View style={styles.actionsRow}>
                     <Pressable
-                      style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                      style={[styles.actionButton, { backgroundColor: theme.colors.success }]}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/chat',
+                          params: {
+                            friendId: friend.id,
+                            friendName: friend.username,
+                            friendAvatar: friend.avatarUrl,
+                          },
+                        } as any);
+                      }}
+                    >
+                      <MessageCircle size={16} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>Chat</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.actionButton, { backgroundColor: theme.colors.primary, opacity: activeQuest ? 1 : 0.5 }]}
                       onPress={() => handleSendQuest(friend)}
                       disabled={!activeQuest}
                     >

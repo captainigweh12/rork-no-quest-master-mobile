@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
 
 
 LogBox.ignoreLogs([
@@ -63,6 +64,8 @@ function RootLayoutNav() {
       <Stack.Screen name="profile" options={{ presentation: "modal" }} />
       <Stack.Screen name="create-quest" options={{ presentation: "modal" }} />
       <Stack.Screen name="disclaimer" options={{ presentation: "modal" }} />
+      <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
+      <Stack.Screen name="chat" options={{ presentation: "modal" }} />
     </Stack>
   );
 }
@@ -82,11 +85,13 @@ export default function RootLayout() {
         <AuthProvider>
           <ThemeProvider>
             <OnboardingProvider>
-              <GameProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <RootLayoutNav />
-                </GestureHandlerRootView>
-              </GameProvider>
+              <NotificationsProvider>
+                <GameProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <RootLayoutNav />
+                  </GestureHandlerRootView>
+                </GameProvider>
+              </NotificationsProvider>
             </OnboardingProvider>
           </ThemeProvider>
         </AuthProvider>
