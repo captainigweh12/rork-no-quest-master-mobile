@@ -127,17 +127,25 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   const updateRelationshipStatus = useCallback(async (relationshipStatus: 'single' | 'married') => {
-    if (!user) throw new Error('No user logged in');
-    console.log('Updating relationship status:', relationshipStatus);
     try {
-      await localStorageService.updateRelationshipStatus(user.id, relationshipStatus);
-      setUser({ ...user, relationshipStatus });
-      console.log('Relationship status updated successfully');
+      const currentUser = await localStorageService.getCurrentUser();
+      if (!currentUser) throw new Error('No user logged in');
+      
+      await localStorageService.updateRelationshipStatus(currentUser.id, relationshipStatus);
+      
+      const updatedUser: User = {
+        id: currentUser.id,
+        email: currentUser.email,
+        fullName: currentUser.fullName,
+        relationshipStatus,
+      };
+      
+      setUser(updatedUser);
     } catch (error: any) {
       console.error('Update relationship status exception:', error);
       throw error;
     }
-  }, [user]);
+  }, []);
 
   return useMemo(
     () => ({
