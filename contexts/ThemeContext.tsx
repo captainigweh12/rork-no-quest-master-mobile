@@ -61,6 +61,14 @@ const darkTheme: Theme = {
   },
 };
 
+const defaultThemeContext = {
+  theme: darkTheme,
+  themeMode: 'dark' as ThemeMode,
+  toggleTheme: async () => {},
+  setTheme: async (_mode: ThemeMode) => {},
+  isLoading: false,
+};
+
 export const [ThemeProvider, useTheme] = createContextHook(() => {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
@@ -83,8 +91,6 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     };
     initTheme();
   }, [systemColorScheme]);
-
-
 
   const toggleTheme = useCallback(async () => {
     const newTheme: ThemeMode = themeMode === 'dark' ? 'light' : 'dark';
@@ -117,4 +123,4 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     }),
     [theme, themeMode, toggleTheme, setTheme, isLoading]
   );
-});
+}, defaultThemeContext);
