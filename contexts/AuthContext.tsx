@@ -83,19 +83,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             created_at: new Date().toISOString(),
           }, {
             onConflict: 'id',
-            ignoreDuplicates: false,
+            ignoreDuplicates: true,
           })
           .select()
           .single();
 
-        if (insertError) {
+        if (insertError && insertError.code !== '23505') {
           console.error('❌ Error creating profile:', JSON.stringify(insertError, null, 2));
           setUser({
             id: supabaseUser.id,
             email: supabaseUser.email || '',
             fullName: supabaseUser.user_metadata?.full_name || 'User',
           });
-        } else {
+        } else if (newProfile) {
           console.log('✅ Profile created/updated:', newProfile.full_name);
           setUser({
             id: newProfile.id,
@@ -104,6 +104,29 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             relationshipStatus: newProfile.relationship_status,
             preferredLanguage: newProfile.preferred_language,
           });
+        } else {
+          console.log('⚠️ Profile already exists, refetching...');
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', supabaseUser.id)
+            .single();
+          
+          if (existingProfile) {
+            setUser({
+              id: existingProfile.id,
+              email: supabaseUser.email || '',
+              fullName: existingProfile.full_name,
+              relationshipStatus: existingProfile.relationship_status,
+              preferredLanguage: existingProfile.preferred_language,
+            });
+          } else {
+            setUser({
+              id: supabaseUser.id,
+              email: supabaseUser.email || '',
+              fullName: supabaseUser.user_metadata?.full_name || 'User',
+            });
+          }
         }
       }
     } catch (error) {
