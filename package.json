@@ -3,9 +3,11 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "bunx rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
-    "start-web": "bunx rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
+    "start": "dotenv -e .env -- expo start -c",
+    "start-web": "dotenv -e .env -- expo start --web -c",
+    "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
+    "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
+    "start-rork-dev": "dotenv -e .env -- DEBUG=expo* rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
     "lint": "expo lint"
   },
   "dependencies": {
