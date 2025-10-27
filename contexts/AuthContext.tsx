@@ -54,7 +54,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('❌ Error loading profile:', error);
+        console.error('❌ Error loading profile:', JSON.stringify(error, null, 2));
         setUser({
           id: supabaseUser.id,
           email: supabaseUser.email || '',
@@ -86,7 +86,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           .single();
 
         if (insertError) {
-          console.error('❌ Error creating profile:', insertError);
+          console.error('❌ Error creating profile:', JSON.stringify(insertError, null, 2));
           setUser({
             id: supabaseUser.id,
             email: supabaseUser.email || '',
@@ -104,7 +104,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         }
       }
     } catch (error) {
-      console.error('💥 Exception loading profile:', error);
+      console.error('💥 Exception loading profile:', JSON.stringify(error, null, 2), error);
       setUser({
         id: supabaseUser.id,
         email: supabaseUser.email || '',
