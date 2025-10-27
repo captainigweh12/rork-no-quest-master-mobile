@@ -140,7 +140,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: undefined,
         },
       });
 
