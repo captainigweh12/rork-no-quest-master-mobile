@@ -1,24 +1,19 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseEnv } from "./env";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const { url, key } = getSupabaseEnv();
 
-console.log('🌐 Initializing Supabase client for web...');
-console.log('🔗 Supabase URL:', supabaseUrl);
-console.log('🔑 Anon key present:', !!supabaseAnonKey);
+console.log("🌐 Initializing Supabase web client...");
+console.log("🔗 URL:", url);
+console.log("🔑 Key present:", !!key);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase environment variables!');
-  console.error('❌ Please check your .env file has EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(url, key, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
   },
 });
 
-console.log('✅ Supabase web client initialized');
+console.log("✅ Supabase web client initialized");
