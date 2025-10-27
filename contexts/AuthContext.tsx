@@ -146,6 +146,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       if (error) {
         console.error('❌ Sign up error:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
         return { data: null, error };
       }
 
@@ -162,6 +163,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       };
     } catch (error: any) {
       console.error('💥 Sign up exception:', error);
+      console.error('💥 Exception details:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack,
+      });
       return { data: null, error };
     }
   }, []);

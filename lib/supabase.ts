@@ -33,6 +33,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+console.log('🔗 Initializing Supabase client...');
+console.log('🔗 Supabase URL:', supabaseUrl);
+console.log('🔑 Anon key present:', !!supabaseAnonKey);
+console.log('📦 Platform:', Platform.OS);
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
@@ -40,4 +45,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
   },
+  global: {
+    headers: {
+      'X-Client-Info': `supabase-js-react-native`,
+    },
+  },
 });
+
+console.log('✅ Supabase client initialized');
