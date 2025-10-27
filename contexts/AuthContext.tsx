@@ -46,21 +46,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
       console.log('👤 Loading user profile for:', supabaseUser.email);
-      
-      const { data: profile, error } = await supabase
+
+      const { data: profile, error: readErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('❌ Error loading profile:', JSON.stringify(error, null, 2));
-        setUser({
-          id: supabaseUser.id,
-          email: supabaseUser.email || '',
-          fullName: supabaseUser.user_metadata?.full_name || 'User',
-        });
-        return;
+      if (readErr && readErr.code && readErr.code !== 'PGRST116') {
+        console.error('❌ Error reading profile:', readErr);
       }
 
       if (profile) {
@@ -72,65 +66,61 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           relationshipStatus: profile.relationship_status,
           preferredLanguage: profile.preferred_language,
         });
-      } else {
-        console.log('📝 No profile found, creating one...');
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: supabaseUser.id,
-            email: supabaseUser.email,
-            full_name: supabaseUser.user_metadata?.full_name || 'User',
-            created_at: new Date().toISOString(),
-          }, {
-            onConflict: 'id',
-            ignoreDuplicates: true,
-          })
-          .select()
-          .single();
+        return;
+      }
 
-        if (insertError && insertError.code !== '23505') {
-          console.error('❌ Error creating profile:', JSON.stringify(insertError, null, 2));
-          setUser({
-            id: supabaseUser.id,
-            email: supabaseUser.email || '',
-            fullName: supabaseUser.user_metadata?.full_name || 'User',
-          });
-        } else if (newProfile) {
-          console.log('✅ Profile created/updated:', newProfile.full_name);
-          setUser({
-            id: newProfile.id,
-            email: supabaseUser.email || '',
-            fullName: newProfile.full_name,
-            relationshipStatus: newProfile.relationship_status,
-            preferredLanguage: newProfile.preferred_language,
-          });
-        } else {
-          console.log('⚠️ Profile already exists, refetching...');
-          const { data: existingProfile } = await supabase
+      console.log('📝 No profile found, upserting one...');
+      const upsertPayload = {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        full_name: supabaseUser.user_metadata?.full_name || 'User',
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: upserted, error: upsertErr } = await supabase
+        .from('profiles')
+        .upsert(upsertPayload, { onConflict: 'id' })
+        .select()
+        .maybeSingle();
+
+      if (upsertErr) {
+        if (upsertErr.code === '23505') {
+          console.warn('ℹ️ Profile already exists (race). Re-reading...');
+          const { data: again, error: againErr } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', supabaseUser.id)
             .single();
-          
-          if (existingProfile) {
-            setUser({
-              id: existingProfile.id,
-              email: supabaseUser.email || '',
-              fullName: existingProfile.full_name,
-              relationshipStatus: existingProfile.relationship_status,
-              preferredLanguage: existingProfile.preferred_language,
-            });
-          } else {
-            setUser({
-              id: supabaseUser.id,
-              email: supabaseUser.email || '',
-              fullName: supabaseUser.user_metadata?.full_name || 'User',
-            });
-          }
+          if (againErr) throw againErr;
+          setUser({
+            id: again.id,
+            email: supabaseUser.email || '',
+            fullName: again.full_name || 'User',
+            relationshipStatus: again.relationship_status,
+            preferredLanguage: again.preferred_language,
+          });
+          return;
         }
+        console.error('❌ Upsert profile error:', upsertErr);
+        setUser({
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          fullName: supabaseUser.user_metadata?.full_name || 'User',
+        });
+        return;
       }
-    } catch (error) {
-      console.error('💥 Exception loading profile:', JSON.stringify(error, null, 2), error);
+
+      const row = upserted!;
+      console.log('✅ Profile created/updated:', row.full_name);
+      setUser({
+        id: row.id,
+        email: supabaseUser.email || '',
+        fullName: row.full_name || 'User',
+        relationshipStatus: row.relationship_status,
+        preferredLanguage: row.preferred_language,
+      });
+    } catch (err) {
+      console.error('💥 Exception loading profile:', err);
       setUser({
         id: supabaseUser.id,
         email: supabaseUser.email || '',
