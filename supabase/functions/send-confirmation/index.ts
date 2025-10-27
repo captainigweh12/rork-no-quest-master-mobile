@@ -1,7 +1,4 @@
-/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0"
+import { Webhook } from "standardwebhooks"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const SEND_EMAIL_HOOK_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET')
@@ -30,7 +27,7 @@ interface AuthHookRequest {
   redirect_to?: string
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-signature',

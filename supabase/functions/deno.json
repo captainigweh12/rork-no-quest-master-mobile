@@ -2,7 +2,8 @@
   "compilerOptions": {
     "allowJs": true,
     "lib": ["deno.window"],
-    "strict": true
+    "strict": false,
+    "types": ["https://deno.land/x/deploy@1.8.0/types/deploy.d.ts"]
   },
   "importMap": "./import_map.json"
 }
