@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const SEND_EMAIL_HOOK_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET')
 
 console.log('🚀 Send Confirmation Email Function Started')
 console.log('   Resend API Key exists:', !!RESEND_API_KEY)
+console.log('   Webhook Secret exists:', !!SEND_EMAIL_HOOK_SECRET)
 
 interface EmailRequest {
   email: string
@@ -28,7 +31,7 @@ interface AuthHookRequest {
 serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-signature',
   }
 
   if (req.method === 'OPTIONS') {
@@ -49,8 +52,49 @@ serve(async (req) => {
       )
     }
 
-    const body = await req.json()
+    const rawBody = await req.text()
+    const body = JSON.parse(rawBody)
+    
     console.log('📦 Request body type:', body.type || 'direct')
+    
+    // Verify webhook signature if this is from Supabase Auth Hook
+    if (body.type === 'confirmation' && SEND_EMAIL_HOOK_SECRET) {
+      console.log('🔐 Verifying webhook signature...')
+      
+      const signature = req.headers.get('x-webhook-signature')
+      if (!signature) {
+        console.error('❌ Missing webhook signature header')
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized hook: missing signature' }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Extract the secret (remove "v1,whsec_" prefix if present)
+      const secret = SEND_EMAIL_HOOK_SECRET.replace(/^v1,whsec_/, 'whsec_')
+      
+      try {
+        const wh = new Webhook(secret)
+        wh.verify(rawBody, {
+          'webhook-id': req.headers.get('webhook-id') || '',
+          'webhook-timestamp': req.headers.get('webhook-timestamp') || '',
+          'webhook-signature': signature,
+        })
+        console.log('✅ Webhook signature verified')
+      } catch (err) {
+        console.error('❌ Webhook verification failed:', err)
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized hook: invalid signature' }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    }
     
     // Handle both Auth Hook format and direct calls
     let email: string
@@ -58,17 +102,14 @@ serve(async (req) => {
     let confirmation_url: string
     
     if (body.type === 'confirmation') {
-      // Auth Hook format
       console.log('🪝 Processing Auth Hook request')
       const authHook = body as AuthHookRequest
       email = authHook.email
       full_name = authHook.user?.user_metadata?.full_name
       
-      // Build confirmation URL from token_hash
       const appBaseUrl = Deno.env.get('APP_BASE_URL') || Deno.env.get('SITE_URL') || 'exp://192.168.1.1:8081'
       confirmation_url = `${appBaseUrl}/verify-email?token_hash=${authHook.token_hash}&type=signup&redirect_to=${authHook.redirect_to || ''}`
     } else {
-      // Direct call format
       console.log('📞 Processing direct call')
       const directCall = body as EmailRequest
       email = directCall.email
