@@ -76,11 +76,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         console.log('📝 No profile found, creating one...');
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: supabaseUser.id,
             email: supabaseUser.email,
             full_name: supabaseUser.user_metadata?.full_name || 'User',
             created_at: new Date().toISOString(),
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: false,
           })
           .select()
           .single();
@@ -93,7 +96,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             fullName: supabaseUser.user_metadata?.full_name || 'User',
           });
         } else {
-          console.log('✅ Profile created:', newProfile.full_name);
+          console.log('✅ Profile created/updated:', newProfile.full_name);
           setUser({
             id: newProfile.id,
             email: supabaseUser.email || '',
