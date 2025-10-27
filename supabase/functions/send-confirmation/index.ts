@@ -65,8 +65,8 @@ serve(async (req) => {
       full_name = authHook.user?.user_metadata?.full_name
       
       // Build confirmation URL from token_hash
-      const siteUrl = Deno.env.get('SITE_URL') || 'exp://192.168.1.1:8081'
-      confirmation_url = `${siteUrl}/verify-email?token_hash=${authHook.token_hash}&type=signup&redirect_to=${authHook.redirect_to || ''}`
+      const appBaseUrl = Deno.env.get('APP_BASE_URL') || Deno.env.get('SITE_URL') || 'exp://192.168.1.1:8081'
+      confirmation_url = `${appBaseUrl}/verify-email?token_hash=${authHook.token_hash}&type=signup&redirect_to=${authHook.redirect_to || ''}`
     } else {
       // Direct call format
       console.log('📞 Processing direct call')
