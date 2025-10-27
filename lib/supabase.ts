@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, AppState } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 console.log('🔗 Initializing Supabase client...');
 console.log('🔗 Supabase URL:', supabaseUrl);
@@ -13,7 +13,14 @@ console.log('📦 Platform:', Platform.OS);
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Missing Supabase environment variables!');
-  console.error('❌ Please check your .env file has EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  console.error('❌ URL:', supabaseUrl);
+  console.error('❌ Key present:', !!supabaseAnonKey);
+  throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY in environment');
+}
+
+if (!supabaseUrl.startsWith('https://')) {
+  console.error('❌ Invalid Supabase URL - must start with https://');
+  throw new Error('Invalid EXPO_PUBLIC_SUPABASE_URL - must be a valid HTTPS URL');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,16 +28,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
+    detectSessionInUrl: false,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': `supabase-js-react-native`,
+    },
   },
 });
 
-AppState.addEventListener('change', (state) => {
-  if (state === 'active') {
-    supabase.auth.startAutoRefresh();
-  } else {
-    supabase.auth.stopAutoRefresh();
-  }
-});
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
 
 console.log('✅ Supabase client initialized');

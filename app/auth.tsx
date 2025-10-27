@@ -53,7 +53,14 @@ export default function AuthScreen() {
     setIsLoading(true);
 
     try {
+      console.log('🔍 Starting auth process...');
+      console.log('📍 Mode:', mode);
+      console.log('📧 Email:', email);
+      console.log('🌐 Supabase URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+      console.log('🔑 Key present:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+      
       if (mode === 'signin') {
+        console.log('🔓 Attempting sign in...');
         const result = await signIn(email, password);
         
         if (result.error) {
@@ -79,6 +86,7 @@ export default function AuthScreen() {
           router.replace('/(tabs)/(home)');
         }
       } else {
+        console.log('📝 Attempting sign up...');
         const result = await signUp(email, password, username);
         
         if (result.error) {
@@ -119,7 +127,20 @@ export default function AuthScreen() {
       }
     } catch (error: any) {
       console.error('💥 Auth error:', error);
-      Alert.alert('Error', error.message || 'An error occurred');
+      console.error('💥 Error type:', typeof error);
+      console.error('💥 Error name:', error?.name);
+      console.error('💥 Error message:', error?.message);
+      console.error('💥 Error toString:', error?.toString?.());
+      console.error('💥 Full error:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'An error occurred';
+      if (error?.message?.includes('Network request failed')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection and try again. If the problem persists, navigate to /test-supabase-direct to diagnose the issue.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
