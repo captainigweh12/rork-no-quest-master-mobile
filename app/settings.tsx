@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Moon, Sun, Bell, Shield, LogOut, Globe, ChevronRight } from 'lucide-react-native';
+import { X, Moon, Sun, Bell, Shield, LogOut, Globe, ChevronRight, Activity } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useLocalization } from '@/contexts/LocalizationContext';
@@ -127,6 +127,26 @@ export default function SettingsScreen() {
               thumbColor="#FFFFFF"
             />
           </View>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Debug</Text>
+
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => router.push('/test-connection' as any)}
+          >
+            <View style={styles.settingLeft}>
+              <Activity size={20} color={theme.colors.primary} />
+              <View>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Test Connection</Text>
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+                  Test Supabase connectivity
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={theme.colors.textSecondary} />
+          </Pressable>
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
