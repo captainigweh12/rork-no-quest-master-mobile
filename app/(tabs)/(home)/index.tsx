@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock, Menu, BookOpen, LineChart } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -22,6 +22,8 @@ export default function HomeScreen() {
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
   const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const menuScale = useRef(new Animated.Value(0)).current;
 
   const activeQuests = quests.filter(q => !q.completed && (q.source === 'user' || q.source === 'ai'));
 
@@ -61,12 +63,78 @@ export default function HomeScreen() {
           </Pressable>
           <Pressable
             style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
+            onPress={() => router.push('/notifications' as any)}
+            testID="notifications-button"
+          >
+            <Bell size={20} color={theme.colors.text} />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: theme.colors.error }]}> 
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
+            style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
+            onPress={() => {
+              setMenuOpen((o) => {
+                const next = !o;
+                Animated.spring(menuScale, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 8, tension: 60 }).start();
+                return next;
+              });
+            }}
+            testID="hamburger-button"
+          >
+            <Menu size={20} color={theme.colors.text} />
+          </Pressable>
+          <Pressable
+            style={[styles.iconButton, { backgroundColor: theme.colors.card }]
+}
             onPress={() => router.push('/settings' as any)}
+            testID="settings-button"
           >
             <Settings size={20} color={theme.colors.text} />
           </Pressable>
         </View>
       </View>
+
+      {menuOpen && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: insets.top + 56,
+            right: 20,
+            transform: [{ scale: menuScale }],
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+            borderWidth: 1,
+            borderRadius: 12,
+            paddingVertical: 6,
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowOffset: { width: 0, height: 6 },
+            shadowRadius: 12,
+            elevation: 6,
+            zIndex: 20,
+          }}
+        >
+          <Pressable
+            onPress={() => { setMenuOpen(false); router.push('/(tabs)/journal' as any); }}
+            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
+            testID="menu-item-journal"
+          >
+            <BookOpen size={18} color={theme.colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Journal</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { setMenuOpen(false); router.push('/(tabs)/growth' as any); }}
+            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
+            testID="menu-item-growth"
+          >
+            <LineChart size={18} color={theme.colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Growth</Text>
+          </Pressable>
+        </Animated.View>
+      )}
 
       <View style={styles.cardsContainer} testID="home-cards-container">
         {isGeneratingQuest ? (
