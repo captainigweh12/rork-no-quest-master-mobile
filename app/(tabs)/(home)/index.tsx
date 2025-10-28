@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock, Menu, BookOpen, LineChart, Sparkles } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock, Menu, LineChart, Sparkles, Medal } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -75,18 +75,6 @@ export default function HomeScreen() {
           </Pressable>
           <Pressable
             style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
-            onPress={() => router.push('/notifications' as any)}
-            testID="notifications-button"
-          >
-            <Bell size={20} color={theme.colors.text} />
-            {unreadCount > 0 && (
-              <View style={[styles.badge, { backgroundColor: theme.colors.error }]}> 
-                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </Pressable>
-          <Pressable
-            style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
             onPress={() => {
               setMenuOpen((o) => {
                 const next = !o;
@@ -130,12 +118,20 @@ export default function HomeScreen() {
           }}
         >
           <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/(tabs)/journal' as any); }}
+            onPress={() => { setMenuOpen(false); router.push('/profile' as any); }}
             style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
-            testID="menu-item-journal"
+            testID="menu-item-skill"
           >
-            <BookOpen size={18} color={theme.colors.text} />
-            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Journal</Text>
+            <Medal size={18} color={theme.colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Skill Level</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { setMenuOpen(false); router.push('/(tabs)/ranks' as any); }}
+            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
+            testID="menu-item-ranks"
+          >
+            <Trophy size={18} color={theme.colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Ranks</Text>
           </Pressable>
           <Pressable
             onPress={() => { setMenuOpen(false); router.push('/(tabs)/growth' as any); }}
@@ -148,35 +144,37 @@ export default function HomeScreen() {
         </Animated.View>
       )}
 
-      {/* Hero banner */}
-      <View style={{ paddingHorizontal: 20 }}>
-        <LinearGradient colors={[theme.colors.primary + '33', theme.colors.card]} style={styles.heroBanner}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.heroTitle, { color: theme.colors.text }]}>Complete 3 Quests today</Text>
-            <Text style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}>Earn bonus XP and keep your streak alive</Text>
-          </View>
-          <Sparkles size={28} color={theme.colors.primary} />
-        </LinearGradient>
-      </View>
-
-      {/* Category rail */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingVertical: 10 }}>
-        {CATEGORY_CARDS.map((c) => (
-          <Pressable
-            key={c.id}
-            onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
-            style={({ pressed }) => [styles.categoryCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.9 : 1 }]}
-            testID={`category-${c.id}`}
-          >
-            <View style={{ flex: 1, justifyContent: 'space-between' }}>
-              <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>{c.title}</Text>
-              <View style={[styles.pill, { backgroundColor: c.color }]}>
-                <Text style={styles.pillText}>Get Quest</Text>
+      {activeQuests.length === 0 ? (
+        <>
+          <View style={{ paddingHorizontal: 20 }}>
+            <LinearGradient colors={[theme.colors.primary + '33', theme.colors.card]} style={styles.heroBanner}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.heroTitle, { color: theme.colors.text }]}>Complete 3 Quests today</Text>
+                <Text style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}>Earn bonus XP and keep your streak alive</Text>
               </View>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
+              <Sparkles size={28} color={theme.colors.primary} />
+            </LinearGradient>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingVertical: 10 }}>
+            {CATEGORY_CARDS.map((c) => (
+              <Pressable
+                key={c.id}
+                onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
+                style={({ pressed }) => [styles.categoryCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.9 : 1 }]}
+                testID={`category-${c.id}`}
+              >
+                <View style={{ flex: 1, justifyContent: 'space-between' }}>
+                  <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>{c.title}</Text>
+                  <View style={[styles.pill, { backgroundColor: c.color }]}>
+                    <Text style={styles.pillText}>Get Quest</Text>
+                  </View>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
 
       <View style={styles.cardsContainer} testID="home-cards-container">
         {isGeneratingQuest ? (
