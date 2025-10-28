@@ -1,5 +1,5 @@
 import { Tabs, useRouter } from 'expo-router';
-import { Home, Users, Trophy, MapPin, Plus } from 'lucide-react-native';
+import { Home, Users, Trophy, MapPin, Plus, BookOpen, LineChart } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -72,6 +72,20 @@ export default function TabLayout() {
             }
             router.push('/create-quest');
           },
+        }}
+      />
+      <Tabs.Screen
+        name="journal"
+        options={{
+          title: 'Journal',
+          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="growth"
+        options={{
+          title: 'Growth',
+          tabBarIcon: ({ color, size }) => <LineChart size={size} color={color} />,
         }}
       />
       <Tabs.Screen

@@ -12,6 +12,7 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
+import { JournalsProvider } from "@/contexts/JournalsContext";
 
 
 LogBox.ignoreLogs([
@@ -89,9 +90,11 @@ export default function RootLayout() {
               <OnboardingProvider>
                 <NotificationsProvider>
                   <GameProvider>
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <RootLayoutNav />
-                    </GestureHandlerRootView>
+                    <JournalsProvider>
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <RootLayoutNav />
+                      </GestureHandlerRootView>
+                    </JournalsProvider>
                   </GameProvider>
                 </NotificationsProvider>
               </OnboardingProvider>
