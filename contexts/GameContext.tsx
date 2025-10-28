@@ -191,7 +191,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
   );
 
   const addAIQuest = useCallback(
-    async (difficulty: QuestDifficulty, isSuperQuest = false, previousQuest?: Quest) => {
+    async (difficulty: QuestDifficulty, isSuperQuest = false, previousQuest?: Quest, categoryId?: import('@/services/questAI').CategoryId) => {
       console.log(`Generating AI quest with difficulty: ${difficulty}, isSuperQuest: ${isSuperQuest}`);
       try {
         const rankTitles = [
@@ -220,6 +220,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             difficulty: previousQuest.difficulty,
           } : undefined,
           excludeTitles: quests.map((q) => q.title),
+          categoryId,
         });
 
         const questWithSource = { ...newQuest, source: 'ai' as const };

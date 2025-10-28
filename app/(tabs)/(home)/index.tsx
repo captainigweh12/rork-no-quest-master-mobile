@@ -1,16 +1,28 @@
-import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock, Menu, BookOpen, LineChart } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock, Menu, BookOpen, LineChart, Sparkles } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import type { Quest } from '@/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const CATEGORY_CARDS: { id: string; title: string; color: string; image: string; }[] = [
+  { id: 'business', title: 'Business', color: '#3787ff', image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'dating', title: 'Dating', color: '#ff5d8f', image: 'https://images.unsplash.com/photo-1529336953121-ad5a56b0eece?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'adventure', title: 'Adventure', color: '#ff8a30', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'fitness', title: 'Fitness', color: '#27c37b', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'creativity', title: 'Creativity', color: '#9b5cff', image: 'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'wealth', title: 'Wealth', color: '#20b2aa', image: 'https://images.unsplash.com/photo-1554224155-3a589877462f?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'mindset', title: 'Mindset', color: '#ffb020', image: 'https://images.unsplash.com/photo-1533371452382-d45a9da51ad9?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'relationships', title: 'Relationships', color: '#ff6b6b', image: 'https://images.unsplash.com/photo-1517884467360-71c4b3d48ee0?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'community', title: 'Community', color: '#00bcd4', image: 'https://images.unsplash.com/photo-1532634896-26909d0d4b6a?q=80&w=1200&auto=format&fit=crop' },
+];
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -135,6 +147,36 @@ export default function HomeScreen() {
           </Pressable>
         </Animated.View>
       )}
+
+      {/* Hero banner */}
+      <View style={{ paddingHorizontal: 20 }}>
+        <LinearGradient colors={[theme.colors.primary + '33', theme.colors.card]} style={styles.heroBanner}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.heroTitle, { color: theme.colors.text }]}>Complete 3 Quests today</Text>
+            <Text style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}>Earn bonus XP and keep your streak alive</Text>
+          </View>
+          <Sparkles size={28} color={theme.colors.primary} />
+        </LinearGradient>
+      </View>
+
+      {/* Category rail */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingVertical: 10 }}>
+        {CATEGORY_CARDS.map((c) => (
+          <Pressable
+            key={c.id}
+            onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
+            style={({ pressed }) => [styles.categoryCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.9 : 1 }]}
+            testID={`category-${c.id}`}
+          >
+            <View style={{ flex: 1, justifyContent: 'space-between' }}>
+              <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>{c.title}</Text>
+              <View style={[styles.pill, { backgroundColor: c.color }]}>
+                <Text style={styles.pillText}>Get Quest</Text>
+              </View>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       <View style={styles.cardsContainer} testID="home-cards-container">
         {isGeneratingQuest ? (
@@ -691,6 +733,28 @@ function createStyles(colors: any) {
       borderWidth: 1,
       borderColor: colors.border,
     },
+    heroBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 6,
+    },
+    heroTitle: { fontSize: 18, fontWeight: '900' as const },
+    heroSubtitle: { fontSize: 12, fontWeight: '600' as const },
+    categoryCard: {
+      width: 180,
+      height: 100,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+    },
+    categoryTitle: { fontSize: 16, fontWeight: '800' as const },
+    pill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+    pillText: { color: '#fff', fontWeight: '800' as const, fontSize: 12 },
     cardsContainer: {
       flex: 1,
       justifyContent: 'center',
