@@ -145,23 +145,25 @@ export default function HomeScreen() {
       )}
 
       {activeQuests.length === 0 ? (
-        <>
-          <View style={{ paddingHorizontal: 20 }}>
-            <LinearGradient colors={[theme.colors.primary + '33', theme.colors.card]} style={styles.heroBanner}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.heroTitle, { color: theme.colors.text }]}>Complete 3 Quests today</Text>
-                <Text style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}>Earn bonus XP and keep your streak alive</Text>
-              </View>
-              <Sparkles size={28} color={theme.colors.primary} />
-            </LinearGradient>
-          </View>
+        <ScrollView 
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <LinearGradient colors={[theme.colors.primary + '33', theme.colors.card]} style={styles.heroBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.heroTitle, { color: theme.colors.text }]}>Complete 3 Quests today</Text>
+              <Text style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}>Earn bonus XP and keep your streak alive</Text>
+            </View>
+            <Sparkles size={28} color={theme.colors.primary} />
+          </LinearGradient>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingVertical: 10 }}>
+          <View style={{ gap: 16, marginTop: 16 }}>
             {CATEGORY_CARDS.map((c) => (
               <Pressable
                 key={c.id}
                 onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
-                style={({ pressed }) => [styles.categoryCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.9 : 1 }]}
+                style={({ pressed }) => [styles.categoryCardVertical, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.9 : 1 }]}
                 testID={`category-${c.id}`}
               >
                 <View style={{ flex: 1, justifyContent: 'space-between' }}>
@@ -172,8 +174,8 @@ export default function HomeScreen() {
                 </View>
               </Pressable>
             ))}
-          </ScrollView>
-        </>
+          </View>
+        </ScrollView>
       ) : null}
 
       <View style={styles.cardsContainer} testID="home-cards-container">
@@ -745,6 +747,13 @@ function createStyles(colors: any) {
     heroSubtitle: { fontSize: 12, fontWeight: '600' as const },
     categoryCard: {
       width: 180,
+      height: 100,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+    },
+    categoryCardVertical: {
+      width: '100%',
       height: 100,
       borderRadius: 16,
       padding: 14,
