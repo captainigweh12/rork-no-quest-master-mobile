@@ -187,14 +187,7 @@ export default function HomeScreen() {
               Creating a personalized challenge just for you
             </Text>
           </View>
-        ) : activeQuests.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Active Quests</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              Tap the + button to create a new quest
-            </Text>
-          </View>
-        ) : (
+        ) : activeQuests.length > 0 ? (
           activeQuests.map((quest, index) => {
             if (index < currentIndex) return null;
             return (
@@ -237,7 +230,7 @@ export default function HomeScreen() {
               />
             );
           }).reverse()
-        )}
+        ) : null}
       </View>
 
       <View style={[styles.instructions, { paddingBottom: insets.bottom + 20 }]}>
