@@ -441,12 +441,16 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
   console.log('Generating quest locally with params:', params);
 
   let questPool: QuestTemplate[] = questTemplatesGeneral;
+  let priorityPool: QuestTemplate[] = [];
 
   if (categoryId && categoryTemplates[categoryId]) {
+    priorityPool = categoryTemplates[categoryId];
     questPool = [...categoryTemplates[categoryId], ...questTemplatesGeneral];
   } else if (relationshipStatus === 'single') {
+    priorityPool = questTemplatesSingle;
     questPool = [...questTemplatesSingle, ...questTemplatesGeneral];
   } else if (relationshipStatus === 'married') {
+    priorityPool = questTemplatesMarried;
     questPool = [...questTemplatesMarried, ...questTemplatesGeneral];
   }
 
@@ -455,9 +459,13 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     excludes.add(previousQuest.title.toLowerCase());
   }
 
-  const available = questPool.filter((t) => !excludes.has(t.title.toLowerCase()));
-  const baseTemplate = (available.length > 0
-    ? available[Math.floor(Math.random() * available.length)]
+  const availablePriority = priorityPool.filter((t) => !excludes.has(t.title.toLowerCase()));
+  const availableAll = questPool.filter((t) => !excludes.has(t.title.toLowerCase()));
+  
+  const baseTemplate = (availablePriority.length > 0
+    ? availablePriority[Math.floor(Math.random() * availablePriority.length)]
+    : availableAll.length > 0
+    ? availableAll[Math.floor(Math.random() * availableAll.length)]
     : questPool[Math.floor(Math.random() * questPool.length)]);
 
   const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)] as string;

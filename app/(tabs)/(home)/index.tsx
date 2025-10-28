@@ -310,8 +310,9 @@ export default function HomeScreen() {
             };
             const nextDifficulty = difficultyProgression[currentDifficulty] ?? 'medium';
             const categoryId = completedQuest?.category as any;
+            console.log('Continuing in same category:', categoryId);
             const newQuest = await addAIQuest(nextDifficulty, false, completedQuest, categoryId);
-            console.log('New sequential quest generated successfully:', newQuest);
+            console.log('New sequential quest generated with category:', newQuest.category);
             
             setShowCompletionModal(false);
             setCompletionData(null);
