@@ -326,28 +326,28 @@ const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
   ],
   relationships: [
     { 
-      title: 'Call Family Members', 
-      description: 'Reach out to family', 
+      title: 'Ask for Big Favors', 
+      description: 'Request significant help from friends or family', 
       icon: 'mail', 
-      descriptionTemplate: (count: number) => `Call ${count} family ${count === 1 ? 'member' : 'members'} and ask about their week. Be present in the conversation.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} for a big favor they might decline. Be direct about what you need.` 
     },
     { 
-      title: 'Apologize or Thank', 
-      description: 'Share authentic apologies or thanks', 
+      title: 'Request Quality Time', 
+      description: 'Ask people to spend time with you', 
       icon: 'award', 
-      descriptionTemplate: (count: number) => `Share ${count} authentic ${count === 1 ? 'apology or thanks' : 'apologies or thanks'}. Be specific and genuine.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to spend quality time with you doing something specific. They might be busy.` 
     },
     { 
-      title: 'Ask Deep Questions', 
-      description: 'Have meaningful conversations', 
+      title: 'Ask for Personal Changes', 
+      description: 'Request someone to change a habit for you', 
       icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Ask ${count} deep ${count === 1 ? 'question' : 'questions'} like "What's something you've been thinking about lately?"` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} close to you to change something for your benefit. Be specific about what you want.` 
     },
     { 
-      title: 'Plan Surprises', 
-      description: 'Surprise people you care about', 
+      title: 'Borrow Money', 
+      description: 'Ask friends or family to lend you money', 
       icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Plan ${count} tiny ${count === 1 ? 'surprise' : 'surprises'} for ${count === 1 ? 'someone' : 'people'} you care about. Be thoughtful.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to lend you money. Practice being comfortable with potential rejection.` 
     },
   ],
   community: [
