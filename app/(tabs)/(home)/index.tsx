@@ -39,7 +39,7 @@ export default function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const menuScale = useRef(new Animated.Value(0)).current;
 
-  const activeQuests = quests.filter(q => !q.completed && (q.source === 'user' || q.source === 'ai'));
+  const activeQuests = quests.filter(q => !q.completed);
 
   useEffect(() => {
     const shouldFocus = params?.focus === '1' || params?.focus === 'true';
@@ -137,7 +137,7 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Skill Level</Text>
           </Pressable>
           <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/(tabs)/ranks' as any); }}
+            onPress={() => { setMenuOpen(false); router.push('/ranks' as any); }}
             style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
             testID="menu-item-ranks"
           >
@@ -145,7 +145,7 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Ranks</Text>
           </Pressable>
           <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/(tabs)/growth' as any); }}
+            onPress={() => { setMenuOpen(false); router.push('/growth' as any); }}
             style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
             testID="menu-item-growth"
           >
@@ -155,7 +155,7 @@ export default function HomeScreen() {
         </Animated.View>
       )}
 
-      {activeQuests.length === 0 ? (
+      {!questMode ? (
         <ScrollView 
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
