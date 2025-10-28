@@ -219,6 +219,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             description: previousQuest.description ?? '',
             difficulty: previousQuest.difficulty,
           } : undefined,
+          excludeTitles: quests.map((q) => q.title),
         });
 
         const questWithSource = { ...newQuest, source: 'ai' as const };

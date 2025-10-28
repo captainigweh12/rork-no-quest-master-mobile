@@ -15,6 +15,7 @@ export interface GenerateQuestParams {
     description: string;
     difficulty: QuestDifficulty;
   };
+  excludeTitles?: string[];
 }
 
 const iconOptions = [
@@ -160,7 +161,7 @@ const questTemplatesGeneral = [
 ];
 
 export async function generateQuest(params: GenerateQuestParams): Promise<Quest> {
-  const { difficulty, level, isSuperQuest = false, relationshipStatus } = params;
+  const { difficulty, level, isSuperQuest = false, relationshipStatus, previousQuest, excludeTitles } = params;
 
   console.log('Generating quest locally with params:', params);
 
@@ -172,7 +173,16 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     questPool = [...questTemplatesMarried, ...questTemplatesGeneral];
   }
 
-  const randomTemplate = questPool[Math.floor(Math.random() * questPool.length)];
+  const excludes = new Set<string>((excludeTitles ?? []).map((t) => t.toLowerCase()));
+  if (previousQuest?.title) {
+    excludes.add(previousQuest.title.toLowerCase());
+  }
+
+  const available = questPool.filter((t) => !excludes.has(t.title.toLowerCase()));
+  const baseTemplate = (available.length > 0
+    ? available[Math.floor(Math.random() * available.length)]
+    : questPool[Math.floor(Math.random() * questPool.length)]);
+
   const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)] as string;
 
   const minNoByDifficulty: Record<QuestDifficulty, number> = {
@@ -182,16 +192,34 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     extreme: 10,
   };
 
+  let title = baseTemplate.title;
+  let description = baseTemplate.description;
+
+  if (excludes.has(title.toLowerCase())) {
+    const variants = [
+      'in a different setting',
+      'with a twist',
+      'targeting a new audience',
+      'using a bold opener',
+      'with a time limit',
+      'at a location you rarely visit',
+      'with an unexpected angle',
+    ];
+    const variant = variants[Math.floor(Math.random() * variants.length)];
+    title = `${title} – ${params.rank} Remix`;
+    description = `${description}. Do it ${variant}.`;
+  }
+
   const quest: Quest = {
     id: Date.now().toString(),
-    title: randomTemplate.title,
-    description: randomTemplate.description,
+    title,
+    description,
     type: isSuperQuest ? 'special' : difficulty === 'easy' ? 'daily' : difficulty === 'extreme' ? 'special' : 'weekly',
     difficulty,
     points: calculatePoints(difficulty, level, isSuperQuest),
     xp: calculateXP(difficulty, level, isSuperQuest),
     completed: false,
-    icon: randomTemplate.icon || randomIcon,
+    icon: baseTemplate.icon || randomIcon,
     minNoRequired: minNoByDifficulty[difficulty],
   };
 
