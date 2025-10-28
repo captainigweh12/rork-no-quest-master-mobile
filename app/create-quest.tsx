@@ -3,11 +3,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Sparkles } from 'lucide-react-native';
+import { X, Sparkles, Heart, Briefcase, Flame, Map } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState, useCallback } from 'react';
 import type { QuestDifficulty } from '@/types';
+import type { CategoryId } from '@/services/questAI';
 import * as Haptics from 'expo-haptics';
+import React from "react";
 
 export default function CreateQuestScreen() {
   const { theme } = useTheme();
@@ -15,6 +17,8 @@ export default function CreateQuestScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [generatingQuest, setGeneratingQuest] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
   const [customDescription, setCustomDescription] = useState('');
@@ -24,6 +28,15 @@ export default function CreateQuestScreen() {
 
   const styles = createStyles(theme.colors);
 
+  const handleSelectCategory = useCallback((category: CategoryId) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setSelectedCategory(category);
+    setShowCategoryModal(false);
+    setShowAIModal(true);
+  }, []);
+
   const handleGenerateAI = useCallback(
     async (difficulty: QuestDifficulty) => {
       if (Platform.OS !== 'web') {
@@ -31,8 +44,9 @@ export default function CreateQuestScreen() {
       }
       setGeneratingQuest(true);
       try {
-        await addAIQuest(difficulty, false);
+        await addAIQuest(difficulty, false, undefined, selectedCategory || undefined);
         setShowAIModal(false);
+        setSelectedCategory(null);
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -46,7 +60,7 @@ export default function CreateQuestScreen() {
         setGeneratingQuest(false);
       }
     },
-    [addAIQuest, router]
+    [addAIQuest, router, selectedCategory]
   );
 
   const handleCreateCustom = useCallback(() => {
@@ -105,7 +119,7 @@ export default function CreateQuestScreen() {
 
         <Pressable
           style={[styles.optionCard, { backgroundColor: theme.colors.card }]}
-          onPress={() => setShowAIModal(true)}
+          onPress={() => setShowCategoryModal(true)}
         >
           <LinearGradient
             colors={[theme.colors.primary, theme.colors.secondary]}
@@ -220,6 +234,55 @@ export default function CreateQuestScreen() {
       </ScrollView>
 
       <Modal
+        visible={showCategoryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Choose Category</Text>
+              <Pressable onPress={() => setShowCategoryModal(false)}>
+                <X size={24} color={theme.colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
+              Select a category for your rejection quest
+            </Text>
+
+            <View style={styles.categoryButtons}>
+              <CategoryButton
+                label="Dating"
+                icon={Heart}
+                color="#EF4444"
+                onPress={() => handleSelectCategory('dating')}
+              />
+              <CategoryButton
+                label="Business"
+                icon={Briefcase}
+                color="#3B82F6"
+                onPress={() => handleSelectCategory('business')}
+              />
+              <CategoryButton
+                label="Confidence"
+                icon={Flame}
+                color="#F59E0B"
+                onPress={() => handleSelectCategory('mindset')}
+              />
+              <CategoryButton
+                label="Adventure"
+                icon={Map}
+                color="#10B981"
+                onPress={() => handleSelectCategory('adventure')}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={showAIModal}
         transparent
         animationType="fade"
@@ -230,7 +293,10 @@ export default function CreateQuestScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Generate AI Quest</Text>
               <Pressable
-                onPress={() => setShowAIModal(false)}
+                onPress={() => {
+                  setShowAIModal(false);
+                  setShowCategoryModal(true);
+                }}
                 disabled={generatingQuest}
               >
                 <X size={24} color={theme.colors.textSecondary} />
@@ -280,6 +346,45 @@ export default function CreateQuestScreen() {
         </View>
       </Modal>
     </View>
+  );
+}
+
+interface CategoryButtonProps {
+  label: string;
+  icon: React.ComponentType<any>;
+  color: string;
+  onPress: () => void;
+}
+
+function CategoryButton({ label, icon: Icon, color, onPress }: CategoryButtonProps) {
+  const buttonStyles = StyleSheet.create({
+    button: {
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    inner: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingVertical: 18,
+      paddingHorizontal: 20,
+      backgroundColor: `${color}20`,
+      gap: 12,
+    },
+    text: {
+      fontSize: 18,
+      fontWeight: '700' as const,
+      color,
+      flex: 1,
+    },
+  });
+
+  return (
+    <Pressable style={buttonStyles.button} onPress={onPress}>
+      <View style={buttonStyles.inner}>
+        <Icon size={28} color={color} />
+        <Text style={buttonStyles.text}>{label}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -471,6 +576,9 @@ function createStyles(colors: any) {
       fontSize: 14,
       marginBottom: 24,
       lineHeight: 20,
+    },
+    categoryButtons: {
+      gap: 14,
     },
     difficultyButtons: {
       gap: 12,
