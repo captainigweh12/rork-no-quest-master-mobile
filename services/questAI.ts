@@ -30,6 +30,13 @@ export interface GenerateQuestParams {
   categoryId?: CategoryId;
 }
 
+interface QuestTemplate {
+  title: string;
+  description: string;
+  icon: string;
+  descriptionTemplate?: (count: number) => string;
+}
+
 const iconOptions = [
   'coffee',
   'mail',
@@ -68,164 +75,363 @@ function calculateXP(difficulty: QuestDifficulty, level: number, isSuperQuest: b
   return Math.round(baseXP[difficulty] * multiplier);
 }
 
-const questTemplatesSingle = [
+const questTemplatesSingle: QuestTemplate[] = [
   {
     title: 'Ask Someone Out',
     description: 'Ask someone you\'re interested in out for coffee or a date',
     icon: 'coffee',
+    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} you're interested in out for coffee or a date. Each person counts as one attempt.`,
   },
   {
-    title: 'Ask for a Number',
-    description: 'Get a phone number from someone you find interesting',
+    title: 'Ask for Phone Numbers',
+    description: 'Get phone numbers from people you find interesting',
     icon: 'message-circle',
+    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} for their phone number. Approach them with genuine interest and confidence.`,
   },
   {
-    title: 'Flirt with a Stranger',
-    description: 'Give someone a genuine compliment or start a flirty conversation',
+    title: 'Compliment Strangers',
+    description: 'Give genuine compliments to strangers',
     icon: 'flame',
+    descriptionTemplate: (count: number) => `Give ${count} genuine ${count === 1 ? 'compliment' : 'compliments'} to ${count === 1 ? 'a stranger' : 'different strangers'}. Be authentic and specific about what you appreciate.`,
   },
   {
-    title: 'Request a Discount',
-    description: 'Visit any store and ask for a discount on a regular-priced item',
+    title: 'Request Store Discounts',
+    description: 'Ask for discounts on regular-priced items',
     icon: 'target',
+    descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'store' : 'different stores'} and ask for a discount on a regular-priced item. Be polite and confident.`,
   },
   {
-    title: 'Ask for a Date Activity',
-    description: 'Ask someone to join you for a specific activity you enjoy',
+    title: 'Invite to Activities',
+    description: 'Invite people to join you for activities',
     icon: 'trending-up',
+    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to join you for a specific activity you enjoy. Be clear about what you're inviting them to.`,
   },
 ];
 
-const questTemplatesMarried = [
+const questTemplatesMarried: QuestTemplate[] = [
   {
-    title: 'Plan a Surprise Date',
-    description: 'Ask your partner on a surprise date to somewhere new',
+    title: 'Bold Partner Requests',
+    description: 'Ask your partner for things they usually say no to',
     icon: 'coffee',
+    descriptionTemplate: (count: number) => `Ask your partner to do ${count} ${count === 1 ? 'thing' : 'different things'} they usually say no to. Be bold and vulnerable with your requests.`,
   },
   {
-    title: 'Request Quality Time',
-    description: 'Ask your partner to put away devices for an hour of quality time',
+    title: 'Quality Time Requests',
+    description: 'Request device-free quality time',
     icon: 'message-circle',
+    descriptionTemplate: (count: number) => `Ask your partner ${count} ${count === 1 ? 'time' : 'times'} to put away devices for quality time. Suggest specific activities for each request.`,
   },
   {
-    title: 'Try Something New Together',
-    description: 'Suggest a new activity or hobby to try with your partner',
+    title: 'New Experiences Together',
+    description: 'Suggest new activities or hobbies',
     icon: 'flame',
+    descriptionTemplate: (count: number) => `Suggest ${count} new ${count === 1 ? 'activity or hobby' : 'activities or hobbies'} to try with your partner. Be specific about what you want to try.`,
   },
   {
     title: 'Ask for Help',
-    description: 'Request help with something you usually handle alone',
+    description: 'Request help with things you usually handle alone',
     icon: 'target',
+    descriptionTemplate: (count: number) => `Ask for help with ${count} ${count === 1 ? 'task' : 'tasks'} you usually handle alone. Be vulnerable and specific about what you need.`,
   },
   {
-    title: 'Express a Need',
-    description: 'Share an emotional need or desire with your partner',
+    title: 'Express Your Needs',
+    description: 'Share emotional needs or desires',
     icon: 'trending-up',
+    descriptionTemplate: (count: number) => `Share ${count} emotional ${count === 1 ? 'need or desire' : 'needs or desires'} with your partner. Be honest and vulnerable.`,
   },
 ];
 
-const categoryTemplates: Record<CategoryId, { title: string; description: string; icon: string }[]> = {
+const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
   business: [
-    { title: 'Pitch a Product Idea', description: 'Share a product concept with someone and ask for feedback or a pre-order', icon: 'briefcase' },
-    { title: 'Cold Email 3 Clients', description: 'Reach out to three potential clients with a clear ask', icon: 'mail' },
-    { title: 'Ask for a Testimonial', description: 'Request a testimonial from a past client or colleague', icon: 'award' },
-    { title: 'Post on LinkedIn', description: 'Publish a value-packed post and ask for input', icon: 'trending-up' },
+    { 
+      title: 'Pitch Product Ideas', 
+      description: 'Share product concepts and ask for feedback', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Pitch your product idea to ${count} ${count === 1 ? 'person' : 'people'} and ask for feedback or a pre-order. Be clear and concise.` 
+    },
+    { 
+      title: 'Cold Email Clients', 
+      description: 'Reach out to potential clients', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Send ${count} cold ${count === 1 ? 'email' : 'emails'} to potential clients with a clear ask. Personalize each message.` 
+    },
+    { 
+      title: 'Request Testimonials', 
+      description: 'Ask for testimonials from past clients', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Request ${count === 1 ? 'a testimonial' : `${count} testimonials`} from past clients or colleagues. Be specific about what you need.` 
+    },
+    { 
+      title: 'Post on LinkedIn', 
+      description: 'Publish value-packed posts', 
+      icon: 'trending-up', 
+      descriptionTemplate: (count: number) => `Publish ${count} value-packed ${count === 1 ? 'post' : 'posts'} on LinkedIn and ask for input. Share insights from your experience.` 
+    },
   ],
   dating: [
-    { title: 'Ask a Stranger for Coffee', description: 'Politely invite someone new for a quick coffee', icon: 'coffee' },
-    { title: 'Compliment 3 People', description: 'Give three genuine compliments today', icon: 'message-circle' },
-    { title: 'Start a Conversation IRL', description: 'Open with an observation and keep it going for 2 minutes', icon: 'flame' },
-    { title: 'Get One Bold “No”', description: 'Make a bold ask that might get rejected', icon: 'target' },
+    { 
+      title: 'Coffee Invitations', 
+      description: 'Invite strangers for coffee', 
+      icon: 'coffee', 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} out for coffee. Be polite and genuine with each approach.` 
+    },
+    { 
+      title: 'Compliment People', 
+      description: 'Give genuine compliments', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Give ${count} genuine ${count === 1 ? 'compliment to someone' : 'compliments to different people'}. Be specific and authentic.` 
+    },
+    { 
+      title: 'Start Conversations', 
+      description: 'Talk to new people in real life', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Start ${count === 1 ? 'a conversation' : `${count} conversations`} with ${count === 1 ? 'a stranger' : 'strangers'} in real life. Keep it going for at least 2 minutes.` 
+    },
+    { 
+      title: 'Make Bold Asks', 
+      description: 'Make asks that might get rejected', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Make ${count} bold ${count === 1 ? 'ask' : 'asks'} that might get rejected. Step outside your comfort zone.` 
+    },
   ],
   adventure: [
-    { title: 'Try a New Food', description: 'Order something you never had before and describe the taste', icon: 'flame' },
-    { title: 'Dance in Public', description: 'Dance for 10 seconds in a safe public place', icon: 'target' },
-    { title: 'Ask for a Secret Menu Item', description: 'Politely ask for anything off-menu', icon: 'coffee' },
-    { title: 'Record Your Reaction', description: 'Capture a short reflection on how it felt', icon: 'message-circle' },
+    { 
+      title: 'Try New Foods', 
+      description: 'Order foods you\'ve never tried', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Order ${count} ${count === 1 ? 'food' : 'different foods'} you've never had before. Describe the taste of each.` 
+    },
+    { 
+      title: 'Dance in Public', 
+      description: 'Dance in safe public places', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Dance for 10 seconds in ${count} ${count === 1 ? 'public place' : 'different public places'}. Embrace the discomfort.` 
+    },
+    { 
+      title: 'Secret Menu Items', 
+      description: 'Ask for off-menu items', 
+      icon: 'coffee', 
+      descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'place' : 'places'} and ask for something off-menu. Be creative with your requests.` 
+    },
+    { 
+      title: 'Reflect on Adventure', 
+      description: 'Record your reactions', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Complete ${count} ${count === 1 ? 'adventure' : 'adventures'} and capture a short reflection on how it felt.` 
+    },
   ],
   fitness: [
-    { title: 'Ask a Trainer a Question', description: 'Get advice from a trainer on a move or routine', icon: 'target' },
-    { title: 'Try a New Workout', description: 'Do a beginner session for a modality you never tried', icon: 'flame' },
-    { title: 'Start a Conversation at the Gym', description: 'Ask someone how long they have been training', icon: 'message-circle' },
-    { title: '10 Push-ups after a Rejection', description: 'Convert a “no” into micro-progress', icon: 'award' },
+    { 
+      title: 'Ask Trainers Questions', 
+      description: 'Get advice from fitness trainers', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'trainer' : 'trainers'} for advice on moves or routines. Don't be shy about learning.` 
+    },
+    { 
+      title: 'Try New Workouts', 
+      description: 'Try workout modalities you\'ve never done', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Try ${count} new workout ${count === 1 ? 'modality' : 'modalities'} you've never done before. Do a beginner session for each.` 
+    },
+    { 
+      title: 'Gym Conversations', 
+      description: 'Talk to people at the gym', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Start ${count === 1 ? 'a conversation' : `${count} conversations`} at the gym. Ask about their training journey.` 
+    },
+    { 
+      title: 'Push-ups After Rejections', 
+      description: 'Convert rejections into progress', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Do 10 push-ups after each of your ${count} ${count === 1 ? 'rejection' : 'rejections'}. Turn no's into gains.` 
+    },
   ],
   wealth: [
-    { title: 'Negotiate a Discount', description: 'Ask for a discount at checkout with a smile', icon: 'trending-up' },
-    { title: 'Ask for a Raise', description: 'Prepare and ask for a compensation review', icon: 'briefcase' },
-    { title: 'Sell an Old Item', description: 'List one unused item online today', icon: 'mail' },
-    { title: 'Pitch to an Investor', description: 'Share a one-minute pitch and ask for feedback', icon: 'target' },
+    { 
+      title: 'Negotiate Discounts', 
+      description: 'Ask for discounts at checkout', 
+      icon: 'trending-up', 
+      descriptionTemplate: (count: number) => `Ask for discounts at ${count} ${count === 1 ? 'store' : 'stores'}. Be friendly and confident.` 
+    },
+    { 
+      title: 'Request Raises', 
+      description: 'Ask for compensation reviews', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Prepare and request ${count === 1 ? 'a compensation review' : `${count} compensation discussions`}. Present your value clearly.` 
+    },
+    { 
+      title: 'Sell Old Items', 
+      description: 'List unused items online', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `List ${count} unused ${count === 1 ? 'item' : 'items'} online for sale. Take good photos and write clear descriptions.` 
+    },
+    { 
+      title: 'Pitch to Investors', 
+      description: 'Share your pitch with investors', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Share your pitch with ${count} ${count === 1 ? 'investor' : 'investors'} and ask for feedback. Keep it under one minute.` 
+    },
   ],
   creativity: [
-    { title: 'Post a Short Video', description: 'Publish a 30–60 second clip about something you learned', icon: 'flame' },
-    { title: 'Write One Tweet', description: 'Ship one concise thought publicly', icon: 'mail' },
-    { title: 'Ask for Design Feedback', description: 'Get feedback from 5 people on something you made', icon: 'message-circle' },
-    { title: 'Launch a Micro-Project', description: 'Publish a tiny thing with a clear link', icon: 'award' },
+    { 
+      title: 'Post Short Videos', 
+      description: 'Publish video content', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Publish ${count} short ${count === 1 ? 'video' : 'videos'} (30-60 seconds) about something you learned. Share your insights.` 
+    },
+    { 
+      title: 'Write Tweets', 
+      description: 'Share thoughts publicly', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Write and post ${count} concise ${count === 1 ? 'thought' : 'thoughts'} publicly. Be authentic and valuable.` 
+    },
+    { 
+      title: 'Get Design Feedback', 
+      description: 'Ask for feedback on your work', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Get feedback from ${count} ${count === 1 ? 'person' : 'people'} on something you made. Be open to criticism.` 
+    },
+    { 
+      title: 'Launch Micro-Projects', 
+      description: 'Publish small projects', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Launch ${count} tiny ${count === 1 ? 'project' : 'projects'} with clear links. Ship imperfect work.` 
+    },
   ],
   mindset: [
-    { title: 'Talk to a Stranger', description: 'Start a conversation and ask one curious question', icon: 'message-circle' },
-    { title: 'Share a Failure Story', description: 'Post a short story about a failure and what you learned', icon: 'mail' },
-    { title: 'Ask for Help Publicly', description: 'Make a public ask for help on a small thing', icon: 'target' },
-    { title: 'Face One Small Fear', description: 'Pick a tiny fear and do it today', icon: 'flame' },
+    { 
+      title: 'Talk to Strangers', 
+      description: 'Start conversations with new people', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Start ${count === 1 ? 'a conversation' : `${count} conversations`} with ${count === 1 ? 'a stranger' : 'strangers'} and ask curious questions.` 
+    },
+    { 
+      title: 'Share Failure Stories', 
+      description: 'Post about your failures', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Share ${count} ${count === 1 ? 'failure story' : 'failure stories'} and what you learned. Be vulnerable and honest.` 
+    },
+    { 
+      title: 'Ask for Help Publicly', 
+      description: 'Make public requests for help', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Make ${count} public ${count === 1 ? 'ask' : 'asks'} for help. Don't be afraid to show you need support.` 
+    },
+    { 
+      title: 'Face Small Fears', 
+      description: 'Confront your fears', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Face ${count} ${count === 1 ? 'small fear' : 'small fears'}. Pick things that make you uncomfortable.` 
+    },
   ],
   relationships: [
-    { title: 'Call a Family Member', description: 'Reach out and ask about their week', icon: 'mail' },
-    { title: 'Apologize or Thank Someone', description: 'Share an authentic apology or thanks', icon: 'award' },
-    { title: 'Ask a Deep Question', description: 'Use “What’s something you’ve been thinking about lately?”', icon: 'message-circle' },
-    { title: 'Plan a Surprise', description: 'Plan a tiny surprise for someone you care about', icon: 'briefcase' },
+    { 
+      title: 'Call Family Members', 
+      description: 'Reach out to family', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Call ${count} family ${count === 1 ? 'member' : 'members'} and ask about their week. Be present in the conversation.` 
+    },
+    { 
+      title: 'Apologize or Thank', 
+      description: 'Share authentic apologies or thanks', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Share ${count} authentic ${count === 1 ? 'apology or thanks' : 'apologies or thanks'}. Be specific and genuine.` 
+    },
+    { 
+      title: 'Ask Deep Questions', 
+      description: 'Have meaningful conversations', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Ask ${count} deep ${count === 1 ? 'question' : 'questions'} like "What's something you've been thinking about lately?"` 
+    },
+    { 
+      title: 'Plan Surprises', 
+      description: 'Surprise people you care about', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Plan ${count} tiny ${count === 1 ? 'surprise' : 'surprises'} for ${count === 1 ? 'someone' : 'people'} you care about. Be thoughtful.` 
+    },
   ],
   community: [
-    { title: 'Help Carry Groceries', description: 'Offer to help someone with bags', icon: 'award' },
-    { title: 'Compliment a Stranger', description: 'Give a warm compliment to brighten a day', icon: 'message-circle' },
-    { title: 'Volunteer an Hour', description: 'Spend 60 minutes helping any cause', icon: 'target' },
-    { title: 'Donate Unused Clothes', description: 'Find and donate one item you don’t use', icon: 'flame' },
+    { 
+      title: 'Help Carry Groceries', 
+      description: 'Offer to help people', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Offer to help ${count} ${count === 1 ? 'person' : 'people'} carry their groceries. Be kind and genuine.` 
+    },
+    { 
+      title: 'Compliment Strangers', 
+      description: 'Brighten people\'s days', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Give ${count} warm ${count === 1 ? 'compliment to a stranger' : 'compliments to strangers'}. Make their day brighter.` 
+    },
+    { 
+      title: 'Volunteer Time', 
+      description: 'Help causes you care about', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Volunteer ${count} ${count === 1 ? 'hour' : 'hours'} helping any cause. Give back to your community.` 
+    },
+    { 
+      title: 'Donate Items', 
+      description: 'Give away unused items', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Find and donate ${count} ${count === 1 ? 'item' : 'items'} you don't use. Help someone in need.` 
+    },
   ],
 };
 
-const questTemplatesGeneral = [
+const questTemplatesGeneral: QuestTemplate[] = [
   {
-    title: 'Ask for a Discount',
-    description: 'Visit any store and ask for a discount on a regular-priced item',
+    title: 'Ask for Discounts',
+    description: 'Visit stores and ask for discounts',
     icon: 'target',
+    descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'store' : 'stores'} and ask for a discount on a regular-priced item. Be confident and friendly.`,
   },
   {
-    title: 'Request a Favor from a Stranger',
-    description: 'Ask someone you don\'t know for a small favor',
+    title: 'Request Favors from Strangers',
+    description: 'Ask strangers for small favors',
     icon: 'message-circle',
+    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} for a small favor. Step outside your comfort zone.`,
   },
   {
-    title: 'Negotiate at a Market',
-    description: 'Try to negotiate the price at a local market or store',
+    title: 'Negotiate Prices',
+    description: 'Negotiate at markets or stores',
     icon: 'trending-up',
+    descriptionTemplate: (count: number) => `Try to negotiate prices at ${count} ${count === 1 ? 'place' : 'places'}. Practice your negotiation skills.`,
   },
   {
-    title: 'Request a Free Sample',
-    description: 'Go to a store and ask for a free sample of something',
+    title: 'Request Free Samples',
+    description: 'Ask for free samples',
     icon: 'coffee',
+    descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'store' : 'stores'} and ask for a free sample. Don't be shy.`,
   },
   {
-    title: 'Apply for a Job Above Your Level',
-    description: 'Submit an application for a position you think you\'re not qualified for',
+    title: 'Apply for Stretch Jobs',
+    description: 'Apply for positions above your level',
     icon: 'briefcase',
+    descriptionTemplate: (count: number) => `Submit ${count} ${count === 1 ? 'application' : 'applications'} for ${count === 1 ? 'a position' : 'positions'} you think you're not qualified for. Aim high.`,
   },
   {
-    title: 'Ask for a Recommendation',
-    description: 'Request a recommendation or testimonial from someone',
+    title: 'Ask for Recommendations',
+    description: 'Request recommendations or testimonials',
     icon: 'award',
+    descriptionTemplate: (count: number) => `Request ${count === 1 ? 'a recommendation' : `${count} recommendations`} or ${count === 1 ? 'testimonial' : 'testimonials'} from ${count === 1 ? 'someone' : 'people'}. Build your credibility.`,
   },
   {
-    title: 'Start a Conversation with a Stranger',
-    description: 'Strike up a conversation with someone new in public',
+    title: 'Start Conversations',
+    description: 'Talk to new people in public',
     icon: 'message-circle',
+    descriptionTemplate: (count: number) => `Strike up ${count === 1 ? 'a conversation' : `${count} conversations`} with ${count === 1 ? 'a stranger' : 'strangers'} in public. Be friendly and curious.`,
   },
   {
-    title: 'Request a Meeting with a VIP',
-    description: 'Reach out to someone influential and ask for a meeting',
+    title: 'Request VIP Meetings',
+    description: 'Reach out to influential people',
     icon: 'mail',
+    descriptionTemplate: (count: number) => `Reach out to ${count} influential ${count === 1 ? 'person' : 'people'} and ask for ${count === 1 ? 'a meeting' : 'meetings'}. Be respectful of their time.`,
   },
   {
     title: 'Ask for Special Treatment',
-    description: 'Request a special accommodation or exception somewhere',
+    description: 'Request special accommodations',
     icon: 'flame',
+    descriptionTemplate: (count: number) => `Request ${count} special ${count === 1 ? 'accommodation or exception' : 'accommodations or exceptions'}. Be polite but bold.`,
   },
 ];
 
@@ -234,7 +440,7 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
 
   console.log('Generating quest locally with params:', params);
 
-  let questPool = questTemplatesGeneral;
+  let questPool: QuestTemplate[] = questTemplatesGeneral;
 
   if (categoryId && categoryTemplates[categoryId]) {
     questPool = [...categoryTemplates[categoryId], ...questTemplatesGeneral];
@@ -263,8 +469,12 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     extreme: 10,
   };
 
+  const requiredCount = minNoByDifficulty[difficulty];
+
   let title = baseTemplate.title;
-  let description = baseTemplate.description;
+  let description = baseTemplate.descriptionTemplate
+    ? baseTemplate.descriptionTemplate(requiredCount)
+    : baseTemplate.description;
 
   if (excludes.has(title.toLowerCase())) {
     const variants = [
@@ -290,8 +500,8 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     points: calculatePoints(difficulty, level, isSuperQuest),
     xp: calculateXP(difficulty, level, isSuperQuest),
     completed: false,
-    icon: (baseTemplate as any).icon || randomIcon,
-    minNoRequired: minNoByDifficulty[difficulty],
+    icon: baseTemplate.icon || randomIcon,
+    minNoRequired: requiredCount,
   };
 
   console.log('Quest generated successfully:', quest);
