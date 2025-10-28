@@ -40,6 +40,7 @@ export default function HomeScreen() {
   const menuScale = useRef(new Animated.Value(0)).current;
 
   const activeQuests = quests.filter(q => !q.completed);
+  const startedQuests = activeQuests.filter(q => q.timerEndAt);
 
   useEffect(() => {
     const shouldFocus = params?.focus === '1' || params?.focus === 'true';
@@ -187,18 +188,19 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {activeQuests.length > 0 && (
+          {startedQuests.length > 0 && (
             <View style={{ marginTop: 24, gap: 12 }}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: theme.colors.text }}>Active Quests</Text>
-              {activeQuests.map((q, idx) => {
+              {startedQuests.map((q, idx) => {
                 const remaining = q.timerEndAt ? Math.max(0, new Date(q.timerEndAt).getTime() - Date.now()) : null;
                 const prog = progressMap[q.id] ?? { noCount: 0, yesCount: 0 };
                 return (
                   <Pressable
                     key={q.id}
                     onPress={() => {
+                      const originalIndex = activeQuests.findIndex(aq => aq.id === q.id);
                       setQuestMode(true);
-                      setCurrentIndex(idx);
+                      setCurrentIndex(originalIndex);
                     }}
                     style={({ pressed }) => [styles.activeQuestItem, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.95 : 1 }]}
                     testID={`active-quest-${q.id}`}
@@ -808,6 +810,7 @@ function createStyles(colors: any) {
     headerActions: {
       flexDirection: 'row',
       gap: 12,
+      marginLeft: 12,
     },
     iconButton: {
       width: 40,
