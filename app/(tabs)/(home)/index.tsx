@@ -309,7 +309,8 @@ export default function HomeScreen() {
               extreme: 'extreme',
             };
             const nextDifficulty = difficultyProgression[currentDifficulty] ?? 'medium';
-            const newQuest = await addAIQuest(nextDifficulty, false, completedQuest);
+            const categoryId = completedQuest?.category as any;
+            const newQuest = await addAIQuest(nextDifficulty, false, completedQuest, categoryId);
             console.log('New sequential quest generated successfully:', newQuest);
             
             setShowCompletionModal(false);
@@ -462,6 +463,30 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
     extreme: '#8B5CF6',
   };
 
+  const categoryColors: Record<string, string> = {
+    business: '#3787ff',
+    dating: '#ff5d8f',
+    adventure: '#ff8a30',
+    fitness: '#27c37b',
+    creativity: '#9b5cff',
+    wealth: '#20b2aa',
+    mindset: '#ffb020',
+    relationships: '#ff6b6b',
+    community: '#00bcd4',
+  };
+
+  const categoryLabels: Record<string, string> = {
+    business: 'Business',
+    dating: 'Dating',
+    adventure: 'Adventure',
+    fitness: 'Fitness',
+    creativity: 'Creativity',
+    wealth: 'Wealth',
+    mindset: 'Mindset',
+    relationships: 'Relationships',
+    community: 'Community',
+  };
+
   const styles = createCardStyles(theme);
 
   const isTopCard = index === currentIndex;
@@ -511,10 +536,19 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
         </Animated.View>
 
         <View style={styles.cardContent}>
-          <View style={[styles.difficultyBadge, { backgroundColor: `${difficultyColors[quest.difficulty]}20` }]}>
-            <Text style={[styles.difficultyText, { color: difficultyColors[quest.difficulty] }]}>
-              {quest.difficulty.toUpperCase()}
-            </Text>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            {quest.category && (
+              <View style={[styles.difficultyBadge, { backgroundColor: `${categoryColors[quest.category]}20` }]}>
+                <Text style={[styles.difficultyText, { color: categoryColors[quest.category] }]}>
+                  {categoryLabels[quest.category]?.toUpperCase() ?? quest.category.toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.difficultyBadge, { backgroundColor: `${difficultyColors[quest.difficulty]}20` }]}>
+              <Text style={[styles.difficultyText, { color: difficultyColors[quest.difficulty] }]}>
+                {quest.difficulty.toUpperCase()}
+              </Text>
+            </View>
           </View>
 
           <Text style={[styles.questTitle, { color: theme.text }]}>{quest.title}</Text>

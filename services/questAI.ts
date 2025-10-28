@@ -502,6 +502,7 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     completed: false,
     icon: baseTemplate.icon || randomIcon,
     minNoRequired: requiredCount,
+    category: categoryId,
   };
 
   console.log('Quest generated successfully:', quest);

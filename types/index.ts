@@ -27,6 +27,7 @@ export interface Quest {
   createdAt?: Date;
   updatedAt?: Date;
   source?: 'user' | 'ai' | 'initial';
+  category?: string;
 }
 
 export interface UserProfile {
