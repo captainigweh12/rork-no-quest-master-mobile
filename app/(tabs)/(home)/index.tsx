@@ -26,7 +26,7 @@ const CATEGORY_CARDS: { id: string; title: string; color: string; image: string;
 
 export default function HomeScreen() {
   const { theme } = useTheme();
-  const { profile, quests, progressMap, recordQuestOutcome, addAIQuest, failQuest } = useGame();
+  const { profile, quests, progressMap, recordQuestOutcome, addAIQuest } = useGame();
   const { unreadCount } = useNotifications();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -178,69 +178,71 @@ export default function HomeScreen() {
         </ScrollView>
       ) : null}
 
-      <View style={styles.cardsContainer} testID="home-cards-container">
-        {isGeneratingQuest ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={[styles.loadingTitle, { color: theme.colors.text }]}>Generating Your Next Quest...</Text>
-            <Text style={[styles.loadingSubtitle, { color: theme.colors.textSecondary }]}>
-              Creating a personalized challenge just for you
-            </Text>
-          </View>
-        ) : activeQuests.length > 0 ? (
-          activeQuests.map((quest, index) => {
-            if (index < currentIndex) return null;
-            return (
-              <QuestCard
-                key={quest.id}
-                quest={quest}
-                index={index}
-                currentIndex={currentIndex}
-                onSwipeLeft={() => {
-                  recordQuestOutcome(quest.id, 'yes');
-                  return false;
-                }}
-                onSwipeRight={() => {
-                  const prog = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 };
-                  const nextNo = prog.noCount + 1;
-                  const minNo = typeof quest.minNoRequired === 'number' ? quest.minNoRequired : 0;
-                  recordQuestOutcome(quest.id, 'no');
-                  const shouldAdvance = minNo > 0 && nextNo >= minNo;
-                  if (shouldAdvance) {
+      {(isGeneratingQuest || activeQuests.length > 0) && (
+        <View style={styles.cardsContainer} testID="home-cards-container">
+          {isGeneratingQuest ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={[styles.loadingTitle, { color: theme.colors.text }]}>Generating Your Next Quest...</Text>
+              <Text style={[styles.loadingSubtitle, { color: theme.colors.textSecondary }]}>Creating a personalized challenge just for you</Text>
+            </View>
+          ) : (
+            activeQuests.map((quest, index) => {
+              if (index < currentIndex) return null;
+              return (
+                <QuestCard
+                  key={quest.id}
+                  quest={quest}
+                  index={index}
+                  currentIndex={currentIndex}
+                  onSwipeLeft={() => {
+                    recordQuestOutcome(quest.id, 'yes');
+                    return false;
+                  }}
+                  onSwipeRight={() => {
+                    const prog = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 };
+                    const nextNo = prog.noCount + 1;
+                    const minNo = typeof quest.minNoRequired === 'number' ? quest.minNoRequired : 0;
+                    recordQuestOutcome(quest.id, 'no');
+                    const shouldAdvance = minNo > 0 && nextNo >= minNo;
+                    if (shouldAdvance) {
+                      setCurrentIndex((i) => i + 1);
+                      setTimeout(() => {
+                        const rank = Math.floor(Math.random() * 100) + 1;
+                        setCompletionData({ quest, newStreak: profile.streak + 1, leaderboardRank: rank });
+                        setShowCompletionModal(true);
+                      }, 500);
+                    }
+                    return shouldAdvance;
+                  }}
+                  onTimerExpire={(penalty) => {
                     setCurrentIndex((i) => i + 1);
                     setTimeout(() => {
-                      const rank = Math.floor(Math.random() * 100) + 1;
-                      setCompletionData({ quest, newStreak: profile.streak + 1, leaderboardRank: rank });
-                      setShowCompletionModal(true);
-                    }, 500);
-                  }
-                  return shouldAdvance;
-                }}
-                onTimerExpire={(penalty) => {
-                  setCurrentIndex((i) => i + 1);
-                  setTimeout(() => {
-                    Alert.alert(
-                      'Quest Failed',
-                      `Time's up! You lost ${penalty.xp} XP and ${penalty.points} points. Your streak was reduced by 1.`,
-                      [{ text: 'OK' }]
-                    );
-                  }, 100);
-                }}
-                theme={theme.colors}
-              />
-            );
-          }).reverse()
-        ) : null}
-      </View>
+                      Alert.alert(
+                        'Quest Failed',
+                        `Time's up! You lost ${penalty.xp} XP and ${penalty.points} points. Your streak was reduced by 1.`,
+                        [{ text: 'OK' }]
+                      );
+                    }, 100);
+                  }}
+                  theme={theme.colors}
+                />
+              );
+            }).reverse()
+          )}
+        </View>
+      )}
 
-      <View style={[styles.instructions, { paddingBottom: insets.bottom + 20 }]}>
-        <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
-          Complete your quests in order • Friend quests can be done anytime
-        </Text>
-        <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
-          Max 2 active quests • Extra quests go to queue
-        </Text>
-      </View>
+      {activeQuests.length > 0 && (
+        <View style={[styles.instructions, { paddingBottom: insets.bottom + 20 }]}>
+          <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
+            Complete your quests in order • Friend quests can be done anytime
+          </Text>
+          <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
+            Max 2 active quests • Extra quests go to queue
+          </Text>
+        </View>
+      )}
 
       <QuestCompletionModal
         visible={showCompletionModal}
