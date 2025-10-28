@@ -196,106 +196,106 @@ const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
   ],
   adventure: [
     { 
-      title: 'Try New Foods', 
-      description: 'Order foods you\'ve never tried', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Order ${count} ${count === 1 ? 'food' : 'different foods'} you've never had before. Describe the taste of each.` 
-    },
-    { 
-      title: 'Dance in Public', 
-      description: 'Dance in safe public places', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Dance for 10 seconds in ${count} ${count === 1 ? 'public place' : 'different public places'}. Embrace the discomfort.` 
-    },
-    { 
-      title: 'Secret Menu Items', 
-      description: 'Ask for off-menu items', 
+      title: 'Ask for Secret Menu Items', 
+      description: 'Ask for off-menu items at restaurants', 
       icon: 'coffee', 
-      descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'place' : 'places'} and ask for something off-menu. Be creative with your requests.` 
+      descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'restaurant' : 'different restaurants'} and ask for something off-menu. They might say no.` 
     },
     { 
-      title: 'Reflect on Adventure', 
-      description: 'Record your reactions', 
+      title: 'Ask Strangers for Directions', 
+      description: 'Ask strangers to guide you somewhere', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} to walk with you and show you directions. They might decline.` 
+    },
+    { 
+      title: 'Request Free Upgrades', 
+      description: 'Ask for free upgrades at restaurants or cafes', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'place' : 'different places'} for a free upgrade. Be polite when they say no.` 
+    },
+    { 
+      title: 'Ask to Join Groups', 
+      description: 'Ask strangers if you can join their activity', 
       icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Complete ${count} ${count === 1 ? 'adventure' : 'adventures'} and capture a short reflection on how it felt.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'group' : 'different groups'} of strangers if you can join their activity. Embrace rejection.` 
     },
   ],
   fitness: [
     { 
-      title: 'Ask Trainers Questions', 
-      description: 'Get advice from fitness trainers', 
+      title: 'Ask for Free Training Sessions', 
+      description: 'Request free personal training', 
       icon: 'target', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'trainer' : 'trainers'} for advice on moves or routines. Don't be shy about learning.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'trainer' : 'trainers'} for a free personal training session. They might say no.` 
     },
     { 
-      title: 'Try New Workouts', 
-      description: 'Try workout modalities you\'ve never done', 
+      title: 'Request Free Trial Classes', 
+      description: 'Ask for free trial classes', 
       icon: 'flame', 
-      descriptionTemplate: (count: number) => `Try ${count} new workout ${count === 1 ? 'modality' : 'modalities'} you've never done before. Do a beginner session for each.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'gym or studio' : 'different gyms or studios'} for a free trial class. Be prepared for rejection.` 
     },
     { 
-      title: 'Gym Conversations', 
-      description: 'Talk to people at the gym', 
+      title: 'Ask to Work In', 
+      description: 'Ask to share equipment with people', 
       icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Start ${count === 1 ? 'a conversation' : `${count} conversations`} at the gym. Ask about their training journey.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} at the gym if you can work in with them. They might decline.` 
     },
     { 
-      title: 'Push-ups After Rejections', 
-      description: 'Convert rejections into progress', 
+      title: 'Request Workout Advice', 
+      description: 'Ask fit people for their routine', 
       icon: 'award', 
-      descriptionTemplate: (count: number) => `Do 10 push-ups after each of your ${count} ${count === 1 ? 'rejection' : 'rejections'}. Turn no's into gains.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'fit person' : 'fit people'} to share their workout routine with you. They might say no.` 
     },
   ],
   wealth: [
     { 
-      title: 'Negotiate Discounts', 
-      description: 'Ask for discounts at checkout', 
+      title: 'Ask for Discounts', 
+      description: 'Request discounts at checkout', 
       icon: 'trending-up', 
-      descriptionTemplate: (count: number) => `Ask for discounts at ${count} ${count === 1 ? 'store' : 'stores'}. Be friendly and confident.` 
+      descriptionTemplate: (count: number) => `Ask for discounts at ${count} ${count === 1 ? 'store' : 'stores'}. They might say no, but ask anyway.` 
     },
     { 
       title: 'Request Raises', 
       description: 'Ask for compensation reviews', 
       icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Prepare and request ${count === 1 ? 'a compensation review' : `${count} compensation discussions`}. Present your value clearly.` 
+      descriptionTemplate: (count: number) => `Ask ${count === 1 ? 'your boss' : 'for'} ${count === 1 ? '' : count} ${count === 1 ? 'for a raise' : 'raises or compensation reviews'}. Be prepared for rejection.` 
     },
     { 
-      title: 'Sell Old Items', 
-      description: 'List unused items online', 
+      title: 'Ask to Borrow Money', 
+      description: 'Request loans from friends or family', 
       icon: 'mail', 
-      descriptionTemplate: (count: number) => `List ${count} unused ${count === 1 ? 'item' : 'items'} online for sale. Take good photos and write clear descriptions.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to lend you money. They might say no.` 
     },
     { 
-      title: 'Pitch to Investors', 
-      description: 'Share your pitch with investors', 
+      title: 'Ask for Investments', 
+      description: 'Request investment in your idea', 
       icon: 'target', 
-      descriptionTemplate: (count: number) => `Share your pitch with ${count} ${count === 1 ? 'investor' : 'investors'} and ask for feedback. Keep it under one minute.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to invest in your idea. Expect some rejections.` 
     },
   ],
   creativity: [
     { 
-      title: 'Post Short Videos', 
-      description: 'Publish video content', 
+      title: 'Ask People to View Your Work', 
+      description: 'Request people watch your content', 
       icon: 'flame', 
-      descriptionTemplate: (count: number) => `Publish ${count} short ${count === 1 ? 'video' : 'videos'} (30-60 seconds) about something you learned. Share your insights.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to watch your video or view your work. They might say no.` 
     },
     { 
-      title: 'Write Tweets', 
-      description: 'Share thoughts publicly', 
+      title: 'Request Collaborations', 
+      description: 'Ask creators to collaborate', 
       icon: 'mail', 
-      descriptionTemplate: (count: number) => `Write and post ${count} concise ${count === 1 ? 'thought' : 'thoughts'} publicly. Be authentic and valuable.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'creator' : 'creators'} to collaborate on a project. Be prepared for rejection.` 
     },
     { 
-      title: 'Get Design Feedback', 
-      description: 'Ask for feedback on your work', 
+      title: 'Ask for Harsh Feedback', 
+      description: 'Request brutal honesty on your work', 
       icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Get feedback from ${count} ${count === 1 ? 'person' : 'people'} on something you made. Be open to criticism.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} for harsh feedback on something you made. They might reject your work.` 
     },
     { 
-      title: 'Launch Micro-Projects', 
-      description: 'Publish small projects', 
+      title: 'Ask for Shares/Retweets', 
+      description: 'Request people share your content', 
       icon: 'award', 
-      descriptionTemplate: (count: number) => `Launch ${count} tiny ${count === 1 ? 'project' : 'projects'} with clear links. Ship imperfect work.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to share or retweet your content. They might decline.` 
     },
   ],
   mindset: [
@@ -352,28 +352,28 @@ const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
   ],
   community: [
     { 
-      title: 'Help Carry Groceries', 
-      description: 'Offer to help people', 
+      title: 'Offer to Help Strangers', 
+      description: 'Offer help to people who might decline', 
       icon: 'award', 
-      descriptionTemplate: (count: number) => `Offer to help ${count} ${count === 1 ? 'person' : 'people'} carry their groceries. Be kind and genuine.` 
+      descriptionTemplate: (count: number) => `Offer to help ${count} ${count === 1 ? 'stranger' : 'strangers'} carry their groceries or bags. They might say no.` 
     },
     { 
-      title: 'Compliment Strangers', 
-      description: 'Brighten people\'s days', 
+      title: 'Ask to Pet Dogs', 
+      description: 'Ask strangers to pet their dogs', 
       icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Give ${count} warm ${count === 1 ? 'compliment to a stranger' : 'compliments to strangers'}. Make their day brighter.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'dog owner' : 'dog owners'} if you can pet their dog. Some will say no.` 
     },
     { 
-      title: 'Volunteer Time', 
-      description: 'Help causes you care about', 
+      title: 'Ask for Directions Then More', 
+      description: 'Ask strangers for directions then conversation', 
       icon: 'target', 
-      descriptionTemplate: (count: number) => `Volunteer ${count} ${count === 1 ? 'hour' : 'hours'} helping any cause. Give back to your community.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} for directions, then ask if they can walk you there. They might decline.` 
     },
     { 
-      title: 'Donate Items', 
-      description: 'Give away unused items', 
+      title: 'Request to Join Activities', 
+      description: 'Ask to join people doing activities', 
       icon: 'flame', 
-      descriptionTemplate: (count: number) => `Find and donate ${count} ${count === 1 ? 'item' : 'items'} you don't use. Help someone in need.` 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'group' : 'groups'} if you can join their activity. Be prepared for rejection.` 
     },
   ],
 };
