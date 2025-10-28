@@ -6,7 +6,7 @@ import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, LineChart, Sparkles, Medal } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import type { Quest } from '@/types';
 
@@ -30,6 +30,7 @@ export default function HomeScreen() {
   const { unreadCount } = useNotifications();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ focus?: string }>();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
@@ -39,6 +40,15 @@ export default function HomeScreen() {
   const menuScale = useRef(new Animated.Value(0)).current;
 
   const activeQuests = quests.filter(q => !q.completed && (q.source === 'user' || q.source === 'ai'));
+
+  useEffect(() => {
+    const shouldFocus = params?.focus === '1' || params?.focus === 'true';
+    if (shouldFocus && activeQuests.length > 0) {
+      console.log('Focus param detected, entering quest mode');
+      setQuestMode(true);
+      setCurrentIndex(0);
+    }
+  }, [params?.focus, activeQuests.length]);
 
   const styles = createStyles(theme.colors);
 

@@ -67,7 +67,7 @@ export default function CategoryScreen() {
           testID="get-ai-quest"
           onPress={async () => {
             await addAIQuest('medium', false, undefined, String(category) as any);
-            router.replace('/?focus=1');
+            router.replace('/(tabs)/(home)?focus=1' as any);
           }}
           style={({ pressed }) => [
             styles.cta,
