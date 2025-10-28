@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, Plus, Clock, Menu, LineChart, Sparkles, Medal } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, LineChart, Sparkles, Medal } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -34,6 +34,7 @@ export default function HomeScreen() {
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
   const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
+  const [questMode, setQuestMode] = useState<boolean>(false);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const menuScale = useRef(new Animated.Value(0)).current;
 
@@ -175,10 +176,44 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </View>
+
+          {activeQuests.length > 0 && (
+            <View style={{ marginTop: 24, gap: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: theme.colors.text }}>Active Quests</Text>
+              {activeQuests.map((q, idx) => {
+                const remaining = q.timerEndAt ? Math.max(0, new Date(q.timerEndAt).getTime() - Date.now()) : null;
+                const prog = progressMap[q.id] ?? { noCount: 0, yesCount: 0 };
+                return (
+                  <Pressable
+                    key={q.id}
+                    onPress={() => {
+                      setQuestMode(true);
+                      setCurrentIndex(idx);
+                    }}
+                    style={({ pressed }) => [styles.activeQuestItem, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.95 : 1 }]}
+                    testID={`active-quest-${q.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.text }}>{q.title}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary }} numberOfLines={1}>
+                        NOs: {prog.noCount}{typeof q.minNoRequired === 'number' ? `/${q.minNoRequired}` : ''}
+                      </Text>
+                    </View>
+                    <View style={[styles.activeQuestPill, { borderColor: theme.colors.border }]}>
+                      <Clock size={14} color={theme.colors.textSecondary} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary }}>
+                        {remaining !== null ? formatTime(remaining) : 'Not started'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </ScrollView>
       ) : null}
 
-      {(isGeneratingQuest || activeQuests.length > 0) && (
+      {questMode && (isGeneratingQuest || activeQuests.length > 0) && (
         <View style={styles.cardsContainer} testID="home-cards-container">
           {isGeneratingQuest ? (
             <View style={styles.loadingState}>
@@ -225,6 +260,7 @@ export default function HomeScreen() {
                       );
                     }, 100);
                   }}
+                  onBackToMain={() => setQuestMode(false)}
                   theme={theme.colors}
                 />
               );
@@ -233,7 +269,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {activeQuests.length > 0 && (
+      {questMode && activeQuests.length > 0 && (
         <View style={[styles.instructions, { paddingBottom: insets.bottom + 20 }]}>
           <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
             Complete your quests in order • Friend quests can be done anytime
@@ -295,9 +331,10 @@ interface QuestCardProps {
   onSwipeRight: () => boolean;
   onTimerExpire: (penalty: { xp: number; points: number }) => void;
   theme: any;
+  onBackToMain: () => void;
 }
 
-function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTimerExpire, theme }: QuestCardProps) {
+function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTimerExpire, theme, onBackToMain }: QuestCardProps) {
   const { progressMap, failQuest } = useGame();
   const progress = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 } as { noCount: number; yesCount: number };
   const minNo = quest.minNoRequired ?? 0;
@@ -441,6 +478,14 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
         colors={[theme.backgroundTertiary, theme.card]}
         style={styles.cardGradient}
       >
+        <Pressable
+          onPress={onBackToMain}
+          style={({ pressed }) => [{ position: 'absolute', top: 16, left: 16, zIndex: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#00000040', opacity: pressed ? 0.9 : 1 }]}
+          testID={`back-to-main-${quest.id}`}
+        >
+          <ArrowLeft size={16} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' as const }}>Main</Text>
+        </Pressable>
         <Animated.View style={[styles.overlay, styles.noOverlay, { opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)) }]}>
           <View style={styles.overlayBadge}>
             <Text style={styles.overlayTextBig}>NO</Text>
@@ -794,6 +839,24 @@ function createStyles(colors: any) {
       paddingHorizontal: 20,
       alignItems: 'center',
       gap: 4,
+    },
+    activeQuestItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+    },
+    activeQuestPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1,
     },
     instructionsText: {
       fontSize: 12,
