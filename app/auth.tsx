@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -19,10 +19,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CheckCircle } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { session, signIn, signUp, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -33,6 +34,13 @@ export default function AuthScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+
+  // If already authenticated, skip this screen.
+  useEffect(() => {
+    if (session?.user) {
+      router.replace('/(tabs)/(home)');
+    }
+  }, [session?.user, router]);
 
   const handleSubmit = async () => {
     if (!email || !password || (mode === 'signup' && !username)) {
@@ -57,15 +65,15 @@ export default function AuthScreen() {
       console.log('🔍 Starting auth process...');
       console.log('📍 Mode:', mode);
       console.log('📧 Email:', email);
-      console.log('🌐 Supabase URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
-      console.log('🔑 Key present:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
-      
+      console.log('🌐 Supabase URL:', (Constants.expoConfig as any)?.extra?.SUPABASE_URL);
+      console.log('🔑 Key present:', Boolean((Constants.expoConfig as any)?.extra?.SUPABASE_ANON_KEY));
+
       if (mode === 'signin') {
         console.log('🔓 Attempting sign in...');
         const result = await signIn(email, password);
-        
+
         if (result.error) {
-          if (result.error.message.includes('Invalid login credentials')) {
+          if (result.error.message?.toLowerCase().includes('invalid')) {
             Alert.alert('Sign In Failed', 'Invalid email or password. Please try again.');
           } else {
             Alert.alert('Sign In Failed', result.error.message || 'Failed to sign in');
@@ -77,21 +85,21 @@ export default function AuthScreen() {
       } else {
         console.log('📝 Attempting sign up...');
         const result = await signUp(email, password, username);
-        
+
         if (result.error) {
-          if (result.error.message?.includes('User already registered')) {
+          if (result.error.message?.toLowerCase().includes('already')) {
             Alert.alert(
               'Account Exists',
               'An account with this email already exists. Please sign in instead.',
               [
                 { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Go to Sign In', 
+                {
+                  text: 'Go to Sign In',
                   onPress: () => {
                     setMode('signin');
                     setPassword('');
-                  }
-                }
+                  },
+                },
               ]
             );
           } else {
@@ -103,24 +111,18 @@ export default function AuthScreen() {
           setTimeout(() => {
             setShowSuccess(false);
             router.replace('/(tabs)/(home)');
-          }, 1500);
+          }, 1200);
         }
       }
     } catch (error: any) {
       console.error('💥 Auth error:', error);
-      console.error('💥 Error type:', typeof error);
-      console.error('💥 Error name:', error?.name);
-      console.error('💥 Error message:', error?.message);
-      console.error('💥 Error toString:', error?.toString?.());
-      console.error('💥 Full error:', JSON.stringify(error, null, 2));
-      
       let errorMessage = 'An error occurred';
       if (error?.message?.includes('Network request failed')) {
-        errorMessage = 'Cannot connect to server. Please check your internet connection and try again. If the problem persists, navigate to /test-supabase-direct to diagnose the issue.';
+        errorMessage =
+          'Cannot connect to server. Check your internet and try again. If the problem persists, navigate to /test-supabase-direct to diagnose.';
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
       Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
@@ -129,20 +131,21 @@ export default function AuthScreen() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    
+
     try {
       console.log('🔍 Starting Google Sign In flow...');
       const result = await signInWithGoogle();
-      
-      if (result.error) {
+
+      if (result?.error) {
         if (result.error.message === 'Sign in cancelled') {
           console.log('ℹ️ User cancelled Google sign in');
         } else {
           Alert.alert('Google Sign In Failed', result.error.message || 'Failed to sign in with Google');
         }
       } else {
-        console.log('✅ Google sign in successful, redirecting to home...');
-        router.replace('/(tabs)/(home)');
+        console.log('✅ Google sign in initiated/finished. Waiting for session...');
+        // onAuthStateChange in AuthContext will set the session; the effect above will redirect.
+        // For web (immediate redirect), we might already be reloading the app.
       }
     } catch (error: any) {
       console.error('💥 Google sign in error:', error);
@@ -156,7 +159,7 @@ export default function AuthScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
-      
+
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <LinearGradient
           colors={['#1a1f3a', '#2d3561']}
@@ -164,20 +167,15 @@ export default function AuthScreen() {
           end={{ x: 0, y: 1 }}
           style={styles.gradient}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-          >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <ScrollView
-              contentContainerStyle={[
-                styles.scrollContent,
-                { paddingBottom: insets.bottom + 40 }
-              ]}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.logoContainer}>
                 <Image
+                  // PNG or JPG is safest for React Native <Image>. If you want SVG, use react-native-svg + SvgXml.
                   source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/eohjbf0hanlb1q2xjc7pr' }}
                   style={styles.heroImage}
                   resizeMode="contain"
@@ -188,9 +186,7 @@ export default function AuthScreen() {
                 <View style={styles.successContainer}>
                   <CheckCircle size={80} color="#4caf50" strokeWidth={2} />
                   <Text style={styles.successText}>Welcome Hero!</Text>
-                  <Text style={styles.successSubtext}>
-                    Your account is ready
-                  </Text>
+                  <Text style={styles.successSubtext}>Your account is ready</Text>
                 </View>
               ) : (
                 <View style={styles.formContainer}>
@@ -237,10 +233,7 @@ export default function AuthScreen() {
                   </View>
 
                   {mode === 'signin' && (
-                    <Pressable 
-                      style={styles.checkboxContainer}
-                      onPress={() => setKeepLoggedIn(!keepLoggedIn)}
-                    >
+                    <Pressable style={styles.checkboxContainer} onPress={() => setKeepLoggedIn(!keepLoggedIn)}>
                       <View style={[styles.checkbox, keepLoggedIn && styles.checkboxChecked]}>
                         {keepLoggedIn && <View style={styles.checkboxInner} />}
                       </View>
@@ -263,9 +256,7 @@ export default function AuthScreen() {
                       {isLoading ? (
                         <ActivityIndicator color="#fff" />
                       ) : (
-                        <Text style={styles.submitText}>
-                          {mode === 'signin' ? 'Start Quest' : 'Join the Heroes'}
-                        </Text>
+                        <Text style={styles.submitText}>{mode === 'signin' ? 'Start Quest' : 'Join the Heroes'}</Text>
                       )}
                     </LinearGradient>
                   </TouchableOpacity>
@@ -287,21 +278,19 @@ export default function AuthScreen() {
                     ) : (
                       <>
                         <Image
-                          source={{ uri: 'https://cdn.cdnlogo.com/logos/g/35/google-icon.svg' }}
+                          source={{
+                            uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg.png',
+                          }}
                           style={styles.googleIcon}
                         />
-                        <Text style={styles.googleButtonText}>
-                          Continue with Google
-                        </Text>
+                        <Text style={styles.googleButtonText}>Continue with Google</Text>
                       </>
                     )}
                   </TouchableOpacity>
 
                   <View style={styles.switchModeContainer}>
                     <Text style={styles.switchModeText}>
-                      {mode === 'signin' 
-                        ? "Don't have an account? " 
-                        : "Already have an account? "}
+                      {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
                     </Text>
                     <TouchableOpacity
                       onPress={() => {
@@ -312,9 +301,7 @@ export default function AuthScreen() {
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.switchModeLink}>
-                        {mode === 'signin' ? 'Sign up' : 'Sign in'}
-                      </Text>
+                      <Text style={styles.switchModeLink}>{mode === 'signin' ? 'Sign up' : 'Sign in'}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -328,32 +315,18 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 32,
     paddingTop: 60,
     justifyContent: 'center',
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 80,
-  },
-  heroImage: {
-    width: 240,
-    height: 240,
-  },
-  formContainer: {
-    width: '100%',
-  },
-  inputWrapper: {
-    marginBottom: 20,
-  },
+  logoContainer: { alignItems: 'center', marginBottom: 80 },
+  heroImage: { width: 240, height: 240 },
+  formContainer: { width: '100%' },
+  inputWrapper: { marginBottom: 20 },
   label: {
     fontSize: 16,
     fontWeight: '600' as const,
@@ -370,12 +343,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    marginTop: 4,
-  },
+  checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, marginTop: 4 },
   checkbox: {
     width: 20,
     height: 20,
@@ -386,20 +354,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: {
-    backgroundColor: '#ff8a4c',
-  },
-  checkboxInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-    backgroundColor: '#fff',
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '500' as const,
-  },
+  checkboxChecked: { backgroundColor: '#ff8a4c' },
+  checkboxInner: { width: 10, height: 10, borderRadius: 2, backgroundColor: '#fff' },
+  checkboxLabel: { fontSize: 14, color: 'rgba(255, 255, 255, 0.8)', fontWeight: '500' as const },
   submitButton: {
     marginTop: 8,
     borderRadius: 12,
@@ -410,68 +367,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  submitText: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: '#fff',
-  },
-  switchModeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  switchModeText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '500' as const,
-  },
-  switchModeLink: {
-    fontSize: 14,
-    color: '#5b8cde',
-    fontWeight: '700' as const,
-  },
-  successContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  successText: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    color: '#fff',
-    marginTop: 24,
-    marginBottom: 8,
-  },
-  successSubtext: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontWeight: '600' as const,
-  },
+  submitButtonDisabled: { opacity: 0.6 },
+  submitGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
+  submitText: { fontSize: 18, fontWeight: '700' as const, color: '#fff' },
+  switchModeContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24 },
+  switchModeText: { fontSize: 14, color: 'rgba(255, 255, 255, 0.6)', fontWeight: '500' as const },
+  switchModeLink: { fontSize: 14, color: '#5b8cde', fontWeight: '700' as const },
+  successContainer: { alignItems: 'center', paddingVertical: 60 },
+  successText: { fontSize: 28, fontWeight: '700' as const, color: '#fff', marginTop: 24, marginBottom: 8 },
+  successSubtext: { fontSize: 16, color: 'rgba(255, 255, 255, 0.7)', textAlign: 'center' },
+  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+  dividerText: { marginHorizontal: 16, fontSize: 14, color: 'rgba(255, 255, 255, 0.5)', fontWeight: '600' as const },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -486,17 +393,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  googleButtonDisabled: {
-    opacity: 0.6,
-  },
-  googleIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 12,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#1a1f3a',
-  },
+  googleButtonDisabled: { opacity: 0.6 },
+  googleIcon: { width: 24, height: 24, marginRight: 12 },
+  googleButtonText: { fontSize: 16, fontWeight: '600' as const, color: '#1a1f3a' },
 });
