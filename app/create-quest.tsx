@@ -50,7 +50,11 @@ export default function CreateQuestScreen() {
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-        router.back();
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.push('/(tabs)/(home)' as any);
+        }
       } catch (error) {
         console.error('Failed to generate quest:', error);
         if (Platform.OS !== 'web') {
@@ -86,7 +90,11 @@ export default function CreateQuestScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.push('/(tabs)/(home)' as any);
+      }
     } catch (error) {
       console.error('Error creating custom quest:', error);
       if (Platform.OS !== 'web') {
@@ -104,7 +112,16 @@ export default function CreateQuestScreen() {
 
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Add New Quest</Text>
-        <Pressable onPress={() => router.back()} style={styles.closeButton}>
+        <Pressable 
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.push('/(tabs)/(home)' as any);
+            }
+          }} 
+          style={styles.closeButton}
+        >
           <X size={24} color={theme.colors.text} />
         </Pressable>
       </View>

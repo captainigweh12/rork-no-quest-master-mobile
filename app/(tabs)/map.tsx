@@ -460,7 +460,16 @@ MinNo: [Number between 3-5]`;
         />
 
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.push('/(tabs)/(home)' as any);
+              }
+            }} 
+            style={styles.backButton}
+          >
             <ChevronLeft size={24} color={theme.colors.text} />
           </Pressable>
           <View style={styles.headerCenter}>
@@ -518,7 +527,16 @@ MinNo: [Number between 3-5]`;
 
       <View style={[styles.topContainer, { paddingTop: insets.top + 16 }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={[styles.backButton, styles.headerButton]}>
+          <Pressable 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.push('/(tabs)/(home)' as any);
+              }
+            }} 
+            style={[styles.backButton, styles.headerButton]}
+          >
             <ChevronLeft size={24} color={theme.colors.text} />
           </Pressable>
           <View style={styles.headerCenter}>
