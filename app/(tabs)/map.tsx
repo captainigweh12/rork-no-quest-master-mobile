@@ -4,12 +4,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Menu, Share2, Search, MapPin, Plus, Navigation, X } from 'lucide-react-native';
+import { ChevronLeft, Menu, Share2, Search, MapPin, Plus, Navigation, X, Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { useAuth } from '@/contexts/AuthContext';
 import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue } from '@/services/supabase/map';
+import { generateText } from '@rork/toolkit-sdk';
 
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCHMHlOrPPSRULrUf-FqPWHz0Y6PJoPrRk';
@@ -31,7 +32,7 @@ interface Place {
 
 export default function MapScreen() {
   const { theme } = useTheme();
-  const { quests } = useGame();
+  const { quests, addCustomQuest } = useGame();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function MapScreen() {
   const [showQueueModal, setShowQueueModal] = useState<boolean>(false);
   const [queueItems, setQueueItems] = useState<any[]>([]);
   const [isLoadingQueue, setIsLoadingQueue] = useState<boolean>(false);
+  const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
 
   const styles = createStyles(theme.colors);
 
@@ -184,6 +186,89 @@ export default function MapScreen() {
         return '#EF4444';
       default:
         return theme.colors.primary;
+    }
+  };
+
+  const handleGenerateLocationQuest = async () => {
+    if (!userLocation || !user?.id) {
+      console.log('No location or user ID available');
+      return;
+    }
+
+    setIsGeneratingQuest(true);
+    try {
+      console.log('Generating location-based quest...');
+      
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${userLocation.latitude},${userLocation.longitude}&key=${GOOGLE_PLACES_API_KEY}`
+      );
+      
+      const data = await response.json();
+      let locationName = 'your current area';
+      let locationDetails: string = '';
+      
+      if (data.results && data.results[0]) {
+        const addressComponents = data.results[0].address_components;
+        const neighborhood = addressComponents.find((c: any) => c.types.includes('neighborhood'));
+        const city = addressComponents.find((c: any) => c.types.includes('locality'));
+        
+        if (neighborhood) {
+          locationName = neighborhood.long_name;
+        } else if (city) {
+          locationName = city.long_name;
+        }
+        
+        locationDetails = data.results[0].formatted_address;
+      }
+
+      const nearbyResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${userLocation.latitude},${userLocation.longitude}&radius=500&key=${GOOGLE_PLACES_API_KEY}`
+      );
+      
+      const nearbyData = await nearbyResponse.json();
+      const placeTypes = nearbyData.results
+        ?.slice(0, 5)
+        .map((p: any) => p.types?.[0])
+        .filter(Boolean)
+        .join(', ') || 'various establishments';
+
+      const questPrompt = `Generate a rejection therapy quest based on the user's location. They are currently in ${locationName}. Nearby places include: ${placeTypes}. 
+
+Create a quest that:
+1. Uses the local environment (${locationName})
+2. Involves potential rejection
+3. Is specific to this location
+4. Requires the person to interact with strangers or businesses nearby
+5. Has a clear objective (3-5 attempts)
+
+Format:
+Title: [Quest Title]
+Description: [Brief description that mentions the location and what to do]
+MinNo: [Number of rejections needed, between 3-5]`;
+
+      const aiResponse = await generateText(questPrompt);
+      
+      const titleMatch = aiResponse.match(/Title:\s*(.+)/i);
+      const descMatch = aiResponse.match(/Description:\s*(.+)/i);
+      const minNoMatch = aiResponse.match(/MinNo:\s*(\d+)/i);
+      
+      const questTitle = titleMatch ? titleMatch[1].trim() : `Quest in ${locationName}`;
+      const questDescription = descMatch ? descMatch[1].trim() : `Complete a rejection challenge in ${locationName}`;
+      const minNo = minNoMatch ? parseInt(minNoMatch[1]) : 3;
+
+      const newQuest = await addCustomQuest({
+        title: questTitle,
+        description: questDescription,
+        minNoRequired: minNo,
+        durationMinutes: 60,
+      });
+
+      console.log('Location quest generated:', newQuest);
+      router.push('/(tabs)/(home)');
+    } catch (error) {
+      console.error('Error generating location quest:', error);
+    } finally {
+      setIsGeneratingQuest(false);
     }
   };
 
@@ -506,6 +591,21 @@ export default function MapScreen() {
         </View>
       </View>
 
+      <Pressable
+        style={[styles.generateQuestButton, { backgroundColor: theme.colors.primary, bottom: insets.bottom + 20 }]}
+        onPress={handleGenerateLocationQuest}
+        disabled={isGeneratingQuest}
+      >
+        {isGeneratingQuest ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <>
+            <Sparkles size={24} color="#FFFFFF" />
+            <Text style={styles.generateQuestButtonText}>Generate Location Quest</Text>
+          </>
+        )}
+      </Pressable>
+
       <QueueModal
         visible={showQueueModal}
         onClose={() => setShowQueueModal(false)}
@@ -806,6 +906,28 @@ function createStyles(colors: any) {
     },
     loadingText: {
       fontSize: 16,
+    },
+    generateQuestButton: {
+      position: 'absolute',
+      left: 20,
+      right: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    generateQuestButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700' as const,
     },
   });
 }
