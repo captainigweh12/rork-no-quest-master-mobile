@@ -1,285 +1,166 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Mail, CheckCircle } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
+import { CheckCircle2, RefreshCcw, ShieldAlert } from 'lucide-react-native';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function VerifyEmailScreen() {
+  const params = useLocalSearchParams<{ token_hash?: string; type?: string; redirect_to?: string }>();
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string }>();
-  const { resendConfirmationEmail } = useAuth();
+  const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  const canVerify = useMemo(() => {
+    return typeof params.token_hash === 'string' && params.token_hash.length > 0;
+  }, [params.token_hash]);
+
+  const startVerify = useCallback(async () => {
+    if (!canVerify) return;
+    setStatus('verifying');
+    setErrorText(null);
+    try {
+      const type = (params.type as string) ?? 'signup';
+      const tokenHash = params.token_hash as string;
+      console.log('🔐 Verifying email with token_hash:', tokenHash.slice(0, 6) + '...');
+      const { error } = await supabase.auth.verifyOtp({ type: type as any, token_hash: tokenHash });
+      if (error) {
+        console.error('❌ verifyOtp error', error);
+        setErrorText(error.message ?? 'Verification failed');
+        setStatus('error');
+        return;
+      }
+      console.log('✅ Email verified');
+      setStatus('success');
+      const redirect = typeof params.redirect_to === 'string' ? params.redirect_to : null;
+      if (redirect) {
+        setTimeout(() => {
+          router.replace(redirect as any);
+        }, 800);
+      }
+    } catch (e: any) {
+      console.error('💥 verify exception', e);
+      setErrorText(e?.message ?? 'Unknown error');
+      setStatus('error');
+    }
+  }, [canVerify, params.type, params.token_hash, params.redirect_to, router]);
+
+  useEffect(() => {
+    if (status === 'idle' && canVerify) {
+      startVerify();
+    }
+  }, [canVerify, startVerify, status]);
+
   const insets = useSafeAreaInsets();
 
-  const [email] = useState(params.email || '');
-  const [isResending, setIsResending] = useState(false);
-
-  const handleResend = useCallback(async () => {
-    if (!email) {
-      Alert.alert('Error', 'Email not found');
-      return;
-    }
-
-    setIsResending(true);
-
-    try {
-      const result = await resendConfirmationEmail(email);
-      
-      if (result.error) {
-        Alert.alert('Error', result.error.message || 'Failed to resend confirmation email');
-      } else {
-        Alert.alert(
-          'Email Resent! 📧',
-          'We\'ve sent another confirmation link to your email. Please check your inbox and spam folder.'
-        );
-      }
-    } catch (error: any) {
-      console.error('💥 Resend error:', error);
-      Alert.alert('Error', error.message || 'Failed to resend confirmation email');
-    } finally {
-      setIsResending(false);
-    }
-  }, [email, resendConfirmationEmail]);
-
   return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="light" />
-      
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <LinearGradient
-          colors={['#1a1f3a', '#2d3561']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.gradient}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-          >
-            <ScrollView
-              contentContainerStyle={[
-                styles.scrollContent,
-                { paddingBottom: insets.bottom + 40 }
-              ]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.iconContainer}>
-                <View style={styles.iconCircle}>
-                  <Mail size={48} color="#5b8cde" strokeWidth={2} />
-                </View>
-              </View>
+    <View style={styles.wrapper} testID="verify-email-wrapper">
+      <Stack.Screen options={{ title: 'Verify Email' }} />
+      <View style={[styles.safe, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}> 
+        <View style={styles.card}>
+          {status === 'verifying' || status === 'idle' ? (
+            <View style={styles.center} testID="verifying-state">
+              <ActivityIndicator size="large" color="#FF6B2C" />
+              <Text style={styles.title}>Verifying your email…</Text>
+              <Text style={styles.subtitle}>This only takes a moment.</Text>
+            </View>
+          ) : null}
 
-              <View style={styles.headerContainer}>
-                <Text style={styles.title}>Check Your Email</Text>
-                <Text style={styles.subtitle}>
-                  We&apos;ve sent a confirmation link to{'\n'}
-                  <Text style={styles.emailText}>{email}</Text>
-                </Text>
-                <Text style={styles.instructionText}>
-                  Click the link in the email to verify your account
-                </Text>
-              </View>
+          {status === 'success' ? (
+            <View style={styles.center} testID="success-state">
+              <CheckCircle2 color="#22C55E" size={56} />
+              <Text style={styles.title}>Email verified</Text>
+              <Text style={styles.subtitle}>You can continue using the app.</Text>
+              <Pressable
+                onPress={() => router.replace('/')} 
+                style={({ pressed }) => [styles.ctaButton, pressed && styles.ctaPressed]}
+                testID="go-home-button"
+              >
+                <Text style={styles.ctaText}>Continue</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
-              <View style={styles.formContainer}>
-                <View style={styles.infoBox}>
-                  <CheckCircle size={24} color="#4caf50" strokeWidth={2} />
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>What to do next:</Text>
-                    <Text style={styles.infoText}>
-                      1. Open your email inbox{'\n'}
-                      2. Look for an email from Rejection Hero{'\n'}
-                      3. Click the confirmation link{'\n'}
-                      4. Return here to sign in
-                    </Text>
-                  </View>
-                </View>
+          {status === 'error' ? (
+            <View style={styles.center} testID="error-state">
+              <ShieldAlert color="#EF4444" size={56} />
+              <Text style={styles.title}>Verification failed</Text>
+              <Text style={styles.errorText}>{errorText ?? 'Something went wrong'}</Text>
+              <Pressable
+                onPress={startVerify}
+                style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryPressed]}
+                testID="retry-button"
+              >
+                <RefreshCcw color="#111827" size={18} />
+                <Text style={styles.secondaryText}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
-                <View style={styles.tipBox}>
-                  <Text style={styles.tipText}>
-                    💡 <Text style={styles.tipBold}>Tip:</Text> Check your spam folder if you don&apos;t see the email
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.resendButton, isResending && styles.resendButtonDisabled]}
-                  onPress={handleResend}
-                  disabled={isResending}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#ff8a4c', '#5b8cde']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.resendGradient}
-                  >
-                    {isResending ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.resendButtonText}>Resend Confirmation Email</Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => router.replace('/auth')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.backButtonText}>Back to Sign In</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </LinearGradient>
+          {!canVerify && status === 'idle' ? (
+            <View style={styles.center} testID="missing-token-state">
+              <ShieldAlert color="#F59E0B" size={56} />
+              <Text style={styles.title}>Missing token</Text>
+              <Text style={styles.subtitle}>Open the link from your email on this device.</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.footerBg} />
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  wrapper: { flex: 1, backgroundColor: '#0B1026' },
+  safe: { flex: 1, justifyContent: 'center', padding: 20 },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
-  gradient: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(91, 140, 222, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(91, 140, 222, 0.3)',
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    color: '#fff',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 24,
-  },
-  emailText: {
-    fontWeight: '700' as const,
-    color: '#5b8cde',
-  },
-  instructionText: {
-    fontSize: 14,
-    color: '#ff8a4c',
-    textAlign: 'center',
-    fontWeight: '600' as const,
-  },
-  formContainer: {
-    width: '100%',
-  },
-  infoBox: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  center: { alignItems: 'center', gap: 12 },
+  title: { fontSize: 22, fontWeight: '700' as const, color: '#111827', marginTop: 8 },
+  subtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center' as const },
+  errorText: { fontSize: 14, color: '#DC2626', textAlign: 'center' as const },
+  ctaButton: {
+    marginTop: 12,
+    backgroundColor: '#111827',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    flexDirection: 'row',
-    gap: 16,
-  },
-  infoTextContainer: {
-    flex: 1,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#4caf50',
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 22,
-  },
-  tipBox: {
-    backgroundColor: 'rgba(255, 138, 76, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 138, 76, 0.3)',
-  },
-  tipText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 20,
-  },
-  tipBold: {
-    fontWeight: '700' as const,
-    color: '#ff8a4c',
-  },
-  resendButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: '#ff8a4c',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  resendButtonDisabled: {
-    opacity: 0.6,
-  },
-  resendGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  resendButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#fff',
-  },
-  backButton: {
-    alignItems: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 18,
+    width: '100%' as const,
+    alignItems: 'center' as const,
   },
-  backButtonText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontWeight: '600' as const,
+  ctaPressed: { opacity: 0.85 },
+  ctaText: { color: '#FFFFFF', fontWeight: '700' as const, fontSize: 16 },
+  secondaryButton: {
+    marginTop: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
+  secondaryPressed: { opacity: 0.9 },
+  secondaryText: { color: '#111827', fontWeight: '600' as const, fontSize: 15 },
+  footerBg: {
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+    backgroundColor: '#10163A',
+    opacity: Platform.OS === 'web' ? 0.85 : 1,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
 });
