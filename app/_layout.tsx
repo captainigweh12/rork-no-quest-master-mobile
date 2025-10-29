@@ -48,7 +48,7 @@ function RootLayoutNav() {
       navigationRef.current.lastRoute = targetRoute;
       router.replace(targetRoute as any);
     }
-  }, [session, segments, isLoading, onboardingLoading, prefs.completed]);
+  }, [session, segments, isLoading, onboardingLoading, prefs.completed, router]);
 
   useEffect(() => {
     if (!isLoading && !onboardingLoading) {
@@ -59,7 +59,6 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="auth" options={{ headerShown: false }} />
-      <Stack.Screen name="verify-email" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ presentation: "modal" }} />

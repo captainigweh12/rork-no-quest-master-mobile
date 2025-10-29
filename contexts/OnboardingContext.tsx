@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 
 export type Personality = 'introvert' | 'extrovert' | 'ambivert';
 export type PreferredTime = 'morning' | 'afternoon' | 'evening' | 'anytime';
@@ -28,10 +28,16 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
   useEffect(() => {
     const load = async () => {
       try {
-        const raw = await AsyncStorage.getItem('onboarding');
+        const timeoutPromise = new Promise<string | null>((_, reject) => {
+          setTimeout(() => reject(new Error('Onboarding load timeout')), 3000);
+        });
+
+        const storagePromise = AsyncStorage.getItem('onboarding');
+        
+        const raw = await Promise.race([storagePromise, timeoutPromise]);
+        
         if (raw) {
-          const parsed = JSON.parse(raw) as OnboardingPreferences;
-          // ensure required props
+          const parsed = JSON.parse(raw as string) as OnboardingPreferences;
           setPrefs({ ...DEFAULT_PREFS, ...parsed });
         }
       } catch (e) {
@@ -68,5 +74,8 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
     await AsyncStorage.setItem('onboarding', JSON.stringify(DEFAULT_PREFS));
   }, []);
 
-  return { prefs, isLoading, update, complete, reset };
+  return useMemo(
+    () => ({ prefs, isLoading, update, complete, reset }),
+    [prefs, isLoading, update, complete, reset]
+  );
 });

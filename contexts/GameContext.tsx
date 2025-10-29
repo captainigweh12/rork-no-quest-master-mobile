@@ -98,9 +98,21 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const loadData = async () => {
     try {
       console.log('Loading game data...');
-      const savedProfile = await AsyncStorage.getItem('profile');
-      const savedQuests = await AsyncStorage.getItem('quests');
-      const savedProgress = await AsyncStorage.getItem('questProgress');
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Game data load timeout')), 3000);
+      });
+
+      const dataPromise = Promise.all([
+        AsyncStorage.getItem('profile'),
+        AsyncStorage.getItem('quests'),
+        AsyncStorage.getItem('questProgress'),
+      ]);
+
+      const [savedProfile, savedQuests, savedProgress] = await Promise.race([
+        dataPromise,
+        timeoutPromise,
+      ]) as [string | null, string | null, string | null];
 
       if (savedProfile) {
         console.log('Loading saved profile');
@@ -122,21 +134,24 @@ export const [GameProvider, useGame] = createContextHook(() => {
     }
   };
 
-  const saveData = async (
-    newProfile: UserProfile,
-    newQuests: Quest[],
-    newProgress?: Record<string, { noCount: number; yesCount: number; startedAt: string }>
-  ) => {
-    try {
-      console.log('Saving game data...');
-      await AsyncStorage.setItem('profile', JSON.stringify(newProfile));
-      await AsyncStorage.setItem('quests', JSON.stringify(newQuests));
-      await AsyncStorage.setItem('questProgress', JSON.stringify(newProgress ?? progressMap));
-      console.log('Game data saved successfully');
-    } catch (error) {
-      console.error('Error saving game data:', error);
-    }
-  };
+  const saveData = useCallback(
+    async (
+      newProfile: UserProfile,
+      newQuests: Quest[],
+      newProgress?: Record<string, { noCount: number; yesCount: number; startedAt: string }>
+    ) => {
+      try {
+        console.log('Saving game data...');
+        await AsyncStorage.setItem('profile', JSON.stringify(newProfile));
+        await AsyncStorage.setItem('quests', JSON.stringify(newQuests));
+        await AsyncStorage.setItem('questProgress', JSON.stringify(newProgress ?? progressMap));
+        console.log('Game data saved successfully');
+      } catch (error) {
+        console.error('Error saving game data:', error);
+      }
+    },
+    [progressMap]
+  );
 
   const completeQuest = useCallback(
     (questId: string, location?: { latitude: number; longitude: number; address?: string }) => {
@@ -173,7 +188,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       return { leveledUp, quest, newStreak: newProfile.streak };
     },
-    [quests, profile, progressMap]
+    [quests, profile, progressMap, saveData]
   );
 
   const resetQuest = useCallback(
@@ -187,7 +202,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       setProgressMap(newProgress);
       saveData(profile, newQuests, newProgress);
     },
-    [quests, profile, progressMap]
+    [quests, profile, progressMap, saveData]
   );
 
   const addAIQuest = useCallback(
@@ -247,7 +262,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       setProgressMap(newProgress);
       saveData(profile, newQuests, newProgress);
     },
-    [quests, profile, progressMap]
+    [quests, profile, progressMap, saveData]
   );
 
   const failQuest = useCallback(
@@ -282,7 +297,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       return { penalty, quest };
     },
-    [quests, profile, progressMap]
+    [quests, profile, progressMap, saveData]
   );
 
   const addCustomQuest = useCallback(
@@ -315,7 +330,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         throw error;
       }
     },
-    [quests, profile]
+    [quests, profile, saveData]
   );
 
   const ensureProgress = useCallback((questId: string) => {
