@@ -934,7 +934,7 @@ function createCardStyles(colors: any) {
     card: {
       position: 'absolute',
       width: SCREEN_WIDTH - 40,
-      height: SCREEN_HEIGHT * 0.65,
+      height: SCREEN_HEIGHT * 0.7,
       borderRadius: 24,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -945,7 +945,7 @@ function createCardStyles(colors: any) {
     cardGradient: {
       flex: 1,
       borderRadius: 24,
-      padding: 24,
+      padding: 20,
       justifyContent: 'space-between',
     },
     overlay: {
@@ -995,20 +995,20 @@ function createCardStyles(colors: any) {
       textShadowRadius: 2,
     },
     noRequirementBadge: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
       borderRadius: 12,
       borderWidth: 2,
       alignSelf: 'flex-start',
     },
     noRequirementText: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '700' as const,
     },
     cardContent: {
       flex: 1,
       justifyContent: 'center',
-      gap: 20,
+      gap: 16,
     },
     difficultyBadge: {
       alignSelf: 'flex-start',
@@ -1021,13 +1021,13 @@ function createCardStyles(colors: any) {
       fontWeight: '700' as const,
     },
     questTitle: {
-      fontSize: 32,
+      fontSize: 28,
       fontWeight: '800' as const,
-      lineHeight: 40,
+      lineHeight: 36,
     },
     questDescription: {
-      fontSize: 18,
-      lineHeight: 26,
+      fontSize: 16,
+      lineHeight: 24,
     },
     rewardsRow: {
       flexDirection: 'row',
@@ -1036,8 +1036,8 @@ function createCardStyles(colors: any) {
     },
     rewardBadge: {
       backgroundColor: colors.primary + '20',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
       borderRadius: 12,
     },
     timerContainer: {
@@ -1056,21 +1056,21 @@ function createCardStyles(colors: any) {
       letterSpacing: 1,
     },
     rewardText: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '700' as const,
     },
     actionsRow: {
       flexDirection: 'row',
       justifyContent: 'space-around',
       alignItems: 'center',
-      paddingTop: 20,
-      paddingHorizontal: 20,
-      gap: 40,
+      paddingTop: 16,
+      paddingHorizontal: 0,
+      gap: 16,
     },
     actionButton: {
       flex: 1,
-      height: 70,
-      borderRadius: 35,
+      height: 56,
+      borderRadius: 28,
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',
@@ -1088,7 +1088,7 @@ function createCardStyles(colors: any) {
       opacity: 0.9,
     },
     actionButtonText: {
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: '900' as const,
       color: '#FFFFFF',
     },
