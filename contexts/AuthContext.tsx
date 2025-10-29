@@ -26,21 +26,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     const initializeAuth = async () => {
       try {
-        const timeoutPromise = new Promise<null>((_, reject) => {
-          setTimeout(() => reject(new Error('Auth initialization timeout')), 5000);
-        });
-
-        const sessionPromise = supabase.auth.getSession();
-
-        const result = await Promise.race([sessionPromise, timeoutPromise]);
-        
-        if (result) {
-          const { data: { session } } = result as Awaited<typeof sessionPromise>;
-          console.log('📦 Initial session:', session ? 'Found' : 'None');
-          setSession(session);
-          if (session?.user) {
-            loadUserProfile(session.user);
-          }
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('📦 Initial session:', session ? 'Found' : 'None');
+        setSession(session);
+        if (session?.user) {
+          loadUserProfile(session.user);
         }
       } catch (error) {
         console.error('❌ Auth initialization failed:', error);

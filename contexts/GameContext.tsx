@@ -99,20 +99,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
     try {
       console.log('Loading game data...');
       
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Game data load timeout')), 3000);
-      });
-
-      const dataPromise = Promise.all([
-        AsyncStorage.getItem('profile'),
-        AsyncStorage.getItem('quests'),
-        AsyncStorage.getItem('questProgress'),
+      const [savedProfile, savedQuests, savedProgress] = await Promise.all([
+        AsyncStorage.getItem('profile').catch(() => null),
+        AsyncStorage.getItem('quests').catch(() => null),
+        AsyncStorage.getItem('questProgress').catch(() => null),
       ]);
-
-      const [savedProfile, savedQuests, savedProgress] = await Promise.race([
-        dataPromise,
-        timeoutPromise,
-      ]) as [string | null, string | null, string | null];
 
       if (savedProfile) {
         console.log('Loading saved profile');

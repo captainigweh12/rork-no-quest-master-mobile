@@ -51,9 +51,16 @@ function RootLayoutNav() {
   }, [session, segments, isLoading, onboardingLoading, prefs.completed, router]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync();
+    }, 100);
+
     if (!isLoading && !onboardingLoading) {
+      clearTimeout(timer);
       SplashScreen.hideAsync();
     }
+
+    return () => clearTimeout(timer);
   }, [isLoading, onboardingLoading]);
 
   return (
