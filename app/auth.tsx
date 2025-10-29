@@ -64,19 +64,7 @@ export default function AuthScreen() {
         const result = await signIn(email, password);
         
         if (result.error) {
-          if ((result.error as any).needsEmailConfirmation) {
-            Alert.alert(
-              'Email Not Verified',
-              'Please check your email and click the confirmation link before signing in.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Go to Verification', 
-                  onPress: () => router.push(`/verify-email?email=${encodeURIComponent(email)}`)
-                }
-              ]
-            );
-          } else if (result.error.message.includes('Invalid login credentials')) {
+          if (result.error.message.includes('Invalid login credentials')) {
             Alert.alert('Sign In Failed', 'Invalid email or password. Please try again.');
           } else {
             Alert.alert('Sign In Failed', result.error.message || 'Failed to sign in');
@@ -112,16 +100,20 @@ export default function AuthScreen() {
           setShowSuccess(true);
           setTimeout(() => {
             setShowSuccess(false);
-            Alert.alert(
-              'Check Your Email! 📧',
-              'We\'ve sent a confirmation link to your email. Please click it to verify your account before signing in.',
-              [
-                { 
-                  text: 'OK', 
-                  onPress: () => router.push(`/verify-email?email=${encodeURIComponent(email)}`)
-                }
-              ]
-            );
+            if (result.data?.session) {
+              router.replace('/(tabs)/(home)');
+            } else {
+              Alert.alert(
+                'Account Created',
+                'You can now sign in with your email and password.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => setMode('signin'),
+                  },
+                ]
+              );
+            }
           }, 2000);
         }
       }

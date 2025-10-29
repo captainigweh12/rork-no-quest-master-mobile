@@ -131,7 +131,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
     console.log('📧 Signing up with Supabase Auth:', email);
-    
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -149,16 +148,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { data: null, error };
       }
 
-      console.log('✅ Sign up successful! Email confirmation required.');
-      console.log('📬 Confirmation email sent to:', email);
-      
-      return { 
-        data: { 
-          user: data.user, 
+      console.log('✅ Sign up successful');
+      return {
+        data: {
+          user: data.user,
           session: data.session,
-          needsEmailConfirmation: !data.session,
-        }, 
-        error: null 
+        },
+        error: null,
       };
     } catch (error: any) {
       console.error('💥 Sign up exception:', error);
@@ -173,7 +169,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signIn = useCallback(async (email: string, password: string) => {
     console.log('🔓 Signing in with Supabase Auth:', email);
-    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -182,18 +177,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       if (error) {
         console.error('❌ Sign in error:', error);
-        
-        if (error.message.includes('Email not confirmed')) {
-          return { 
-            data: null, 
-            error: { 
-              ...error, 
-              message: 'Please verify your email before signing in. Check your inbox for the confirmation link.',
-              needsEmailConfirmation: true,
-            } 
-          };
-        }
-        
         return { data: null, error };
       }
 
