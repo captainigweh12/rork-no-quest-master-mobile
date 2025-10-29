@@ -1062,11 +1062,13 @@ function createCardStyles(colors: any) {
     actionsRow: {
       flexDirection: 'row',
       justifyContent: 'space-around',
+      alignItems: 'center',
       paddingTop: 20,
-      opacity: 0.95,
+      paddingHorizontal: 20,
+      gap: 40,
     },
     actionButton: {
-      width: 70,
+      flex: 1,
       height: 70,
       borderRadius: 35,
       justifyContent: 'center',
