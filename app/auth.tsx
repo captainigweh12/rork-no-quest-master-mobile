@@ -97,24 +97,12 @@ export default function AuthScreen() {
             Alert.alert('Sign Up Failed', result.error.message || 'Failed to sign up');
           }
         } else {
+          console.log('✅ Sign up successful!');
           setShowSuccess(true);
           setTimeout(() => {
             setShowSuccess(false);
-            if (result.data?.session) {
-              router.replace('/(tabs)/(home)');
-            } else {
-              Alert.alert(
-                'Account Created',
-                'You can now sign in with your email and password.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => setMode('signin'),
-                  },
-                ]
-              );
-            }
-          }, 2000);
+            router.replace('/(tabs)/(home)');
+          }, 1500);
         }
       }
     } catch (error: any) {
@@ -173,9 +161,9 @@ export default function AuthScreen() {
               {showSuccess ? (
                 <View style={styles.successContainer}>
                   <CheckCircle size={80} color="#4caf50" strokeWidth={2} />
-                  <Text style={styles.successText}>Account Created!</Text>
+                  <Text style={styles.successText}>Welcome Hero!</Text>
                   <Text style={styles.successSubtext}>
-                    Check your email for confirmation
+                    Your account is ready
                   </Text>
                 </View>
               ) : (
