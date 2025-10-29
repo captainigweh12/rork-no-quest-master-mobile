@@ -264,7 +264,7 @@ MinNo: [Number of rejections needed, between 3-5]`;
       });
 
       console.log('Location quest generated:', newQuest);
-      router.push('/(tabs)/(home)');
+      router.push('/(tabs)/(home)/?focus=1' as any);
     } catch (error) {
       console.error('Error generating location quest:', error);
     } finally {
