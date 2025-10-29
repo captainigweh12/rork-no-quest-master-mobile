@@ -1,2 +1,2 @@
-[functions.send-confirmation-email]
+[functions.send-confirmation]
 verify_jwt = false
