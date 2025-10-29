@@ -1,40 +1,8 @@
-import { Stack, useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Stack } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeStackLayout() {
   const { theme } = useTheme();
-  const router = useRouter();
-  const { user, isLoading } = useAuth();
-  const hasRedirected = useRef(false);
-
-  useEffect(() => {
-    if (!isLoading && !user && !hasRedirected.current) {
-      console.log('User not authenticated, redirecting to auth');
-      hasRedirected.current = true;
-      router.replace('/auth');
-    }
-  }, [user, isLoading]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#1a1f3a', '#2d3561']}
-          style={styles.gradient}
-        >
-          <ActivityIndicator size="large" color="#ff8a4c" />
-        </LinearGradient>
-      </View>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   return (
     <Stack
@@ -46,17 +14,7 @@ export default function HomeStackLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="category/[category]" />
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
