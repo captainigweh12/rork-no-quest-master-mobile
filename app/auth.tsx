@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -30,6 +30,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
@@ -123,6 +124,31 @@ export default function AuthScreen() {
       Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    
+    try {
+      console.log('🔍 Starting Google Sign In flow...');
+      const result = await signInWithGoogle();
+      
+      if (result.error) {
+        if (result.error.message === 'Sign in cancelled') {
+          console.log('ℹ️ User cancelled Google sign in');
+        } else {
+          Alert.alert('Google Sign In Failed', result.error.message || 'Failed to sign in with Google');
+        }
+      } else {
+        console.log('✅ Google sign in successful, redirecting to home...');
+        router.replace('/(tabs)/(home)');
+      }
+    } catch (error: any) {
+      console.error('💥 Google sign in error:', error);
+      Alert.alert('Error', error?.message || 'An error occurred during Google sign in');
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -242,6 +268,33 @@ export default function AuthScreen() {
                         </Text>
                       )}
                     </LinearGradient>
+                  </TouchableOpacity>
+
+                  <View style={styles.dividerContainer}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.googleButton, isGoogleLoading && styles.googleButtonDisabled]}
+                    onPress={handleGoogleSignIn}
+                    disabled={isGoogleLoading || isLoading}
+                    activeOpacity={0.8}
+                  >
+                    {isGoogleLoading ? (
+                      <ActivityIndicator color="#1a1f3a" />
+                    ) : (
+                      <>
+                        <Image
+                          source={{ uri: 'https://cdn.cdnlogo.com/logos/g/35/google-icon.svg' }}
+                          style={styles.googleIcon}
+                        />
+                        <Text style={styles.googleButtonText}>
+                          Continue with Google
+                        </Text>
+                      </>
+                    )}
                   </TouchableOpacity>
 
                   <View style={styles.switchModeContainer}>
@@ -402,5 +455,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: '600' as const,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#1a1f3a',
   },
 });

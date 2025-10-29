@@ -2,6 +2,11 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session as SupabaseSession } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import { Platform } from 'react-native';
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface User {
   id: string;
@@ -269,6 +274,67 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    console.log('🔍 Starting Google Sign In...');
+    
+    try {
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: 'noquest',
+        path: 'auth/callback',
+      });
+      
+      console.log('🔗 Redirect URL:', redirectUrl);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: Platform.OS !== 'web',
+        },
+      });
+
+      if (error) {
+        console.error('❌ Google sign in error:', error);
+        return { data: null, error };
+      }
+
+      if (Platform.OS !== 'web' && data?.url) {
+        console.log('🌐 Opening auth URL:', data.url);
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUrl
+        );
+
+        if (result.type === 'success') {
+          const url = result.url;
+          console.log('✅ Auth completed, processing URL:', url);
+          
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSessionFromUrl({ url });
+          
+          if (sessionError) {
+            console.error('❌ Session error:', sessionError);
+            return { data: null, error: sessionError };
+          }
+          
+          console.log('✅ Google sign in successful!');
+          return { data: sessionData, error: null };
+        } else if (result.type === 'cancel') {
+          console.log('❌ User cancelled Google sign in');
+          return { data: null, error: { message: 'Sign in cancelled' } as any };
+        } else {
+          console.log('❌ Auth failed:', result.type);
+          return { data: null, error: { message: 'Authentication failed' } as any };
+        }
+      }
+
+      console.log('✅ Google sign in initiated (web)');
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('💥 Google sign in exception:', error);
+      return { data: null, error };
+    }
+  }, []);
+
   const updateRelationshipStatus = useCallback(async (relationshipStatus: 'single' | 'married') => {
     try {
       if (!user?.id) throw new Error('No user logged in');
@@ -327,6 +393,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signOut,
       resetPassword,
       resendConfirmationEmail,
+      signInWithGoogle,
       updateRelationshipStatus,
       updatePreferredLanguage,
     }),
@@ -338,7 +405,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signIn, 
       signOut, 
       resetPassword, 
-      resendConfirmationEmail, 
+      resendConfirmationEmail,
+      signInWithGoogle,
       updateRelationshipStatus, 
       updatePreferredLanguage
     ]
