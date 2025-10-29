@@ -30,7 +30,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.no_quest_master_mobile",
+      "package": "app.rork.noquestmastermobile",
       "permissions": [
         "android.permission.VIBRATE",
         "ACCESS_COARSE_LOCATION",
