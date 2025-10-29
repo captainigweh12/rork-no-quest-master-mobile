@@ -8,11 +8,13 @@
     "scheme": "noquest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.rork.noquestmastermobile",
@@ -20,17 +22,16 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "UIBackgroundModes": [
-          "location"
-        ]
+        "UIBackgroundModes": ["location"]
       }
     },
+
     "android": {
+      "package": "app.rork.noquestmastermobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.noquestmastermobile",
       "permissions": [
         "android.permission.VIBRATE",
         "ACCESS_COARSE_LOCATION",
@@ -40,16 +41,26 @@
         "ACCESS_BACKGROUND_LOCATION",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [{ "scheme": "noquest", "host": "auth", "pathPrefix": "/callback" }]
+        }
       ]
     },
+
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
+
     "plugins": [
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://rork.app"
         }
       ],
       [
@@ -67,16 +78,14 @@
           "icon": "./local/assets/notification_icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
-          "sounds": [
-            "./local/assets/notification_sound.wav"
-          ],
+          "sounds": ["./local/assets/notification_sound.wav"],
           "enableBackgroundRemoteNotifications": false
         }
       ]
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
+
+    "experiments": { "typedRoutes": true },
+
     "extra": {
       "SUPABASE_URL": "https://hotbmbscjxgayivmyenb.supabase.co",
       "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvdGJtYnNjanhnYXlpdm15ZW5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjgyMDgsImV4cCI6MjA3NzAwNDIwOH0.8pU3MXu8ylwSORBzXMQqbQ6ZBKXh9tXWALiJo1A8E8M",
