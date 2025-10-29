@@ -232,29 +232,28 @@ export default function MapScreen() {
         .filter(Boolean)
         .join(', ') || 'various establishments';
 
-      const questPrompt = `Generate a rejection therapy quest based on the user's location. They are currently in ${locationName}. Nearby places include: ${placeTypes}. 
+      const questPrompt = `Generate a rejection therapy quest based on the user's location in ${locationName}. Nearby places include: ${placeTypes}.
 
-Create a quest that:
-1. Uses the local environment (${locationName})
-2. Involves potential rejection
-3. Is specific to this location
-4. Requires the person to interact with strangers or businesses nearby
-5. Has a clear objective (3-5 attempts)
+Create a specific quest that involves getting rejected by asking strangers or businesses something in this area.
 
-Format:
-Title: [Quest Title]
-Description: [Brief description that mentions the location and what to do]
-MinNo: [Number of rejections needed, between 3-5]`;
+Provide your response in this exact format:
+Title: [A short, catchy quest title mentioning ${locationName}]
+Description: [A clear action statement of what to do and how many times. For example: "Ask 3 strangers in ${locationName} to take a photo with you" or "Visit 5 local shops and ask for a discount"]
+MinNo: [Number between 3-5]`;
 
       const aiResponse = await generateText(questPrompt);
+      console.log('AI Response:', aiResponse);
       
-      const titleMatch = aiResponse.match(/Title:\s*(.+)/i);
-      const descMatch = aiResponse.match(/Description:\s*(.+)/i);
+      const titleMatch = aiResponse.match(/Title:\s*(.+?)(?:\n|$)/i);
+      const descMatch = aiResponse.match(/Description:\s*(.+?)(?:\n|$)/i);
       const minNoMatch = aiResponse.match(/MinNo:\s*(\d+)/i);
       
-      const questTitle = titleMatch ? titleMatch[1].trim() : `Quest in ${locationName}`;
-      const questDescription = descMatch ? descMatch[1].trim() : `Complete a rejection challenge in ${locationName}`;
+      let questTitle = titleMatch ? titleMatch[1].trim() : `${locationName} Challenge`;
+      let questDescription = descMatch ? descMatch[1].trim() : `Complete a rejection challenge in ${locationName}`;
       const minNo = minNoMatch ? parseInt(minNoMatch[1]) : 3;
+      
+      questTitle = questTitle.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
+      questDescription = questDescription.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
 
       const newQuest = await addCustomQuest({
         title: questTitle,
