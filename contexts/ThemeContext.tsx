@@ -111,7 +111,10 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
     }
   }, []);
 
-  const theme: Theme = themeMode === 'dark' ? darkTheme : lightTheme;
+  const theme: Theme = useMemo(
+    () => (themeMode === 'dark' ? darkTheme : lightTheme),
+    [themeMode]
+  );
 
   return useMemo(
     () => ({

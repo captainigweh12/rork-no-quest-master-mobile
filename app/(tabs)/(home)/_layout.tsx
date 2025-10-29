@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,13 +9,15 @@ export default function HomeStackLayout() {
   const { theme } = useTheme();
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !user && !hasRedirected.current) {
       console.log('User not authenticated, redirecting to auth');
+      hasRedirected.current = true;
       router.replace('/auth');
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading]);
 
   if (isLoading) {
     return (

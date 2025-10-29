@@ -48,7 +48,7 @@ function RootLayoutNav() {
       navigationRef.current.lastRoute = targetRoute;
       router.replace(targetRoute as any);
     }
-  }, [session, segments, isLoading, onboardingLoading, prefs.completed, router]);
+  }, [session, segments, isLoading, onboardingLoading, prefs.completed]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
