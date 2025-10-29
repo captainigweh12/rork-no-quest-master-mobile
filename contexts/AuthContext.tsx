@@ -309,15 +309,27 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           const url = result.url;
           console.log('✅ Auth completed, processing URL:', url);
           
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSessionFromUrl({ url });
+          const urlParams = new URL(url);
+          const access_token = urlParams.searchParams.get('access_token');
+          const refresh_token = urlParams.searchParams.get('refresh_token');
           
-          if (sessionError) {
-            console.error('❌ Session error:', sessionError);
-            return { data: null, error: sessionError };
+          if (access_token && refresh_token) {
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+            
+            if (sessionError) {
+              console.error('❌ Session error:', sessionError);
+              return { data: null, error: sessionError };
+            }
+            
+            console.log('✅ Google sign in successful!');
+            return { data: sessionData, error: null };
+          } else {
+            console.error('❌ No tokens found in URL');
+            return { data: null, error: { message: 'No tokens found in callback URL' } as any };
           }
-          
-          console.log('✅ Google sign in successful!');
-          return { data: sessionData, error: null };
         } else if (result.type === 'cancel') {
           console.log('❌ User cancelled Google sign in');
           return { data: null, error: { message: 'Sign in cancelled' } as any };
