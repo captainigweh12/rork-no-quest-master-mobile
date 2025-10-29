@@ -40,8 +40,8 @@ https://hotbmbscjxgayivmyenb.supabase.co/auth/v1/callback
 Your app is already configured with:
 
 ### Bundle Identifiers:
-- **iOS Bundle ID**: `app.rork.no-quest-master-mobile`
-- **Android Package**: `app.rork.no_quest_master_mobile`
+- **iOS Bundle ID**: `app.rork.noquestmastermobile`
+- **Android Package**: `app.rork.noquestmastermobile`
 - **Deep Link Scheme**: `noquest://`
 
 ### Redirect Configuration:
@@ -88,8 +88,8 @@ The app uses `noquest://auth/callback` as the OAuth callback URL.
 ## Important Notes
 
 - **Google Cloud Console**: Make sure your OAuth client IDs are configured with the correct bundle identifiers:
-  - iOS: `app.rork.no-quest-master-mobile`
-  - Android: `app.rork.no_quest_master_mobile`
+  - iOS: `app.rork.noquestmastermobile`
+  - Android: `app.rork.noquestmastermobile`
   
 - **Deep Linking**: The `noquest://` scheme is used for OAuth callbacks. This is already configured in your `app.json`.
 
