@@ -21,6 +21,8 @@ export default function TeamsScreen() {
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState<boolean>(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [showJoinModal, setShowJoinModal] = useState<boolean>(false);
+  const [inviteCode, setInviteCode] = useState<string>('');
   const [teamName, setTeamName] = useState<string>('');
   const [teamDescription, setTeamDescription] = useState<string>('');
   const [taskTitle, setTaskTitle] = useState<string>('');
@@ -121,6 +123,24 @@ export default function TeamsScreen() {
     },
   });
 
+  const acceptInviteMutation = useMutation({
+    mutationFn: async () => {
+      const code = inviteCode.trim();
+      if (!code) throw new Error('Enter invite code');
+      const { acceptTeamInvite } = await import('@/services/supabase/teams');
+      return acceptTeamInvite(code);
+    },
+    onSuccess: () => {
+      setShowJoinModal(false);
+      setInviteCode('');
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      Alert.alert('Joined', 'You have joined the group.');
+    },
+    onError: (e: any) => {
+      Alert.alert('Join failed', e?.message || 'Could not join group');
+    }
+  });
+
   if (!hasTeamFeature) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -130,7 +150,7 @@ export default function TeamsScreen() {
         />
 
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Teams</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Groups</Text>
           <Pressable onPress={() => router.back()} style={styles.closeButton}>
             <X size={24} color={theme.colors.text} />
           </Pressable>
@@ -173,8 +193,14 @@ export default function TeamsScreen() {
       />
 
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Teams</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Groups</Text>
         <View style={{ flexDirection: 'row', gap: 12 }}>
+          <Pressable
+            onPress={() => setShowJoinModal(true)}
+            style={[styles.iconButton, { backgroundColor: theme.colors.backgroundSecondary, borderWidth: 1, borderColor: theme.colors.border }]}
+          >
+            <UserPlus size={20} color={theme.colors.text} />
+          </Pressable>
           <Pressable
             onPress={() => setShowCreateModal(true)}
             style={[styles.iconButton, { backgroundColor: theme.colors.primary }]}
@@ -195,14 +221,14 @@ export default function TeamsScreen() {
           {teamsQuery.isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading teams...</Text>
+              <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading groups...</Text>
             </View>
           ) : teams.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Users size={64} color={theme.colors.textSecondary} />
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Teams Yet</Text>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Groups Yet</Text>
               <Text style={[styles.emptyDescription, { color: theme.colors.textSecondary }]}>
-                Create your first team to start assigning No Tasks
+                Create your first group to start collaborating
               </Text>
             </View>
           ) : (
@@ -402,19 +428,19 @@ export default function TeamsScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create Team</Text>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create Group</Text>
               <Pressable onPress={() => setShowCreateModal(false)}>
                 <X size={24} color={theme.colors.text} />
               </Pressable>
             </View>
 
             <View style={styles.modalBody}>
-              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Team Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Group Name</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text }]}
                 value={teamName}
                 onChangeText={setTeamName}
-                placeholder="Enter team name"
+                placeholder="Enter group name"
                 placeholderTextColor={theme.colors.textSecondary}
               />
 
@@ -423,7 +449,7 @@ export default function TeamsScreen() {
                 style={[styles.textArea, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text }]}
                 value={teamDescription}
                 onChangeText={setTeamDescription}
-                placeholder="Enter team description"
+                placeholder="Enter group description"
                 placeholderTextColor={theme.colors.textSecondary}
                 multiline
                 numberOfLines={4}
@@ -441,7 +467,47 @@ export default function TeamsScreen() {
                 {createTeamMutation.isPending ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.createButtonText}>Create Team</Text>
+                  <Text style={styles.createButtonText}>Create Group</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showJoinModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowJoinModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowJoinModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Join Group</Text>
+              <Pressable onPress={() => setShowJoinModal(false)}>
+                <X size={24} color={theme.colors.text} />
+              </Pressable>
+            </View>
+            <View style={styles.modalBody}>
+              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Invite Code</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.colors.backgroundSecondary, color: theme.colors.text }]}
+                value={inviteCode}
+                onChangeText={setInviteCode}
+                placeholder="e.g., TEAM-ABCD1234"
+                placeholderTextColor={theme.colors.textSecondary}
+                autoCapitalize="characters"
+              />
+              <Pressable
+                style={[styles.createButton, { backgroundColor: theme.colors.primary, opacity: !inviteCode.trim() ? 0.5 : 1 }]}
+                onPress={() => acceptInviteMutation.mutate()}
+                disabled={!inviteCode.trim() || acceptInviteMutation.isPending}
+              >
+                {acceptInviteMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.createButtonText}>Join</Text>
                 )}
               </Pressable>
             </View>
@@ -464,7 +530,7 @@ export default function TeamsScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create No Task</Text>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create Group Task</Text>
               <Pressable onPress={() => setShowCreateTaskModal(false)}>
                 <X size={24} color={theme.colors.text} />
               </Pressable>

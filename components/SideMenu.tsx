@@ -50,7 +50,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'trends', label: 'Growth Stats', icon: TrendingUp, route: '/growth', section: 'adventure' },
   { id: 'achievements', label: 'Achievements', icon: Crown, route: '/growth', section: 'adventure', divider: true },
   
-  { id: 'teams', label: 'Guilds', icon: Users, route: '/teams', section: 'community' },
+  { id: 'teams', label: 'Groups', icon: Users, route: '/teams', section: 'community' },
   { id: 'explore', label: 'Explore World', icon: Compass, route: '/(tabs)/map', section: 'community' },
 ];
 

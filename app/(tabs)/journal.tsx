@@ -1,15 +1,17 @@
-import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator, Platform } from 'react-native';
 import { useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/JournalsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, X, Sparkles, Lock, Users, Globe, Share2 } from 'lucide-react-native';
+import { BookOpen, X, Sparkles, Lock, Users, Globe, Share2, ImagePlus } from 'lucide-react-native';
 import { Stack } from 'expo-router';
 import { generateObject } from '@rork/toolkit-sdk';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import * as communityService from '@/services/supabase/community';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 
 export default function JournalScreen() {
   const { theme } = useTheme();
@@ -21,6 +23,7 @@ export default function JournalScreen() {
   const [title, setTitle] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [privacy, setPrivacy] = useState<JournalPrivacy>('private');
+  const [images, setImages] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [showSkillsModal, setShowSkillsModal] = useState<boolean>(false);
   const [analyzedSkills, setAnalyzedSkills] = useState<Skill[]>([]);
@@ -77,12 +80,13 @@ Provide a brief encouraging explanation of the skills they developed and why.`
   
   const saveJournal = async () => {
     try {
-      await addJournal({ title: title.trim(), notes: notes.trim() || undefined, skills: analyzedSkills, privacy });
+      await addJournal({ title: title.trim(), notes: notes.trim() || undefined, images, skills: analyzedSkills, privacy });
       setTitle('');
       setNotes('');
       setPrivacy('private');
       setAnalyzedSkills([]);
       setAiExplanation('');
+      setImages([]);
       setShowSkillsModal(false);
       Animated.sequence([
         Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }),
@@ -118,6 +122,31 @@ Provide a brief encouraging explanation of the skills they developed and why.`
     }
   });
 
+  const pickImages = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission required', 'Please allow photo access to add images.');
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        selectionLimit: 4,
+      });
+      if (!result.canceled) {
+        const uris = result.assets?.map(a => a.uri).filter(Boolean) as string[];
+        setImages(prev => [...prev, ...uris].slice(0, 8));
+      }
+    } catch (e) {
+      console.error('pickImages error', e);
+      Alert.alert('Image error', 'Could not pick images. Try again.');
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}
       testID="journal-screen">
@@ -139,6 +168,34 @@ Provide a brief encouraging explanation of the skills they developed and why.`
           onChangeText={setTitle}
           testID="journal-title-input"
         />
+
+        <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Add photos (optional)</Text>
+        <View style={styles.imagesRow}>
+          <FlatList
+            horizontal
+            data={images}
+            keyExtractor={(u, i) => `${u}-${i}`}
+            contentContainerStyle={{ gap: 8 }}
+            renderItem={({ item, index }) => (
+              <View style={[styles.imageWrap, { borderColor: theme.colors.border }]}>
+                <Image source={{ uri: item }} style={styles.image} contentFit="cover" />
+                <Pressable
+                  onPress={() => setImages(prev => prev.filter((_, i) => i !== index))}
+                  style={[styles.removeImageBtn, { backgroundColor: theme.colors.background + 'AA' }]}
+                  accessibilityRole="button"
+                >
+                  <X size={14} color={theme.colors.text} />
+                </Pressable>
+              </View>
+            )}
+            ListFooterComponent={
+              <Pressable onPress={pickImages} style={[styles.addImageBtn, { borderColor: theme.colors.border }]} testID="add-journal-image">
+                <ImagePlus size={20} color={theme.colors.textSecondary} />
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Add</Text>
+              </Pressable>
+            }
+          />
+        </View>
 
         <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Add context (optional)</Text>
         <TextInput
@@ -240,6 +297,17 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                 </Pressable>
               </View>
             </View>
+            {item.images && item.images.length > 0 ? (
+              <FlatList
+                horizontal
+                data={item.images}
+                keyExtractor={(u, i) => `${item.id}-${i}`}
+                contentContainerStyle={{ gap: 8, marginTop: 8 }}
+                renderItem={({ item: img }) => (
+                  <Image source={{ uri: img }} style={styles.cardImage} contentFit="cover" />
+                )}
+              />
+            ) : null}
             {item.notes ? (
               <Text style={[styles.cardNotes, { color: theme.colors.textSecondary }]}>{item.notes}</Text>
             ) : null}
@@ -327,6 +395,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '800' as const },
   subtitle: { fontSize: 14 },
   form: { padding: 16, gap: 12 },
+  imagesRow: { flexDirection: 'row', alignItems: 'center' },
+  addImageBtn: { width: 72, height: 72, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  imageWrap: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', borderWidth: 1 },
+  image: { width: '100%', height: '100%' },
+  removeImageBtn: { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 12, fontWeight: '700' as const, textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
   textarea: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, minHeight: 96, textAlignVertical: 'top' as const },
@@ -340,6 +413,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: '800' as const },
   cardNotes: { marginTop: 6, fontSize: 14, lineHeight: 20 },
+  cardImage: { width: 96, height: 72, borderRadius: 10 },
   tag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   tagText: { fontSize: 12, fontWeight: '700' as const },
   cardDate: { marginTop: 8, fontSize: 11 },

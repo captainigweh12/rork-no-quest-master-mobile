@@ -10,6 +10,7 @@ export interface JournalEntry {
   id: string;
   title: string;
   notes?: string;
+  images?: string[];
   skills: Skill[];
   privacy: JournalPrivacy;
   createdAt: string;
@@ -17,14 +18,14 @@ export interface JournalEntry {
 
 interface JournalsState {
   journals: JournalEntry[];
-  addJournal: (input: { title: string; notes?: string; skills: Skill[]; privacy: JournalPrivacy }) => Promise<JournalEntry>;
+  addJournal: (input: { title: string; notes?: string; images?: string[]; skills: Skill[]; privacy: JournalPrivacy }) => Promise<JournalEntry>;
   removeJournal: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   isLoading: boolean;
   error?: string;
 }
 
-const STORAGE_KEY = 'journals:v1';
+const STORAGE_KEY = 'journals:v2';
 
 export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(() => {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
@@ -58,11 +59,12 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
     }
   }, []);
 
-  const addJournal = useCallback(async (input: { title: string; notes?: string; skills: Skill[]; privacy: JournalPrivacy }) => {
+  const addJournal = useCallback(async (input: { title: string; notes?: string; images?: string[]; skills: Skill[]; privacy: JournalPrivacy }) => {
     const entry: JournalEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       title: input.title,
       notes: input.notes,
+      images: input.images ?? [],
       skills: input.skills,
       privacy: input.privacy,
       createdAt: new Date().toISOString(),
