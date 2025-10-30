@@ -127,58 +127,127 @@ export default function MapScreen() {
     if (!userLocation) return;
 
     setIsGeneratingAIQuests(true);
-    console.log('Generating 10 AI quests within 10 mile radius...');
+    console.log('Generating 20-30 varied AI quests within 10 mile radius...');
 
     try {
-      const nearbyResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${userLocation.latitude},${userLocation.longitude}&radius=16093&key=${GOOGLE_PLACES_API_KEY}`
-      );
-      
-      const nearbyData = await nearbyResponse.json();
-      
-      if (!nearbyData.results || nearbyData.results.length === 0) {
+      const radius10mi = 16093;
+      const radius20mi = 32186;
+      const base = `${userLocation.latitude},${userLocation.longitude}`;
+
+      const typeQueries: { url: string; kind: string }[] = [
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=cafe&key=${GOOGLE_PLACES_API_KEY}`, kind: 'coffee' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=park&key=${GOOGLE_PLACES_API_KEY}`, kind: 'park' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=museum&key=${GOOGLE_PLACES_API_KEY}`, kind: 'museum' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=lodging&key=${GOOGLE_PLACES_API_KEY}`, kind: 'hotel' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=beach&key=${GOOGLE_PLACES_API_KEY}`, kind: 'beach' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=lake&key=${GOOGLE_PLACES_API_KEY}`, kind: 'lake' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=tourist_attraction&key=${GOOGLE_PLACES_API_KEY}`, kind: 'attraction' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=library&key=${GOOGLE_PLACES_API_KEY}`, kind: 'library' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=art_gallery&key=${GOOGLE_PLACES_API_KEY}`, kind: 'art' },
+      ];
+
+      const fetchBatch = async (queries: { url: string; kind: string }[]) => {
+        const results = await Promise.all(
+          queries.map(async (q) => {
+            try {
+              const res = await fetch(q.url);
+              const json = await res.json();
+              const items = Array.isArray(json.results) ? json.results : [];
+              console.log(`Fetched ${items.length} places for ${q.kind}`);
+              return items.map((p: any) => ({ ...p, __kind: q.kind }));
+            } catch (e) {
+              console.log('Places fetch error for', q.kind, e);
+              return [] as any[];
+            }
+          })
+        );
+        return results.flat();
+      };
+
+      let allPlaces: any[] = await fetchBatch(typeQueries);
+
+      if (allPlaces.length < 20) {
+        console.log('Less than 20 places found in 10mi, expanding search to ~20mi...');
+        const expandedQueries = typeQueries.map((q) => ({ ...q, url: q.url.replace(`${radius10mi}`, `${radius20mi}`) }));
+        const more = await fetchBatch(expandedQueries);
+        allPlaces = [...allPlaces, ...more];
+      }
+
+      const dedupedMap = new Map<string, any>();
+      for (const p of allPlaces) {
+        const id = p.place_id as string | undefined;
+        if (!id) continue;
+        if (!dedupedMap.has(id)) dedupedMap.set(id, p);
+      }
+      const deduped = Array.from(dedupedMap.values()) as any[];
+
+      if (deduped.length === 0) {
         console.log('No nearby places found');
         setIsGeneratingAIQuests(false);
         return;
       }
 
-      const places = nearbyData.results.slice(0, 20);
+      const shuffled = deduped
+        .map((p) => ({ p, r: Math.random() }))
+        .sort((a, b) => a.r - b.r)
+        .map(({ p }) => p);
+
+      const targetCount = Math.min(30, Math.max(20, shuffled.length));
+      const chosen = shuffled.slice(0, targetCount);
+
       const generatedQuests: AIGeneratedQuest[] = [];
 
-      for (let i = 0; i < Math.min(10, places.length); i++) {
-        const place = places[i];
-        
+      for (let i = 0; i < chosen.length; i++) {
+        const place = chosen[i] as any;
         try {
-          const questPrompt = `Generate a rejection therapy quest for this location: "${place.name}" (${place.types?.[0] || 'establishment'}).
+          const primaryType = (place.types && place.types[0]) ? place.types[0] : (place.__kind || 'place');
+          const themeHint =
+            primaryType.includes('cafe') || primaryType === 'restaurant' ? 'coffee shop vibes'
+            : primaryType === 'park' ? 'outdoor, friendly, nature'
+            : primaryType === 'museum' || primaryType === 'art_gallery' ? 'culture, exhibits, curiosities'
+            : primaryType === 'lodging' ? 'hotel lobby, concierge'
+            : ['beach','lake','natural_feature','pier'].some(k => (place.__kind || '').includes(k) || primaryType.includes(k)) ? 'beach or waterfront, playful'
+            : primaryType === 'library' ? 'quiet, respectful, low volume'
+            : 'public place';
 
-Create a specific quest that involves getting rejected by asking strangers or the business something at this location.
-
-Provide your response in this exact format:
-Title: [A short, catchy quest title mentioning the location]
-Description: [A clear action statement. For example: "Ask 3 people at ${place.name} to take a photo with you" or "Ask for a 50% discount at ${place.name}"]
-MinNo: [Number between 3-5]`;
+          const questPrompt = `Create a unique rejection-therapy quest at: "${place.name}".
+Type: ${primaryType} (${themeHint}).
+Constraints:
+- Must involve asking strangers or staff something likely to be rejected
+- Keep it social, safe, and respectful
+- Tailor to this place context
+Return in EXACT format:
+Title: <catchy title>
+Description: <1 actionable sentence with the ask>
+MinNo: <integer 3-7>`;
 
           const aiResponse = await generateText(questPrompt);
-          
+
           const titleMatch = aiResponse.match(/Title:\s*(.+?)(?:\n|$)/i);
           const descMatch = aiResponse.match(/Description:\s*(.+?)(?:\n|$)/i);
           const minNoMatch = aiResponse.match(/MinNo:\s*(\d+)/i);
-          
+
           let questTitle = titleMatch ? titleMatch[1].trim() : `Challenge at ${place.name}`;
-          let questDescription = descMatch ? descMatch[1].trim() : `Complete a rejection challenge at ${place.name}`;
-          const minNo = minNoMatch ? parseInt(minNoMatch[1]) : 3;
-          
+          let questDescription = descMatch ? descMatch[1].trim() : `Ask something bold at ${place.name}`;
+          const minNoParsed = minNoMatch ? parseInt(minNoMatch[1], 10) : 3;
+          const minNo = isNaN(minNoParsed) ? 3 : Math.min(7, Math.max(3, minNoParsed));
+
           questTitle = questTitle.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
           questDescription = questDescription.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
+
+          const difficulties: Array<'easy'|'medium'|'hard'> = ['easy','medium','hard'];
+          const difficulty = difficulties[Math.floor(Math.random()*difficulties.length)];
+          const pointsBy: Record<'easy'|'medium'|'hard', number> = { easy: 80, medium: 120, hard: 200 };
+          const xpBy: Record<'easy'|'medium'|'hard', number> = { easy: 40, medium: 60, hard: 100 };
 
           const newQuest: AIGeneratedQuest = {
             id: `ai-quest-${Date.now()}-${i}`,
             title: questTitle,
             description: questDescription,
-            type: 'daily',
-            difficulty: 'medium',
-            points: 100,
-            xp: 50,
+            type: difficulty === 'easy' ? 'daily' : 'weekly',
+            difficulty,
+            points: pointsBy[difficulty],
+            xp: xpBy[difficulty],
             completed: false,
             icon: 'target',
             minNoRequired: minNo,
@@ -191,14 +260,14 @@ MinNo: [Number between 3-5]`;
           };
 
           generatedQuests.push(newQuest);
-          console.log(`Generated quest ${i + 1}/10: ${questTitle}`);
+          console.log(`Generated quest ${i + 1}/${chosen.length}: ${questTitle}`);
         } catch (error) {
           console.error(`Error generating quest for ${place.name}:`, error);
         }
       }
 
       setAiGeneratedQuests(generatedQuests);
-      console.log(`Successfully generated ${generatedQuests.length} AI quests`);
+      console.log(`Successfully generated ${generatedQuests.length} AI quests (target ${targetCount})`);
     } catch (error) {
       console.error('Error generating AI quests:', error);
       Alert.alert('Error', 'Failed to generate quests. Please try again.');
