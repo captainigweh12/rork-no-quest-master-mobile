@@ -79,7 +79,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .maybeSingle();
 
       if (readErr && readErr.code && readErr.code !== 'PGRST116') {
-        console.error('❌ Error reading profile:', readErr);
+        console.error('❌ Error reading profile:', JSON.stringify(readErr, null, 2));
+        console.error('❌ Error details - Code:', readErr.code, 'Message:', readErr.message, 'Details:', readErr.details);
       }
 
       if (profile) {
@@ -136,7 +137,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           });
           return;
         }
-        console.error('❌ Upsert profile error:', upsertErr);
+        console.error('❌ Upsert profile error:', JSON.stringify(upsertErr, null, 2));
+        console.error('❌ Upsert error details - Code:', upsertErr.code, 'Message:', upsertErr.message, 'Details:', upsertErr.details, 'Hint:', upsertErr.hint);
         setUser({
           id: supabaseUser.id,
           email: supabaseUser.email || '',
