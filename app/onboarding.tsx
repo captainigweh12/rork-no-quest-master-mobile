@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -11,22 +11,38 @@ import { useLocalization } from '@/contexts/LocalizationContext';
 export default function OnboardingScreen() {
   const { prefs, update } = useOnboarding();
   const { theme } = useTheme();
-  const { user, updateRelationshipStatus } = useAuth();
+  const { user, updateRelationshipStatus, updateUsername } = useAuth();
   const { t } = useLocalization();
+  const router = useRouter();
 
+  const [username, setUsername] = useState<string>(user?.username || '');
   const [goal, setGoal] = useState<string>(prefs.goal ?? '');
   const [personality, setPersonality] = useState<'introvert' | 'extrovert' | 'ambivert'>(prefs.personality ?? 'ambivert');
   const [preferredTime, setPreferredTime] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>(prefs.preferredTime ?? 'anytime');
   const [dailyQuests, setDailyQuests] = useState<string>(String(prefs.dailyQuests ?? 2));
   const [relationshipStatus, setRelationshipStatus] = useState<'single' | 'married'>(user?.relationshipStatus || 'single');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
   const styles = useMemo(() => createStyles(theme.colors), [theme.colors]);
 
   const handleContinue = async () => {
+    setError('');
+    
+    if (!username.trim()) {
+      setError('Please enter a username');
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+
     const parsedDaily = Math.max(1, Math.min(10, Number.isNaN(Number(dailyQuests)) ? 2 : Number(dailyQuests)));
     setIsSaving(true);
     try {
+      await updateUsername(username.trim());
       await updateRelationshipStatus(relationshipStatus);
       await update({ 
         goal: goal.trim() || prefs.goal, 
@@ -35,8 +51,14 @@ export default function OnboardingScreen() {
         dailyQuests: parsedDaily,
         completed: true 
       });
-    } catch (e) {
+      router.replace('/(tabs)/(home)');
+    } catch (e: any) {
       console.error('Onboarding save failed', e);
+      if (e?.message?.includes('duplicate') || e?.code === '23505') {
+        setError('Username already taken. Please choose another one.');
+      } else {
+        setError('Failed to save. Please try again.');
+      }
       setIsSaving(false);
     }
   };
@@ -56,6 +78,27 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.form}>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Username *</Text>
+          <Text style={[styles.fieldDescription, { color: theme.colors.textSecondary }]}>Choose a unique username for your profile</Text>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter username"
+            placeholderTextColor={theme.colors.textSecondary}
+            style={[styles.input, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            testID="onboarding-username"
+          />
+        </View>
+
+        {error ? (
+          <View style={[styles.errorContainer, { backgroundColor: theme.colors.error + '20' }]}>
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{t('onboarding.goal')}</Text>
           <TextInput
@@ -167,6 +210,8 @@ function createStyles(colors: any) {
     segmentRow: { flexDirection: 'row' as const, gap: 8 },
     segment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
     segmentText: { fontSize: 14, fontWeight: '700' as const },
+    errorContainer: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
+    errorText: { fontSize: 14, fontWeight: '600' as const, textAlign: 'center' },
     cta: { marginBottom: 24, paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
     ctaText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' as const },
   });

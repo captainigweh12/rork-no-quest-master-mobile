@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
@@ -12,11 +12,15 @@ import { useLocalization } from '@/contexts/LocalizationContext';
 export default function ProfileScreen() {
   const { theme } = useTheme();
   const { profile } = useGame();
-  const { user, updateRelationshipStatus } = useAuth();
+  const { user, updateRelationshipStatus, updateUsername } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLocalization();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
 
   const styles = createStyles(theme.colors);
 
@@ -29,6 +33,46 @@ export default function ProfileScreen() {
       console.error('Failed to update relationship status:', error);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleUsernameEdit = () => {
+    setNewUsername(user?.username || '');
+    setUsernameError('');
+    setShowUsernameModal(true);
+  };
+
+  const handleUsernameSave = async () => {
+    setUsernameError('');
+    
+    if (!newUsername.trim()) {
+      setUsernameError('Please enter a username');
+      return;
+    }
+
+    if (newUsername.trim().length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+      return;
+    }
+
+    if (newUsername.trim() === user?.username) {
+      setShowUsernameModal(false);
+      return;
+    }
+
+    setIsSavingUsername(true);
+    try {
+      await updateUsername(newUsername.trim());
+      setShowUsernameModal(false);
+    } catch (error: any) {
+      console.error('Failed to update username:', error);
+      if (error?.message?.includes('duplicate') || error?.code === '23505') {
+        setUsernameError('Username already taken. Please choose another one.');
+      } else {
+        setUsernameError('Failed to update username. Please try again.');
+      }
+    } finally {
+      setIsSavingUsername(false);
     }
   };
 
@@ -61,6 +105,15 @@ export default function ProfileScreen() {
           </LinearGradient>
 
           <Text style={[styles.profileName, { color: theme.colors.text }]}>{profile.name}</Text>
+          {user?.username ? (
+            <Pressable onPress={handleUsernameEdit} style={styles.usernameContainer}>
+              <Text style={[styles.username, { color: theme.colors.textSecondary }]}>@{user.username}</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={handleUsernameEdit} style={[styles.addUsernameButton, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Text style={[styles.addUsernameText, { color: theme.colors.primary }]}>Add Username</Text>
+            </Pressable>
+          )}
           <View style={[styles.levelBadge, { backgroundColor: theme.colors.primary + '20' }]}>
             <Text style={[styles.levelText, { color: theme.colors.primary }]}>{t('profile.level')} {profile.level}</Text>
           </View>
@@ -171,6 +224,70 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showUsernameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUsernameModal(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setShowUsernameModal(false)}
+        >
+          <Pressable 
+            style={[styles.modalContent, { backgroundColor: theme.colors.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Edit Username</Text>
+            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
+              Choose a unique username for your profile
+            </Text>
+            
+            <TextInput
+              value={newUsername}
+              onChangeText={setNewUsername}
+              placeholder="Enter username"
+              placeholderTextColor={theme.colors.textSecondary}
+              style={[styles.modalInput, { 
+                backgroundColor: theme.colors.background, 
+                borderColor: theme.colors.border, 
+                color: theme.colors.text 
+              }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+
+            {usernameError ? (
+              <View style={[styles.modalError, { backgroundColor: theme.colors.error + '20' }]}>
+                <Text style={[styles.modalErrorText, { color: theme.colors.error }]}>{usernameError}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={() => setShowUsernameModal(false)}
+                style={[styles.modalButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+                disabled={isSavingUsername}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleUsernameSave}
+                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.primary }]}
+                disabled={isSavingUsername}
+              >
+                {isSavingUsername ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -322,6 +439,83 @@ function createStyles(colors: any) {
     relationshipButtonText: {
       fontSize: 16,
       fontWeight: '600' as const,
+    },
+    usernameContainer: {
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    username: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    addUsernameButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    addUsernameText: {
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      width: '100%',
+      maxWidth: 400,
+      borderRadius: 24,
+      padding: 24,
+      gap: 16,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+    },
+    modalDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    modalInput: {
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+    },
+    modalError: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    modalErrorText: {
+      fontSize: 14,
+      fontWeight: '600' as const,
+      textAlign: 'center',
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 8,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalButtonPrimary: {
+      minHeight: 48,
+    },
+    modalButtonText: {
+      fontSize: 16,
+      fontWeight: '700' as const,
     },
   });
 }

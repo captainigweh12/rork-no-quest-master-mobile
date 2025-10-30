@@ -13,6 +13,7 @@ interface User {
   id: string;
   email: string;
   fullName: string;
+  username?: string;
   relationshipStatus?: 'single' | 'married';
   preferredLanguage?: string;
 }
@@ -75,6 +76,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           id: profile.id,
           email: supabaseUser.email || '',
           fullName: profile.full_name || 'User',
+          username: profile.username,
           relationshipStatus: profile.relationship_status,
           preferredLanguage: profile.preferred_language,
         });
@@ -108,6 +110,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             id: again.id,
             email: supabaseUser.email || '',
             fullName: again.full_name || 'User',
+            username: again.username,
             relationshipStatus: again.relationship_status,
             preferredLanguage: again.preferred_language,
           });
@@ -118,6 +121,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           id: supabaseUser.id,
           email: supabaseUser.email || '',
           fullName: supabaseUser.user_metadata?.full_name || 'User',
+          username: supabaseUser.user_metadata?.username,
         });
         return;
       }
@@ -128,6 +132,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         id: row.id,
         email: supabaseUser.email || '',
         fullName: row.full_name || 'User',
+        username: row.username,
         relationshipStatus: row.relationship_status,
         preferredLanguage: row.preferred_language,
       });
@@ -137,6 +142,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
         fullName: supabaseUser.user_metadata?.full_name || 'User',
+        username: supabaseUser.user_metadata?.username,
       });
     }
   };
@@ -251,9 +257,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          // On native we open the returned URL ourselves; on web let Supabase navigate
           skipBrowserRedirect: Platform.OS !== 'web',
-          // queryParams: { prompt: 'select_account' }, // optional
         },
       });
 
@@ -262,21 +266,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { data: null, error };
       }
 
-      // Web: Supabase handles redirects automatically
       if (Platform.OS === 'web') {
         console.log('✅ Google sign in initiated (web)');
         return { data, error: null };
       }
 
-      // Native: open auth URL and wait for deep link back
       if (data?.url) {
         console.log('🌐 Opening auth URL:', data.url);
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
         if (result.type === 'success' && result.url) {
           const returned = result.url;
-
-          // Tokens arrive in the URL HASH for native: noquest://auth/callback#access_token=...&refresh_token=...
           const hash = returned.split('#')[1] ?? '';
           const params = new URLSearchParams(hash);
           const access_token = params.get('access_token');
@@ -318,6 +318,57 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  const updateRelationshipStatus = useCallback(async (relationshipStatus: 'single' | 'married') => {
+    try {
+      if (!user?.id) throw new Error('No user logged in');
+      console.log('💑 Updating relationship status:', relationshipStatus);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ relationship_status: relationshipStatus })
+        .eq('id', user.id);
+      if (error) throw error;
+      console.log('✅ Relationship status updated!');
+      setUser({ ...user, relationshipStatus });
+    } catch (error: any) {
+      console.error('💥 Update relationship status exception:', error);
+      throw error;
+    }
+  }, [user]);
+
+  const updatePreferredLanguage = useCallback(async (preferredLanguage: string) => {
+    try {
+      if (!user?.id) throw new Error('No user logged in');
+      console.log('🌍 Updating preferred language:', preferredLanguage);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferred_language: preferredLanguage })
+        .eq('id', user.id);
+      if (error) throw error;
+      console.log('✅ Preferred language updated!');
+      setUser({ ...user, preferredLanguage });
+    } catch (error: any) {
+      console.error('💥 Update preferred language exception:', error);
+      throw error;
+    }
+  }, [user]);
+
+  const updateUsername = useCallback(async (username: string) => {
+    try {
+      if (!user?.id) throw new Error('No user logged in');
+      console.log('👤 Updating username:', username);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username })
+        .eq('id', user.id);
+      if (error) throw error;
+      console.log('✅ Username updated!');
+      setUser({ ...user, username });
+    } catch (error: any) {
+      console.error('💥 Update username exception:', error);
+      throw error;
+    }
+  }, [user]);
+
   return useMemo(
     () => ({
       session,
@@ -329,39 +380,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       resetPassword,
       resendConfirmationEmail,
       signInWithGoogle,
-      updateRelationshipStatus: async (relationshipStatus: 'single' | 'married') => {
-        try {
-          if (!user?.id) throw new Error('No user logged in');
-          console.log('💑 Updating relationship status:', relationshipStatus);
-          const { error } = await supabase
-            .from('profiles')
-            .update({ relationship_status: relationshipStatus })
-            .eq('id', user.id);
-          if (error) throw error;
-          console.log('✅ Relationship status updated!');
-          setUser({ ...user, relationshipStatus });
-        } catch (error: any) {
-          console.error('💥 Update relationship status exception:', error);
-          throw error;
-        }
-      },
-      updatePreferredLanguage: async (preferredLanguage: string) => {
-        try {
-          if (!user?.id) throw new Error('No user logged in');
-          console.log('🌍 Updating preferred language:', preferredLanguage);
-          const { error } = await supabase
-            .from('profiles')
-            .update({ preferred_language: preferredLanguage })
-            .eq('id', user.id);
-          if (error) throw error;
-          console.log('✅ Preferred language updated!');
-          setUser({ ...user, preferredLanguage });
-        } catch (error: any) {
-          console.error('💥 Update preferred language exception:', error);
-          throw error;
-        }
-      },
+      updateRelationshipStatus,
+      updatePreferredLanguage,
+      updateUsername,
     }),
-    [session, user, isLoading, signUp, signIn, signOut, resetPassword, resendConfirmationEmail, signInWithGoogle]
+    [session, user, isLoading, signUp, signIn, signOut, resetPassword, resendConfirmationEmail, signInWithGoogle, updateRelationshipStatus, updatePreferredLanguage, updateUsername]
   );
 });
