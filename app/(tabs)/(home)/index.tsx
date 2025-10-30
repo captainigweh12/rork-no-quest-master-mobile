@@ -15,6 +15,9 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const CATEGORY_CARDS: { id: string; title: string; color: string; image: string; }[] = [
   { id: 'business', title: 'Business', color: '#3787ff', image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'door-knocking', title: 'Door Knocking', color: '#FF6B35', image: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'cold-calling', title: 'Cold Calling', color: '#004E89', image: 'https://images.unsplash.com/photo-1553484771-371a605b060b?q=80&w=1200&auto=format&fit=crop' },
+  { id: 'marketing', title: 'Marketing', color: '#F77F00', image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?q=80&w=1200&auto=format&fit=crop' },
   { id: 'dating', title: 'Dating', color: '#ff5d8f', image: 'https://images.unsplash.com/photo-1529336953121-ad5a56b0eece?q=80&w=1200&auto=format&fit=crop' },
   { id: 'adventure', title: 'Adventure', color: '#ff8a30', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop' },
   { id: 'fitness', title: 'Fitness', color: '#27c37b', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1200&auto=format&fit=crop' },
@@ -413,6 +416,9 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
 
   const categoryColors: Record<string, string> = {
     business: '#3787ff',
+    'door-knocking': '#FF6B35',
+    'cold-calling': '#004E89',
+    marketing: '#F77F00',
     dating: '#ff5d8f',
     adventure: '#ff8a30',
     fitness: '#27c37b',
@@ -425,6 +431,9 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
 
   const categoryLabels: Record<string, string> = {
     business: 'Business',
+    'door-knocking': 'Door Knocking',
+    'cold-calling': 'Cold Calling',
+    marketing: 'Marketing',
     dating: 'Dating',
     adventure: 'Adventure',
     fitness: 'Fitness',

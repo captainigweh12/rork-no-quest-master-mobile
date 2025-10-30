@@ -10,6 +10,9 @@ const { width } = Dimensions.get('window');
 
 const CATEGORY_META: Record<string, { title: string; color: string; image: string; subtitle: string; }> = {
   business: { title: 'Business & Growth', color: '#3787ff', image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1400&auto=format&fit=crop', subtitle: 'Ship ideas, sell, and level up your career' },
+  'door-knocking': { title: 'Door Knocking', color: '#FF6B35', image: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1400&auto=format&fit=crop', subtitle: 'Face-to-face sales at the door' },
+  'cold-calling': { title: 'Cold Calling', color: '#004E89', image: 'https://images.unsplash.com/photo-1553484771-371a605b060b?q=80&w=1400&auto=format&fit=crop', subtitle: 'Master phone sales and build confidence' },
+  marketing: { title: 'Marketing', color: '#F77F00', image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?q=80&w=1400&auto=format&fit=crop', subtitle: 'Promote your product or service boldly' },
   dating: { title: 'Dating & Confidence', color: '#ff5d8f', image: 'https://images.unsplash.com/photo-1529336953121-ad5a56b0eece?q=80&w=1400&auto=format&fit=crop', subtitle: 'Courage reps for social boldness' },
   adventure: { title: 'Personal Fun / Adventure', color: '#ff8a30', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400&auto=format&fit=crop', subtitle: 'Novelty, thrill, and playful challenges' },
   fitness: { title: 'Health & Fitness', color: '#27c37b', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1400&auto=format&fit=crop', subtitle: 'Small daily missions for your body' },
@@ -22,7 +25,10 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
 
 const SUBS: Record<string, string[]> = {
   business: ['Pitch a product idea', 'Cold email 3 clients', 'Ask for a testimonial', 'Create a LinkedIn post'],
-  dating: ['Ask a stranger for a coffee', 'Compliment 3 people', 'Start a conversation IRL', 'Get 1 bold “no”'],
+  'door-knocking': ['Knock on 5 doors to pitch', 'Offer free trial at doorstep', 'Ask homeowners for referrals', 'Handle 3 door rejections'],
+  'cold-calling': ['Make 10 cold calls', 'Call and pitch to decision-makers', 'Follow up with 5 leads', 'Handle phone objections'],
+  marketing: ['Run a social media campaign', 'Create promotional content', 'Network at a local event', 'Pitch your service publicly'],
+  dating: ['Ask a stranger for a coffee', 'Compliment 3 people', 'Start a conversation IRL', 'Get 1 bold "no"'],
   adventure: ['Try a new food', 'Dance in public for 10s', 'Ask for a secret menu item', 'Record your reaction'],
   fitness: ['Ask a trainer a question', 'Try a new workout', 'Ask someone how long they train', '10 push-ups after a rejection'],
   wealth: ['Negotiate a discount', 'Ask for a raise', 'Sell an old item', 'Pitch to an investor'],

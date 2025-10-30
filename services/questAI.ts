@@ -2,6 +2,9 @@ import type { Quest, QuestDifficulty } from '@/types';
 
 export type CategoryId =
   | 'business'
+  | 'door-knocking'
+  | 'cold-calling'
+  | 'marketing'
   | 'dating'
   | 'adventure'
   | 'fitness'
@@ -166,6 +169,84 @@ const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
       description: 'Publish value-packed posts', 
       icon: 'trending-up', 
       descriptionTemplate: (count: number) => `Publish ${count} value-packed ${count === 1 ? 'post' : 'posts'} on LinkedIn and ask for input. Share insights from your experience.` 
+    },
+  ],
+  'door-knocking': [
+    { 
+      title: 'Knock and Pitch', 
+      description: 'Visit homes and pitch your product/service', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Knock on ${count} ${count === 1 ? 'door' : 'doors'} and pitch your product or service. Stay confident through rejections.` 
+    },
+    { 
+      title: 'Offer Free Trials', 
+      description: 'Offer trial services at the doorstep', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'home' : 'homes'} and offer a free trial of your service. Practice handling objections.` 
+    },
+    { 
+      title: 'Ask for Referrals', 
+      description: 'Request referrals from homeowners', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'homeowner' : 'homeowners'} for referrals to neighbors or friends who might be interested. Some will say no.` 
+    },
+    { 
+      title: 'Schedule Follow-ups', 
+      description: 'Book callbacks with potential customers', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Knock on doors and schedule ${count} follow-up ${count === 1 ? 'appointment' : 'appointments'}. Not everyone will agree.` 
+    },
+  ],
+  'cold-calling': [
+    { 
+      title: 'Make Cold Calls', 
+      description: 'Call potential customers directly', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Make ${count} cold ${count === 1 ? 'call' : 'calls'} to potential customers. Practice your pitch and handle rejections professionally.` 
+    },
+    { 
+      title: 'Pitch Decision Makers', 
+      description: 'Call and pitch to key decision-makers', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Call ${count} ${count === 1 ? 'decision-maker' : 'decision-makers'} and pitch your solution. Be prepared for gatekeepers and objections.` 
+    },
+    { 
+      title: 'Follow Up with Leads', 
+      description: 'Call back interested prospects', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Follow up with ${count} ${count === 1 ? 'lead' : 'leads'} from previous calls. Some won't answer or will say no.` 
+    },
+    { 
+      title: 'Handle Objections', 
+      description: 'Call and overcome customer objections', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Make ${count} ${count === 1 ? 'call' : 'calls'} where you focus on handling objections. Turn rejections into learning opportunities.` 
+    },
+  ],
+  marketing: [
+    { 
+      title: 'Create Social Campaigns', 
+      description: 'Run promotional campaigns on social media', 
+      icon: 'trending-up', 
+      descriptionTemplate: (count: number) => `Create and launch ${count} social media ${count === 1 ? 'campaign' : 'campaigns'} promoting your product. Ask for feedback.` 
+    },
+    { 
+      title: 'Pitch at Events', 
+      description: 'Network and pitch at local events', 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Attend ${count} local ${count === 1 ? 'event' : 'events'} and pitch your service to ${count === 1 ? 'attendees' : 'different attendees'}. Face potential rejections head-on.` 
+    },
+    { 
+      title: 'Create Promotional Content', 
+      description: 'Produce and share marketing materials', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Create ${count} ${count === 1 ? 'piece' : 'pieces'} of promotional content and ask ${count === 1 ? 'someone' : 'people'} to share it. Not everyone will.` 
+    },
+    { 
+      title: 'Partner Outreach', 
+      description: 'Reach out to potential partners', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Contact ${count} potential ${count === 1 ? 'partner' : 'partners'} to collaborate on marketing. Be ready for rejections.` 
     },
   ],
   dating: [
