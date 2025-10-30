@@ -31,7 +31,7 @@ export default function TestSupabaseDirect() {
       
       addLog('📡 Attempting simple query...');
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('id')
         .limit(1);
       

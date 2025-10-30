@@ -23,7 +23,7 @@ export default function TestConnectionScreen() {
       addResult('📡 Testing Supabase connection...');
       
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('count')
         .limit(1);
 

@@ -73,7 +73,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.log('👤 Loading user profile for:', supabaseUser.email);
 
       const { data: profile, error: readErr } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .maybeSingle();
@@ -108,7 +108,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       };
 
       const { data: upserted, error: upsertErr } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .upsert(upsertPayload, { onConflict: 'id' })
         .select()
         .maybeSingle();
@@ -117,7 +117,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         if (upsertErr.code === '23505') {
           console.warn('ℹ️ Profile already exists (race). Re-reading...');
           const { data: again, error: againErr } = await supabase
-            .from('profiles')
+            .from('user_profiles')
             .select('*')
             .eq('id', supabaseUser.id)
             .single();
@@ -347,7 +347,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (!user?.id) throw new Error('No user logged in');
       console.log('💑 Updating relationship status:', relationshipStatus);
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ relationship_status: relationshipStatus })
         .eq('id', user.id);
       if (error) throw error;
@@ -364,7 +364,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (!user?.id) throw new Error('No user logged in');
       console.log('🌍 Updating preferred language:', preferredLanguage);
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ preferred_language: preferredLanguage })
         .eq('id', user.id);
       if (error) throw error;
@@ -381,7 +381,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (!user?.id) throw new Error('No user logged in');
       console.log('👤 Updating username:', username);
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ username })
         .eq('id', user.id);
       if (error) throw error;
@@ -398,7 +398,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (!user?.id) throw new Error('No user logged in');
       console.log('🖼️ Updating avatar URL:', avatarUrl);
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ avatar_url: avatarUrl })
         .eq('id', user.id);
       if (error) throw error;
