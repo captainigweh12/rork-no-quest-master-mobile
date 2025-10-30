@@ -12,10 +12,12 @@ import {
   Compass,
   Medal,
   Trophy,
-  LineChart
+  LineChart,
+  Shield
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SideMenuProps {
   visible: boolean;
@@ -48,9 +50,14 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'explore', label: 'Explore', icon: Compass, route: '/', section: 'middle' },
 ];
 
+const ADMIN_MENU_ITEMS: MenuItem[] = [
+  { id: 'admin', label: 'Admin Dashboard', icon: Shield, route: '/admin', section: 'top' },
+];
+
 export default function SideMenu({ visible, onClose, theme }: SideMenuProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const slideAnim = useRef(new Animated.Value(-300)).current;
 
   useEffect(() => {
@@ -108,6 +115,26 @@ export default function SideMenu({ visible, onClose, theme }: SideMenuProps) {
             contentContainerStyle={styles.menuContent}
             showsVerticalScrollIndicator={false}
           >
+            {user?.isAdmin && ADMIN_MENU_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <View key={item.id}>
+                  <Pressable
+                    onPress={() => handleNavigate(item.route)}
+                    style={({ pressed }) => [
+                      styles.menuItem,
+                      styles.adminMenuItem,
+                      pressed && styles.menuItemPressed
+                    ]}
+                    testID={`menu-${item.id}`}
+                  >
+                    <Icon size={24} color={theme.primary} strokeWidth={2.5} />
+                    <Text style={[styles.menuLabel, styles.adminLabel]}>{item.label}</Text>
+                  </Pressable>
+                  <View style={styles.divider} />
+                </View>
+              );
+            })}
             {MENU_ITEMS.map((item) => {
               const Icon = item.icon;
               return (
@@ -189,6 +216,18 @@ function createStyles(theme: any) {
       fontSize: 16,
       fontWeight: '600' as const,
       color: theme.text,
+    },
+    adminMenuItem: {
+      backgroundColor: theme.primary + '10',
+      borderLeftWidth: 3,
+      borderLeftColor: theme.primary,
+      marginHorizontal: 12,
+      paddingLeft: 21,
+      borderRadius: 8,
+    },
+    adminLabel: {
+      color: theme.primary,
+      fontWeight: '700' as const,
     },
     divider: {
       height: 1,

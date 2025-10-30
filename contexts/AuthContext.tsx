@@ -20,6 +20,7 @@ interface User {
   subscriptionTier?: 'free' | 'pro' | 'hero' | 'team';
   subscriptionExpiresAt?: string;
   dailyChallengesUsed?: number;
+  isAdmin?: boolean;
 }
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
@@ -96,6 +97,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           subscriptionTier: profile.subscription_tier || 'free',
           subscriptionExpiresAt: profile.subscription_expires_at,
           dailyChallengesUsed: profile.daily_challenges_used || 0,
+          isAdmin: profile.is_admin || false,
         });
         return;
       }
@@ -134,6 +136,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             subscriptionTier: again.subscription_tier || 'free',
             subscriptionExpiresAt: again.subscription_expires_at,
             dailyChallengesUsed: again.daily_challenges_used || 0,
+            isAdmin: again.is_admin || false,
           });
           return;
         }
@@ -161,6 +164,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         subscriptionTier: row.subscription_tier || 'free',
         subscriptionExpiresAt: row.subscription_expires_at,
         dailyChallengesUsed: row.daily_challenges_used || 0,
+        isAdmin: row.is_admin || false,
       });
     } catch (err) {
       console.error('💥 Exception loading profile:', err);
