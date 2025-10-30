@@ -63,7 +63,11 @@ export default function AdminDashboard() {
       const { data, error } = await query;
 
       if (error) {
-        console.error('❌ Error fetching users:', error);
+        console.error('❌ Error fetching users:', JSON.stringify(error, null, 2));
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error details:', error.details);
+        console.error('❌ Error hint:', error.hint);
         throw error;
       }
 
