@@ -29,7 +29,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
     const load = async () => {
       try {
         const timeoutPromise = new Promise<string | null>((_, reject) => {
-          setTimeout(() => reject(new Error('Onboarding load timeout')), 3000);
+          setTimeout(() => reject(new Error('Onboarding load timeout')), 1000);
         });
 
         const storagePromise = AsyncStorage.getItem('onboarding');
@@ -41,12 +41,13 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
           setPrefs({ ...DEFAULT_PREFS, ...parsed });
         }
       } catch (e) {
-        console.error('Failed to load onboarding prefs', e);
+        console.log('Using default onboarding prefs:', e instanceof Error ? e.message : 'unknown error');
       } finally {
         setIsLoading(false);
       }
     };
-    load();
+    
+    setTimeout(load, 0);
   }, []);
 
   const update = useCallback(async (patch: Partial<OnboardingPreferences>) => {

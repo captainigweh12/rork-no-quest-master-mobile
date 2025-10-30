@@ -28,8 +28,17 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const navigationRef = useRef<{ lastRoute: string | null }>({ lastRoute: null });
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsHydrated(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     if (isLoading || onboardingLoading) return;
 
     const inAuthGroup = segments[0] === 'auth';
@@ -49,20 +58,13 @@ function RootLayoutNav() {
       navigationRef.current.lastRoute = targetRoute;
       router.replace(targetRoute as any);
     }
-  }, [session, segments, isLoading, onboardingLoading, prefs.completed]);
+  }, [isHydrated, session, segments, isLoading, onboardingLoading, prefs.completed, router]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync();
-    }, 100);
-
-    if (!isLoading && !onboardingLoading) {
-      clearTimeout(timer);
+    if (!isLoading && !onboardingLoading && isHydrated) {
       SplashScreen.hideAsync();
     }
-
-    return () => clearTimeout(timer);
-  }, [isLoading, onboardingLoading]);
+  }, [isLoading, onboardingLoading, isHydrated]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
