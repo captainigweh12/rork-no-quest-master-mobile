@@ -13,6 +13,7 @@ import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext"
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
 import { JournalsProvider } from "@/contexts/JournalsContext";
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 
 
 LogBox.ignoreLogs([
@@ -74,6 +75,7 @@ function RootLayoutNav() {
       <Stack.Screen name="disclaimer" options={{ presentation: "modal" }} />
       <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
       <Stack.Screen name="chat" options={{ presentation: "modal" }} />
+      <Stack.Screen name="subscription" options={{ presentation: "modal" }} />
     </Stack>
   );
 }
@@ -91,21 +93,23 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <LocalizationProvider>
-            <ThemeProvider>
-              <OnboardingProvider>
-                <NotificationsProvider>
-                  <GameProvider>
-                    <JournalsProvider>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </JournalsProvider>
-                  </GameProvider>
-                </NotificationsProvider>
-              </OnboardingProvider>
-            </ThemeProvider>
-          </LocalizationProvider>
+          <SubscriptionProvider>
+            <LocalizationProvider>
+              <ThemeProvider>
+                <OnboardingProvider>
+                  <NotificationsProvider>
+                    <GameProvider>
+                      <JournalsProvider>
+                        <GestureHandlerRootView style={{ flex: 1 }}>
+                          <RootLayoutNav />
+                        </GestureHandlerRootView>
+                      </JournalsProvider>
+                    </GameProvider>
+                  </NotificationsProvider>
+                </OnboardingProvider>
+              </ThemeProvider>
+            </LocalizationProvider>
+          </SubscriptionProvider>
         </AuthProvider>
       </QueryClientProvider>
     </trpc.Provider>

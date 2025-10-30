@@ -22,7 +22,10 @@
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "UIBackgroundModes": [
           "location"
-        ]
+        ],
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone"
       }
     },
     "android": {
@@ -39,7 +42,10 @@
         "FOREGROUND_SERVICE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ],
       "intentFilters": [
         {
@@ -88,6 +94,12 @@
             "./local/assets/notification_sound.wav"
           ],
           "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
       ]
     ],

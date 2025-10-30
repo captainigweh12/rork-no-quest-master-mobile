@@ -14,8 +14,12 @@ interface User {
   email: string;
   fullName: string;
   username?: string;
+  avatarUrl?: string;
   relationshipStatus?: 'single' | 'married';
   preferredLanguage?: string;
+  subscriptionTier?: 'free' | 'pro' | 'hero' | 'team';
+  subscriptionExpiresAt?: string;
+  dailyChallengesUsed?: number;
 }
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
@@ -77,8 +81,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           email: supabaseUser.email || '',
           fullName: profile.full_name || 'User',
           username: profile.username,
+          avatarUrl: profile.avatar_url,
           relationshipStatus: profile.relationship_status,
           preferredLanguage: profile.preferred_language,
+          subscriptionTier: profile.subscription_tier || 'free',
+          subscriptionExpiresAt: profile.subscription_expires_at,
+          dailyChallengesUsed: profile.daily_challenges_used || 0,
         });
         return;
       }
@@ -111,8 +119,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             email: supabaseUser.email || '',
             fullName: again.full_name || 'User',
             username: again.username,
+            avatarUrl: again.avatar_url,
             relationshipStatus: again.relationship_status,
             preferredLanguage: again.preferred_language,
+            subscriptionTier: again.subscription_tier || 'free',
+            subscriptionExpiresAt: again.subscription_expires_at,
+            dailyChallengesUsed: again.daily_challenges_used || 0,
           });
           return;
         }
@@ -133,8 +145,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         email: supabaseUser.email || '',
         fullName: row.full_name || 'User',
         username: row.username,
+        avatarUrl: row.avatar_url,
         relationshipStatus: row.relationship_status,
         preferredLanguage: row.preferred_language,
+        subscriptionTier: row.subscription_tier || 'free',
+        subscriptionExpiresAt: row.subscription_expires_at,
+        dailyChallengesUsed: row.daily_challenges_used || 0,
       });
     } catch (err) {
       console.error('💥 Exception loading profile:', err);
@@ -369,6 +385,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [user]);
 
+  const updateAvatarUrl = useCallback(async (avatarUrl: string) => {
+    try {
+      if (!user?.id) throw new Error('No user logged in');
+      console.log('🖼️ Updating avatar URL:', avatarUrl);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id);
+      if (error) throw error;
+      console.log('✅ Avatar URL updated!');
+      setUser({ ...user, avatarUrl });
+    } catch (error: any) {
+      console.error('💥 Update avatar URL exception:', error);
+      throw error;
+    }
+  }, [user]);
+
   return useMemo(
     () => ({
       session,
@@ -383,7 +416,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       updateRelationshipStatus,
       updatePreferredLanguage,
       updateUsername,
+      updateAvatarUrl,
     }),
-    [session, user, isLoading, signUp, signIn, signOut, resetPassword, resendConfirmationEmail, signInWithGoogle, updateRelationshipStatus, updatePreferredLanguage, updateUsername]
+    [session, user, isLoading, signUp, signIn, signOut, resetPassword, resendConfirmationEmail, signInWithGoogle, updateRelationshipStatus, updatePreferredLanguage, updateUsername, updateAvatarUrl]
   );
 });

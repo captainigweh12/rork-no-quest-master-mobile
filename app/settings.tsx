@@ -3,10 +3,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Moon, Sun, Bell, Shield, LogOut, Globe, ChevronRight, Activity } from 'lucide-react-native';
+import { X, Moon, Sun, Bell, Shield, LogOut, Globe, ChevronRight, Activity, Crown } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useLocalization } from '@/contexts/LocalizationContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
@@ -26,6 +27,7 @@ const LANGUAGES = [
 export default function SettingsScreen() {
   const { theme, themeMode, toggleTheme } = useTheme();
   const { signOut, user, updatePreferredLanguage } = useAuth();
+  const { tier, isSubscriptionActive } = useSubscription();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLocalization();
@@ -62,6 +64,34 @@ export default function SettingsScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
       >
+        {tier === 'free' && (
+          <Pressable
+            style={[styles.upgradeCard, { backgroundColor: theme.colors.primary }]}
+            onPress={() => router.push('/subscription')}
+          >
+            <View style={styles.upgradeContent}>
+              <Crown size={32} color="#FFFFFF" />
+              <View style={styles.upgradeText}>
+                <Text style={styles.upgradeTitle}>Upgrade to Pro</Text>
+                <Text style={styles.upgradeDescription}>Unlock unlimited challenges & more</Text>
+              </View>
+            </View>
+            <ChevronRight size={24} color="#FFFFFF" />
+          </Pressable>
+        )}
+
+        {tier !== 'free' && isSubscriptionActive && (
+          <View style={[styles.subscriptionBadge, { backgroundColor: theme.colors.card }]}>
+            <Crown size={20} color={theme.colors.primary} />
+            <Text style={[styles.subscriptionText, { color: theme.colors.text }]}>
+              {tier.charAt(0).toUpperCase() + tier.slice(1)} Member
+            </Text>
+            <Pressable onPress={() => router.push('/subscription')}>
+              <Text style={[styles.manageLink, { color: theme.colors.primary }]}>Manage</Text>
+            </Pressable>
+          </View>
+        )}
+
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.appearance')}</Text>
 
@@ -368,6 +398,49 @@ function createStyles(colors: any) {
       width: 12,
       height: 12,
       borderRadius: 6,
+    },
+    upgradeCard: {
+      padding: 20,
+      borderRadius: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    upgradeContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      flex: 1,
+    },
+    upgradeText: {
+      flex: 1,
+    },
+    upgradeTitle: {
+      fontSize: 18,
+      fontWeight: '700' as const,
+      color: '#FFFFFF',
+      marginBottom: 4,
+    },
+    upgradeDescription: {
+      fontSize: 14,
+      color: '#FFFFFF',
+      opacity: 0.9,
+    },
+    subscriptionBadge: {
+      padding: 16,
+      borderRadius: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    subscriptionText: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+      flex: 1,
+    },
+    manageLink: {
+      fontSize: 14,
+      fontWeight: '600' as const,
     },
   });
 }
