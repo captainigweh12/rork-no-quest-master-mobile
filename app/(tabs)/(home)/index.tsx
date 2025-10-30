@@ -4,11 +4,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, LineChart, Sparkles, Medal, Users } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Sparkles } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import type { Quest } from '@/types';
+import SideMenu from '@/components/SideMenu';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -37,7 +38,6 @@ export default function HomeScreen() {
   const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
   const [questMode, setQuestMode] = useState<boolean>(false);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
-  const menuScale = useRef(new Animated.Value(0)).current;
 
   const activeQuests = quests.filter(q => !q.completed);
   const startedQuests = activeQuests.filter(q => q.timerEndAt);
@@ -87,13 +87,7 @@ export default function HomeScreen() {
           </Pressable>
           <Pressable
             style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
-            onPress={() => {
-              setMenuOpen((o) => {
-                const next = !o;
-                Animated.spring(menuScale, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 8, tension: 60 }).start();
-                return next;
-              });
-            }}
+            onPress={() => setMenuOpen(true)}
             testID="hamburger-button"
           >
             <Menu size={20} color={theme.colors.text} />
@@ -109,60 +103,11 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {menuOpen && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: insets.top + 56,
-            right: 20,
-            transform: [{ scale: menuScale }],
-            backgroundColor: theme.colors.card,
-            borderColor: theme.colors.border,
-            borderWidth: 1,
-            borderRadius: 12,
-            paddingVertical: 6,
-            shadowColor: '#000',
-            shadowOpacity: 0.15,
-            shadowOffset: { width: 0, height: 6 },
-            shadowRadius: 12,
-            elevation: 6,
-            zIndex: 20,
-          }}
-        >
-          <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/profile' as any); }}
-            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
-            testID="menu-item-skill"
-          >
-            <Medal size={18} color={theme.colors.text} />
-            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Skill Level</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/ranks' as any); }}
-            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
-            testID="menu-item-ranks"
-          >
-            <Trophy size={18} color={theme.colors.text} />
-            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Ranks</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/growth' as any); }}
-            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
-            testID="menu-item-growth"
-          >
-            <LineChart size={18} color={theme.colors.text} />
-            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Growth</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setMenuOpen(false); router.push('/teams' as any); }}
-            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
-            testID="menu-item-teams"
-          >
-            <Users size={18} color={theme.colors.text} />
-            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Teams</Text>
-          </Pressable>
-        </Animated.View>
-      )}
+      <SideMenu 
+        visible={menuOpen} 
+        onClose={() => setMenuOpen(false)} 
+        theme={theme.colors} 
+      />
 
       {!questMode ? (
         <ScrollView 
