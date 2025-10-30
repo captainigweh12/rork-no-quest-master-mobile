@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Modal, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Modal, Alert, Share, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, UserPlus, Send, X, Link as LinkIcon, MessageCircle } from 'lucide-react-native';
+import { Search, UserPlus, Send, X, Link as LinkIcon, MessageCircle, Users2, Newspaper } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,8 @@ import type { Friend } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import * as friendsService from '@/services/supabase/friends';
 import * as questsService from '@/services/supabase/quests';
+import * as communityService from '@/services/supabase/community';
+import type { CommunityPost } from '@/types';
 import { useGame } from '@/contexts/GameContext';
 import { Avatar } from '@/components/SafeImage';
 
@@ -32,8 +34,24 @@ export default function CommunityScreen() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [showSendQuest, setShowSendQuest] = useState(false);
+  const [tab, setTab] = useState<'feed' | 'friends'>('feed');
 
   const styles = createStyles(theme.colors);
+
+  const feedQuery = useQuery({
+    queryKey: ['communityFeed', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('User not authenticated');
+      try {
+        return await communityService.getFeed(user.id);
+      } catch (error: any) {
+        console.error('Error loading feed:', error?.message || JSON.stringify(error));
+        throw error;
+      }
+    },
+    enabled: !!user?.id && tab === 'feed',
+    staleTime: 15000,
+  });
 
   const friendsQuery = useQuery({
     queryKey: ['friends', user?.id],
@@ -152,7 +170,19 @@ export default function CommunityScreen() {
         </View>
       </View>
 
+      <View style={styles.tabsRow}>
+        <Pressable onPress={() => setTab('feed')} style={[styles.tabButton, { backgroundColor: tab==='feed'? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]} testID="community-tab-feed">
+          <Newspaper size={16} color={tab==='feed'? '#FFFFFF' : theme.colors.textSecondary} />
+          <Text style={[styles.tabButtonText, { color: tab==='feed'? '#FFFFFF' : theme.colors.text }]}>Feed</Text>
+        </Pressable>
+        <Pressable onPress={() => setTab('friends')} style={[styles.tabButton, { backgroundColor: tab==='friends'? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]} testID="community-tab-friends">
+          <Users2 size={16} color={tab==='friends'? '#FFFFFF' : theme.colors.textSecondary} />
+          <Text style={[styles.tabButtonText, { color: tab==='friends'? '#FFFFFF' : theme.colors.text }]}>Friends</Text>
+        </Pressable>
+      </View>
+
       <View style={[styles.searchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+
         <Search size={20} color={theme.colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: theme.colors.text }]}
@@ -168,6 +198,55 @@ export default function CommunityScreen() {
         )}
       </View>
 
+      {tab === 'feed' ? (
+        <FlatList
+          data={feedQuery.data as CommunityPost[] | undefined}
+          keyExtractor={(item) => item.id}
+          refreshing={feedQuery.isFetching}
+          onRefresh={() => queryClient.invalidateQueries({ queryKey: ['communityFeed'] })}
+          contentContainerStyle={[styles.feedContent, { paddingBottom: insets.bottom + 20 }]}
+          ListHeaderComponent={<Text style={[styles.sectionTitle, { color: theme.colors.text, paddingHorizontal: 20 }]}>Community Feed</Text>}
+          ListEmptyComponent={feedQuery.isLoading ? (
+            <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 30 }} />
+          ) : (
+            <Text style={[styles.emptyText, { color: theme.colors.textSecondary, paddingHorizontal: 20 }]}>No posts yet. Share a journal or quest!</Text>
+          )}
+          renderItem={({ item }) => (
+            <View style={[styles.postCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <View style={styles.postHeader}>
+                <Avatar name={item.username} imageUrl={item.avatarUrl} size={44} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.friendName, { color: theme.colors.text }]}>{item.username}</Text>
+                  <Text style={[styles.postMeta, { color: theme.colors.textSecondary }]}>{new Date(item.createdAt).toLocaleString()}</Text>
+                </View>
+                <View style={[styles.pillBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+                  <Text style={[styles.pillBadgeText, { color: theme.colors.primary }]}>{item.content.type === 'journal' ? 'Journal' : 'Quest'}</Text>
+                </View>
+              </View>
+              <View style={{ gap: 8 }}>
+                <Text style={[styles.postTitle, { color: theme.colors.text }]}>
+                  {item.content.title}
+                </Text>
+                {'notes' in item.content && item.content.notes ? (
+                  <Text style={[styles.postBody, { color: theme.colors.textSecondary }]}>{item.content.notes}</Text>
+                ) : null}
+                {'description' in item.content && item.content.description ? (
+                  <Text style={[styles.postBody, { color: theme.colors.textSecondary }]}>{item.content.description}</Text>
+                ) : null}
+                {item.content.type === 'journal' && item.content.skills && item.content.skills.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {item.content.skills.map((s, idx) => (
+                      <View key={`${item.id}-${idx}`} style={[styles.postTag, { backgroundColor: theme.colors.backgroundTertiary }]}>
+                        <Text style={[styles.postTagText, { color: theme.colors.textSecondary }]}>{s}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          )}
+        />
+      ) : (
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
@@ -290,6 +369,7 @@ export default function CommunityScreen() {
           </>
         )}
       </ScrollView>
+      )}
 
       <Modal visible={showInviteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -412,6 +492,26 @@ function createStyles(colors: any) {
       fontSize: 14,
       fontWeight: '700' as const,
       color: '#FFFFFF',
+    },
+    tabsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 20,
+      marginBottom: 12,
+    },
+    tabButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    tabButtonText: {
+      fontSize: 13,
+      fontWeight: '800' as const,
     },
     searchContainer: {
       flexDirection: 'row',
@@ -600,6 +700,53 @@ function createStyles(colors: any) {
     questPreviewStat: {
       fontSize: 14,
       fontWeight: '700' as const,
+    },
+    feedContent: {
+      paddingHorizontal: 20,
+      gap: 12,
+    },
+    postCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      padding: 16,
+      marginVertical: 8,
+    },
+    postHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 8,
+    },
+    postMeta: {
+      fontSize: 12,
+      fontWeight: '600' as const,
+    },
+    postTitle: {
+      fontSize: 16,
+      fontWeight: '800' as const,
+      lineHeight: 22,
+    },
+    postBody: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    postTag: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    postTagText: {
+      fontSize: 12,
+      fontWeight: '700' as const,
+    },
+    pillBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    pillBadgeText: {
+      fontSize: 11,
+      fontWeight: '800' as const,
     },
   });
 }

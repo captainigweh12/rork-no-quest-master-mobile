@@ -50,6 +50,7 @@ const STORAGE_KEYS = {
   CHAT_MESSAGES: 'local_chat_messages',
   NOTIFICATIONS: 'local_notifications',
   PENDING_VERIFICATION: 'local_pending_verification',
+  COMMUNITY_POSTS: 'local_community_posts',
 };
 
 async function getItem<T>(key: string): Promise<T | null> {
@@ -569,6 +570,25 @@ export const localStorageService = {
       }
     });
     await setItem(STORAGE_KEYS.NOTIFICATIONS, notifications);
+  },
+
+  async addCommunityPost(post: import('@/types').CommunityPost) {
+    const posts = await getItem<import('@/types').CommunityPost[]>(STORAGE_KEYS.COMMUNITY_POSTS) || [];
+    posts.unshift(post);
+    await setItem(STORAGE_KEYS.COMMUNITY_POSTS, posts);
+  },
+
+  async getCommunityFeed(userId: string): Promise<import('@/types').CommunityPost[]> {
+    const posts = await getItem<import('@/types').CommunityPost[]>(STORAGE_KEYS.COMMUNITY_POSTS) || [];
+    const friends = await getItem<Record<string, string[]>>(STORAGE_KEYS.FRIENDS) || {};
+    const friendIds = new Set(friends[userId] || []);
+    return posts.filter(p => {
+      if (p.content.type === 'journal') {
+        if (p.content.privacy === 'public') return true;
+        if (p.content.privacy === 'friends') return friendIds.has(p.userId) || p.userId === userId;
+      }
+      return true;
+    });
   },
 
   async verifyEmail(email: string, code: string) {

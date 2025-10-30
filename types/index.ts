@@ -142,4 +142,35 @@ export interface FriendInvite {
   expiresAt: Date;
 }
 
+export type CommunityPostType = 'journal' | 'quest';
+
+export interface CommunityPostJournal {
+  type: 'journal';
+  journalId: string;
+  title: string;
+  notes?: string;
+  skills?: string[];
+  privacy: 'friends' | 'public';
+}
+
+export interface CommunityPostQuest {
+  type: 'quest';
+  questId: string;
+  title: string;
+  description?: string;
+}
+
+export type CommunityPostContent = CommunityPostJournal | CommunityPostQuest;
+
+export interface CommunityPost {
+  id: string;
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  createdAt: Date;
+  content: CommunityPostContent;
+  likes?: number;
+  comments?: number;
+}
+
 export type ThemeMode = 'light' | 'dark';

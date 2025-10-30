@@ -3,14 +3,19 @@ import { useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/JournalsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, X, Sparkles, Lock, Users, Globe } from 'lucide-react-native';
+import { BookOpen, X, Sparkles, Lock, Users, Globe, Share2 } from 'lucide-react-native';
 import { Stack } from 'expo-router';
 import { generateObject } from '@rork/toolkit-sdk';
 import { z } from 'zod';
+import { useAuth } from '@/contexts/AuthContext';
+import * as communityService from '@/services/supabase/community';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function JournalScreen() {
   const { theme } = useTheme();
   const { journals, addJournal, removeJournal, isLoading } = useJournals();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
   const [title, setTitle] = useState<string>('');
@@ -87,6 +92,31 @@ Provide a brief encouraging explanation of the skills they developed and why.`
       Alert.alert('Save failed', 'Could not save your journal. Try again.');
     }
   };
+
+  const shareMutation = useMutation({
+    mutationFn: async (journalId: string) => {
+      const j = journals.find(j => j.id === journalId);
+      if (!user?.id || !j) throw new Error('Missing user or journal');
+      if (j.privacy === 'private') throw new Error('Private journals cannot be shared');
+      await communityService.shareJournal({
+        userId: user.id,
+        username: user.username || user.email,
+        avatarUrl: user.avatarUrl,
+        journalId: j.id,
+        title: j.title,
+        notes: j.notes,
+        skills: j.skills,
+        privacy: j.privacy === 'friends' ? 'friends' : 'public',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communityFeed'] });
+      Alert.alert('Shared', 'Your journal was shared to the community feed.');
+    },
+    onError: (e: any) => {
+      Alert.alert('Share failed', e?.message || 'Could not share this journal.');
+    }
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -194,9 +224,21 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                   </Text>
                 </View>
               </View>
-              <Pressable onPress={() => removeJournal(item.id)} accessibilityRole="button" testID={`remove-journal-${item.id}`}>
-                <X size={18} color={theme.colors.textSecondary} />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {(item.privacy === 'friends' || item.privacy === 'public') && (
+                  <Pressable
+                    onPress={() => shareMutation.mutate(item.id)}
+                    accessibilityRole="button"
+                    testID={`share-journal-${item.id}`}
+                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <Share2 size={18} color={theme.colors.primary} />
+                  </Pressable>
+                )}
+                <Pressable onPress={() => removeJournal(item.id)} accessibilityRole="button" testID={`remove-journal-${item.id}`}>
+                  <X size={18} color={theme.colors.textSecondary} />
+                </Pressable>
+              </View>
             </View>
             {item.notes ? (
               <Text style={[styles.cardNotes, { color: theme.colors.textSecondary }]}>{item.notes}</Text>
