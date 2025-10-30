@@ -6,14 +6,16 @@ import {
   HelpCircle, 
   UserPlus, 
   TrendingUp, 
-  BarChart3, 
-  FlaskConical, 
   Users, 
   Compass,
   Medal,
   Trophy,
   LineChart,
-  Shield
+  Shield,
+  Sword,
+  Scroll,
+  Crown,
+  Target
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef } from 'react';
@@ -30,24 +32,24 @@ type MenuItem = {
   label: string;
   icon: any;
   route: string;
-  section?: 'top' | 'middle';
+  section?: 'top' | 'profile' | 'adventure' | 'community';
   divider?: boolean;
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'profile', label: 'My Profile', icon: User, route: '/profile', section: 'top' },
-  { id: 'skill', label: 'Skill Level', icon: Medal, route: '/profile', section: 'top' },
-  { id: 'settings', label: 'Settings', icon: Settings, route: '/settings', section: 'top' },
-  { id: 'help', label: 'Help', icon: HelpCircle, route: '/disclaimer', section: 'top' },
-  { id: 'refer', label: 'Refer a Friend', icon: UserPlus, route: '/profile', section: 'top', divider: true },
+  { id: 'profile', label: 'My Profile', icon: User, route: '/profile', section: 'profile' },
+  { id: 'skill', label: 'Skill Level', icon: Medal, route: '/profile', section: 'profile' },
+  { id: 'settings', label: 'Settings', icon: Settings, route: '/settings', section: 'profile' },
+  { id: 'help', label: 'Help & Support', icon: HelpCircle, route: '/disclaimer', section: 'profile' },
+  { id: 'refer', label: 'Invite Warriors', icon: UserPlus, route: '/profile', section: 'profile', divider: true },
   
-  { id: 'trends', label: 'Trends', icon: TrendingUp, route: '/growth', section: 'middle' },
-  { id: 'ranks', label: 'Ranks', icon: Trophy, route: '/ranks', section: 'middle' },
-  { id: 'reports', label: 'Reports', icon: BarChart3, route: '/growth', section: 'middle' },
-  { id: 'growth', label: 'Growth', icon: LineChart, route: '/growth', section: 'middle' },
-  { id: 'experiments', label: 'Experiments', icon: FlaskConical, route: '/profile', section: 'middle' },
-  { id: 'teams', label: 'Teams', icon: Users, route: '/teams', section: 'middle' },
-  { id: 'explore', label: 'Explore', icon: Compass, route: '/', section: 'middle' },
+  { id: 'quests', label: 'Past Quests', icon: Scroll, route: '/growth', section: 'adventure' },
+  { id: 'ranks', label: 'Leaderboard', icon: Trophy, route: '/ranks', section: 'adventure' },
+  { id: 'trends', label: 'Growth Stats', icon: TrendingUp, route: '/growth', section: 'adventure' },
+  { id: 'achievements', label: 'Achievements', icon: Crown, route: '/growth', section: 'adventure', divider: true },
+  
+  { id: 'teams', label: 'Guilds', icon: Users, route: '/teams', section: 'community' },
+  { id: 'explore', label: 'Explore World', icon: Compass, route: '/', section: 'community' },
 ];
 
 const ADMIN_MENU_ITEMS: MenuItem[] = [
@@ -115,45 +117,97 @@ export default function SideMenu({ visible, onClose, theme }: SideMenuProps) {
             contentContainerStyle={styles.menuContent}
             showsVerticalScrollIndicator={false}
           >
-            {user?.isAdmin && ADMIN_MENU_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <View key={item.id}>
+            {user?.isAdmin && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: theme.primary }]}>⚔️ ADMIN</Text>
+                {ADMIN_MENU_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => handleNavigate(item.route)}
+                      style={({ pressed }) => [
+                        styles.menuItem,
+                        styles.adminMenuItem,
+                        pressed && styles.menuItemPressed
+                      ]}
+                      testID={`menu-${item.id}`}
+                    >
+                      <Icon size={22} color={theme.primary} strokeWidth={2.5} />
+                      <Text style={[styles.menuLabel, styles.adminLabel]}>{item.label}</Text>
+                    </Pressable>
+                  );
+                })}
+                <View style={styles.sectionDivider} />
+              </View>
+            )}
+            
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>👤 PROFILE</Text>
+              {MENU_ITEMS.filter(item => item.section === 'profile').map((item) => {
+                const Icon = item.icon;
+                return (
+                  <View key={item.id}>
+                    <Pressable
+                      onPress={() => handleNavigate(item.route)}
+                      style={({ pressed }) => [
+                        styles.menuItem,
+                        pressed && styles.menuItemPressed
+                      ]}
+                      testID={`menu-${item.id}`}
+                    >
+                      <Icon size={22} color={theme.text} strokeWidth={2} />
+                      <Text style={styles.menuLabel}>{item.label}</Text>
+                    </Pressable>
+                    {item.divider && <View style={styles.sectionDivider} />}
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>⚔️ ADVENTURE</Text>
+              {MENU_ITEMS.filter(item => item.section === 'adventure').map((item) => {
+                const Icon = item.icon;
+                return (
+                  <View key={item.id}>
+                    <Pressable
+                      onPress={() => handleNavigate(item.route)}
+                      style={({ pressed }) => [
+                        styles.menuItem,
+                        pressed && styles.menuItemPressed
+                      ]}
+                      testID={`menu-${item.id}`}
+                    >
+                      <Icon size={22} color={theme.text} strokeWidth={2} />
+                      <Text style={styles.menuLabel}>{item.label}</Text>
+                    </Pressable>
+                    {item.divider && <View style={styles.sectionDivider} />}
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>🌍 COMMUNITY</Text>
+              {MENU_ITEMS.filter(item => item.section === 'community').map((item) => {
+                const Icon = item.icon;
+                return (
                   <Pressable
+                    key={item.id}
                     onPress={() => handleNavigate(item.route)}
                     style={({ pressed }) => [
                       styles.menuItem,
-                      styles.adminMenuItem,
                       pressed && styles.menuItemPressed
                     ]}
                     testID={`menu-${item.id}`}
                   >
-                    <Icon size={24} color={theme.primary} strokeWidth={2.5} />
-                    <Text style={[styles.menuLabel, styles.adminLabel]}>{item.label}</Text>
-                  </Pressable>
-                  <View style={styles.divider} />
-                </View>
-              );
-            })}
-            {MENU_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <View key={item.id}>
-                  <Pressable
-                    onPress={() => handleNavigate(item.route)}
-                    style={({ pressed }) => [
-                      styles.menuItem,
-                      pressed && styles.menuItemPressed
-                    ]}
-                    testID={`menu-${item.id}`}
-                  >
-                    <Icon size={24} color={theme.text} strokeWidth={2} />
+                    <Icon size={22} color={theme.text} strokeWidth={2} />
                     <Text style={styles.menuLabel}>{item.label}</Text>
                   </Pressable>
-                  {item.divider && <View style={styles.divider} />}
-                </View>
-              );
-            })}
+                );
+              })}
+            </View>
           </ScrollView>
 
           <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
@@ -191,10 +245,28 @@ function createStyles(theme: any) {
       borderBottomColor: theme.border,
     },
     appName: {
-      fontSize: 28,
+      fontSize: 26,
       fontWeight: '900' as const,
       color: theme.text,
-      letterSpacing: 1,
+      letterSpacing: 1.5,
+    },
+    section: {
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: '800' as const,
+      letterSpacing: 1.2,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 8,
+      textTransform: 'uppercase' as const,
+    },
+    sectionDivider: {
+      height: 1,
+      backgroundColor: theme.border,
+      marginVertical: 8,
+      marginHorizontal: 20,
     },
     scrollContainer: {
       flex: 1,
@@ -205,25 +277,27 @@ function createStyles(theme: any) {
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 16,
+      gap: 14,
       paddingHorizontal: 24,
-      paddingVertical: 16,
+      paddingVertical: 14,
     },
     menuItemPressed: {
       backgroundColor: theme.backgroundSecondary,
     },
     menuLabel: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600' as const,
       color: theme.text,
+      flex: 1,
     },
     adminMenuItem: {
-      backgroundColor: theme.primary + '10',
-      borderLeftWidth: 3,
+      backgroundColor: theme.primary + '15',
+      borderLeftWidth: 4,
       borderLeftColor: theme.primary,
-      marginHorizontal: 12,
-      paddingLeft: 21,
-      borderRadius: 8,
+      marginHorizontal: 16,
+      paddingLeft: 20,
+      borderRadius: 10,
+      marginVertical: 4,
     },
     adminLabel: {
       color: theme.primary,

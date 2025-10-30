@@ -92,14 +92,6 @@ export default function HomeScreen() {
           >
             <Menu size={20} color={theme.colors.text} />
           </Pressable>
-          <Pressable
-            style={[styles.iconButton, { backgroundColor: theme.colors.card }]
-}
-            onPress={() => router.push('/settings' as any)}
-            testID="settings-button"
-          >
-            <Settings size={20} color={theme.colors.text} />
-          </Pressable>
         </View>
       </View>
 
