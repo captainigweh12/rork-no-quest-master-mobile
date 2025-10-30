@@ -15,7 +15,8 @@ import {
   Sword,
   Scroll,
   Crown,
-  Target
+  Target,
+  Calendar
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef } from 'react';
@@ -43,6 +44,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'help', label: 'Help & Support', icon: HelpCircle, route: '/disclaimer', section: 'profile' },
   { id: 'refer', label: 'Invite Warriors', icon: UserPlus, route: '/profile', section: 'profile', divider: true },
   
+  { id: 'calendar', label: 'Quest Calendar', icon: Calendar, route: '/quest-calendar', section: 'adventure' },
   { id: 'quests', label: 'Past Quests', icon: Scroll, route: '/growth', section: 'adventure' },
   { id: 'ranks', label: 'Leaderboard', icon: Trophy, route: '/ranks', section: 'adventure' },
   { id: 'trends', label: 'Growth Stats', icon: TrendingUp, route: '/growth', section: 'adventure' },
