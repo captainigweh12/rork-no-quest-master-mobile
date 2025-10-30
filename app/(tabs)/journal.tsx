@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useJournals, type Skill } from '@/contexts/JournalsContext';
+import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/JournalsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, X, Sparkles } from 'lucide-react-native';
+import { BookOpen, X, Sparkles, Lock, Users, Globe } from 'lucide-react-native';
 import { Stack } from 'expo-router';
 import { generateObject } from '@rork/toolkit-sdk';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ export default function JournalScreen() {
 
   const [title, setTitle] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
+  const [privacy, setPrivacy] = useState<JournalPrivacy>('private');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [showSkillsModal, setShowSkillsModal] = useState<boolean>(false);
   const [analyzedSkills, setAnalyzedSkills] = useState<Skill[]>([]);
@@ -71,9 +72,10 @@ Provide a brief encouraging explanation of the skills they developed and why.`
   
   const saveJournal = async () => {
     try {
-      await addJournal({ title: title.trim(), notes: notes.trim() || undefined, skills: analyzedSkills });
+      await addJournal({ title: title.trim(), notes: notes.trim() || undefined, skills: analyzedSkills, privacy });
       setTitle('');
       setNotes('');
+      setPrivacy('private');
       setAnalyzedSkills([]);
       setAiExplanation('');
       setShowSkillsModal(false);
@@ -120,6 +122,36 @@ Provide a brief encouraging explanation of the skills they developed and why.`
           testID="journal-notes-input"
         />
 
+        <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Privacy</Text>
+        <View style={styles.privacyRow}>
+          <Pressable
+            onPress={() => setPrivacy('private')}
+            style={[styles.privacyOption, { backgroundColor: privacy === 'private' ? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]}
+            testID="privacy-private"
+          >
+            <Lock size={18} color={privacy === 'private' ? '#FFFFFF' : theme.colors.textSecondary} />
+            <Text style={[styles.privacyText, { color: privacy === 'private' ? '#FFFFFF' : theme.colors.text }]}>Private</Text>
+          </Pressable>
+          
+          <Pressable
+            onPress={() => setPrivacy('friends')}
+            style={[styles.privacyOption, { backgroundColor: privacy === 'friends' ? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]}
+            testID="privacy-friends"
+          >
+            <Users size={18} color={privacy === 'friends' ? '#FFFFFF' : theme.colors.textSecondary} />
+            <Text style={[styles.privacyText, { color: privacy === 'friends' ? '#FFFFFF' : theme.colors.text }]}>Friends</Text>
+          </Pressable>
+          
+          <Pressable
+            onPress={() => setPrivacy('public')}
+            style={[styles.privacyOption, { backgroundColor: privacy === 'public' ? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]}
+            testID="privacy-public"
+          >
+            <Globe size={18} color={privacy === 'public' ? '#FFFFFF' : theme.colors.textSecondary} />
+            <Text style={[styles.privacyText, { color: privacy === 'public' ? '#FFFFFF' : theme.colors.text }]}>Public</Text>
+          </Pressable>
+        </View>
+
         <Animated.View style={{ transform: [{ scale }] }}>
           <Pressable
             onPress={submit}
@@ -151,7 +183,17 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]} testID={`journal-item-${item.id}`}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.title}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.title}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  {item.privacy === 'private' && <Lock size={12} color={theme.colors.textSecondary} />}
+                  {item.privacy === 'friends' && <Users size={12} color={theme.colors.textSecondary} />}
+                  {item.privacy === 'public' && <Globe size={12} color={theme.colors.textSecondary} />}
+                  <Text style={[styles.privacyBadge, { color: theme.colors.textSecondary }]}>
+                    {item.privacy.charAt(0).toUpperCase() + item.privacy.slice(1)}
+                  </Text>
+                </View>
+              </View>
               <Pressable onPress={() => removeJournal(item.id)} accessibilityRole="button" testID={`remove-journal-${item.id}`}>
                 <X size={18} color={theme.colors.textSecondary} />
               </Pressable>
@@ -259,6 +301,10 @@ const styles = StyleSheet.create({
   tag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   tagText: { fontSize: 12, fontWeight: '700' as const },
   cardDate: { marginTop: 8, fontSize: 11 },
+  privacyRow: { flexDirection: 'row', gap: 8 },
+  privacyOption: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
+  privacyText: { fontSize: 13, fontWeight: '700' as const },
+  privacyBadge: { fontSize: 11, fontWeight: '600' as const },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',

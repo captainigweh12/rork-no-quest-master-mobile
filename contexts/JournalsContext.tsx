@@ -4,17 +4,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type Skill = 'charisma' | 'intellect' | 'courage' | 'empathy' | 'creativity' | 'discipline';
 
+export type JournalPrivacy = 'private' | 'friends' | 'public';
+
 export interface JournalEntry {
   id: string;
   title: string;
   notes?: string;
   skills: Skill[];
+  privacy: JournalPrivacy;
   createdAt: string;
 }
 
 interface JournalsState {
   journals: JournalEntry[];
-  addJournal: (input: { title: string; notes?: string; skills: Skill[] }) => Promise<JournalEntry>;
+  addJournal: (input: { title: string; notes?: string; skills: Skill[]; privacy: JournalPrivacy }) => Promise<JournalEntry>;
   removeJournal: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   isLoading: boolean;
@@ -55,12 +58,13 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
     }
   }, []);
 
-  const addJournal = useCallback(async (input: { title: string; notes?: string; skills: Skill[] }) => {
+  const addJournal = useCallback(async (input: { title: string; notes?: string; skills: Skill[]; privacy: JournalPrivacy }) => {
     const entry: JournalEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       title: input.title,
       notes: input.notes,
       skills: input.skills,
+      privacy: input.privacy,
       createdAt: new Date().toISOString(),
     };
     const updated = [entry, ...journals];
