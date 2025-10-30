@@ -53,11 +53,13 @@ export default function OnboardingScreen() {
       });
       router.replace('/(tabs)/(home)');
     } catch (e: any) {
-      console.error('Onboarding save failed', e);
+      console.error('Onboarding save failed:', JSON.stringify(e, null, 2));
+      console.error('Error details:', e?.message || e?.code || 'Unknown error');
+      console.error('Full error object:', e);
       if (e?.message?.includes('duplicate') || e?.code === '23505') {
         setError('Username already taken. Please choose another one.');
       } else {
-        setError('Failed to save. Please try again.');
+        setError(`Failed to save. ${e?.message || 'Please try again.'}`);
       }
       setIsSaving(false);
     }

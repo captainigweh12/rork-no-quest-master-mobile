@@ -356,11 +356,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .from('user_profiles')
         .update({ relationship_status: relationshipStatus })
         .eq('id', user.id);
-      if (error) throw error;
+      if (error) {
+        console.error('💥 Update relationship status error:', JSON.stringify(error, null, 2));
+        console.error('Error details - Code:', error.code, 'Message:', error.message, 'Details:', error.details);
+        throw error;
+      }
       console.log('✅ Relationship status updated!');
       setUser({ ...user, relationshipStatus });
     } catch (error: any) {
-      console.error('💥 Update relationship status exception:', error);
+      console.error('💥 Update relationship status exception:', JSON.stringify(error, null, 2));
+      console.error('Exception details:', error?.message || error);
       throw error;
     }
   }, [user]);
@@ -390,11 +395,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .from('user_profiles')
         .update({ username })
         .eq('id', user.id);
-      if (error) throw error;
+      if (error) {
+        console.error('💥 Update username error:', JSON.stringify(error, null, 2));
+        console.error('Error details - Code:', error.code, 'Message:', error.message, 'Details:', error.details, 'Hint:', error.hint);
+        throw error;
+      }
       console.log('✅ Username updated!');
       setUser({ ...user, username });
     } catch (error: any) {
-      console.error('💥 Update username exception:', error);
+      console.error('💥 Update username exception:', JSON.stringify(error, null, 2));
+      console.error('Exception details:', error?.message || error);
       throw error;
     }
   }, [user]);
