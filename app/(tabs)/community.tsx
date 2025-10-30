@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Modal, Alert, Share, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Modal, Alert, Share, FlatList, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, UserPlus, Send, X, Link as LinkIcon, MessageCircle, Users2, Newspaper } from 'lucide-react-native';
+import { Search, UserPlus, Send, X, Link as LinkIcon, MessageCircle, Users2, Newspaper, PlusCircle, BookOpen, Sparkles, Lock, Users, Globe, ImagePlus } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,11 @@ import * as communityService from '@/services/supabase/community';
 import type { CommunityPost } from '@/types';
 import { useGame } from '@/contexts/GameContext';
 import { Avatar } from '@/components/SafeImage';
+import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/JournalsContext';
+import { generateObject } from '@rork/toolkit-sdk';
+import { z } from 'zod';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 
 
 
@@ -35,6 +40,18 @@ export default function CommunityScreen() {
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [showSendQuest, setShowSendQuest] = useState(false);
   const [tab, setTab] = useState<'feed' | 'friends'>('feed');
+  
+  const [showCreateJournal, setShowCreateJournal] = useState(false);
+  const [journalTitle, setJournalTitle] = useState('');
+  const [journalNotes, setJournalNotes] = useState('');
+  const [journalPrivacy, setJournalPrivacy] = useState<JournalPrivacy>('public');
+  const [journalImages, setJournalImages] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showSkillsModal, setShowSkillsModal] = useState(false);
+  const [analyzedSkills, setAnalyzedSkills] = useState<Skill[]>([]);
+  const [aiExplanation, setAiExplanation] = useState('');
+  
+  const { addJournal } = useJournals();
 
   const styles = createStyles(theme.colors);
 
@@ -144,6 +161,128 @@ export default function CommunityScreen() {
     setShowSendQuest(true);
   };
 
+  const pickJournalImages = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission required', 'Please allow photo access to add images.');
+          return;
+        }
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        selectionLimit: 4,
+      });
+      if (!result.canceled) {
+        const uris = result.assets?.map(a => a.uri).filter(Boolean) as string[];
+        setJournalImages(prev => [...prev, ...uris].slice(0, 8));
+      }
+    } catch (e) {
+      console.error('pickImages error', e);
+      Alert.alert('Image error', 'Could not pick images. Try again.');
+    }
+  };
+
+  const handleAnalyzeJournal = async () => {
+    if (!journalTitle.trim()) {
+      Alert.alert('Add details', 'Please add what you did to log your win.');
+      return;
+    }
+    
+    setIsAnalyzing(true);
+    
+    try {
+      const result = await generateObject({
+        messages: [
+          {
+            role: 'user',
+            content: `Analyze this personal growth journal entry and identify which skills the person developed. Consider their actions, challenges faced, and outcomes.
+
+Entry: "${journalTitle.trim()}"
+${journalNotes.trim() ? `\nContext: "${journalNotes.trim()}"` : ''}
+
+Based on this entry, determine which of these skills they grew:
+- Charisma (social skills, charm, communication)
+- Intellect (learning, problem-solving, knowledge)
+- Courage (facing fears, taking risks, boldness)
+- Empathy (understanding others, compassion, emotional intelligence)
+- Creativity (innovative thinking, artistic expression, imagination)
+- Discipline (consistency, self-control, commitment)
+
+Provide a brief encouraging explanation of the skills they developed and why.`
+          }
+        ],
+        schema: z.object({
+          skills: z.array(z.enum(['charisma', 'intellect', 'courage', 'empathy', 'creativity', 'discipline'])).describe('The skills that were developed'),
+          explanation: z.string().describe('A brief encouraging explanation of the skills developed (2-3 sentences)')
+        })
+      });
+      
+      setAnalyzedSkills(result.skills);
+      setAiExplanation(result.explanation);
+      setShowCreateJournal(false);
+      setShowSkillsModal(true);
+    } catch (e) {
+      console.error('AI analysis error:', e);
+      Alert.alert('Analysis failed', 'Could not analyze your entry. Try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const saveJournal = async () => {
+    try {
+      const entry = await addJournal({ 
+        title: journalTitle.trim(), 
+        notes: journalNotes.trim() || undefined, 
+        images: journalImages, 
+        skills: analyzedSkills, 
+        privacy: journalPrivacy 
+      });
+      
+      if (journalPrivacy === 'friends' || journalPrivacy === 'public') {
+        await communityService.shareJournal({
+          userId: user!.id,
+          username: user!.username || user!.email,
+          avatarUrl: user!.avatarUrl,
+          journalId: entry.id,
+          title: entry.title,
+          notes: entry.notes,
+          skills: entry.skills,
+          privacy: journalPrivacy === 'friends' ? 'friends' : 'public',
+        });
+        queryClient.invalidateQueries({ queryKey: ['communityFeed'] });
+      }
+      
+      setJournalTitle('');
+      setJournalNotes('');
+      setJournalPrivacy('public');
+      setJournalImages([]);
+      setAnalyzedSkills([]);
+      setAiExplanation('');
+      setShowSkillsModal(false);
+      
+      Alert.alert('Success', 'Your journal was saved and shared!');
+    } catch (e) {
+      console.error('Save journal error:', e);
+      Alert.alert('Save failed', 'Could not save your journal. Try again.');
+    }
+  };
+
+  function labelForSkill(s: Skill): string {
+    switch (s) {
+      case 'charisma': return 'Charisma';
+      case 'intellect': return 'Intellect';
+      case 'courage': return 'Courage';
+      case 'empathy': return 'Empathy';
+      case 'creativity': return 'Creativity';
+      case 'discipline': return 'Discipline';
+    }
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
@@ -205,7 +344,21 @@ export default function CommunityScreen() {
           refreshing={feedQuery.isFetching}
           onRefresh={() => queryClient.invalidateQueries({ queryKey: ['communityFeed'] })}
           contentContainerStyle={[styles.feedContent, { paddingBottom: insets.bottom + 20 }]}
-          ListHeaderComponent={<Text style={[styles.sectionTitle, { color: theme.colors.text, paddingHorizontal: 20 }]}>Community Feed</Text>}
+          ListHeaderComponent={
+            <View>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text, paddingHorizontal: 20 }]}>Community Feed</Text>
+              
+              <Pressable 
+                style={[styles.createPostButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+                onPress={() => setShowCreateJournal(true)}
+                testID="create-journal-button"
+              >
+                <Avatar name={user?.username || user?.email || 'U'} imageUrl={user?.avatarUrl} size={40} />
+                <Text style={[styles.createPostText, { color: theme.colors.textSecondary }]}>Share your wins...</Text>
+                <PlusCircle size={24} color={theme.colors.primary} />
+              </Pressable>
+            </View>
+          }
           ListEmptyComponent={feedQuery.isLoading ? (
             <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 30 }} />
           ) : (
@@ -444,6 +597,163 @@ export default function CommunityScreen() {
                 ) : (
                   <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Send</Text>
                 )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showCreateJournal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.createJournalModal, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.createJournalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.createJournalTitle, { color: theme.colors.text }]}>Create Journal Post</Text>
+              <Pressable onPress={() => setShowCreateJournal(false)}>
+                <X size={24} color={theme.colors.text} />
+              </Pressable>
+            </View>
+            
+            <ScrollView style={styles.createJournalBody} contentContainerStyle={{ padding: 16 }}>
+              <Text style={[styles.journalLabel, { color: theme.colors.textSecondary }]}>What did you do?</Text>
+              <TextInput
+                style={[styles.journalInput, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
+                placeholder="e.g. Approached a stranger today, cold called 10 prospects"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={journalTitle}
+                onChangeText={setJournalTitle}
+                testID="create-journal-title"
+              />
+
+              <Text style={[styles.journalLabel, { color: theme.colors.textSecondary }]}>Add photos (optional)</Text>
+              <View style={styles.journalImagesRow}>
+                <FlatList
+                  horizontal
+                  data={journalImages}
+                  keyExtractor={(u, i) => `${u}-${i}`}
+                  contentContainerStyle={{ gap: 8 }}
+                  renderItem={({ item, index }) => (
+                    <View style={[styles.journalImageWrap, { borderColor: theme.colors.border }]}>
+                      <Image source={{ uri: item }} style={styles.journalImage} contentFit="cover" />
+                      <Pressable
+                        onPress={() => setJournalImages(prev => prev.filter((_, i) => i !== index))}
+                        style={[styles.removeJournalImageBtn, { backgroundColor: theme.colors.background + 'AA' }]}
+                      >
+                        <X size={14} color={theme.colors.text} />
+                      </Pressable>
+                    </View>
+                  )}
+                  ListFooterComponent={
+                    <Pressable onPress={pickJournalImages} style={[styles.addJournalImageBtn, { borderColor: theme.colors.border }]}>
+                      <ImagePlus size={20} color={theme.colors.textSecondary} />
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Add</Text>
+                    </Pressable>
+                  }
+                />
+              </View>
+
+              <Text style={[styles.journalLabel, { color: theme.colors.textSecondary }]}>Add context (optional)</Text>
+              <TextInput
+                style={[styles.journalTextarea, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, color: theme.colors.text }]}
+                placeholder="What happened? How did it feel? What did you learn?"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={journalNotes}
+                onChangeText={setJournalNotes}
+                multiline
+                numberOfLines={4}
+                testID="create-journal-notes"
+              />
+
+              <Text style={[styles.journalLabel, { color: theme.colors.textSecondary }]}>Privacy</Text>
+              <View style={styles.privacyRow}>
+                <Pressable
+                  onPress={() => setJournalPrivacy('private')}
+                  style={[styles.privacyBtn, { backgroundColor: journalPrivacy === 'private' ? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]}
+                >
+                  <Lock size={16} color={journalPrivacy === 'private' ? '#FFFFFF' : theme.colors.textSecondary} />
+                  <Text style={[styles.privacyBtnText, { color: journalPrivacy === 'private' ? '#FFFFFF' : theme.colors.text }]}>Private</Text>
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => setJournalPrivacy('friends')}
+                  style={[styles.privacyBtn, { backgroundColor: journalPrivacy === 'friends' ? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]}
+                >
+                  <Users size={16} color={journalPrivacy === 'friends' ? '#FFFFFF' : theme.colors.textSecondary} />
+                  <Text style={[styles.privacyBtnText, { color: journalPrivacy === 'friends' ? '#FFFFFF' : theme.colors.text }]}>Friends</Text>
+                </Pressable>
+                
+                <Pressable
+                  onPress={() => setJournalPrivacy('public')}
+                  style={[styles.privacyBtn, { backgroundColor: journalPrivacy === 'public' ? theme.colors.primary : theme.colors.card, borderColor: theme.colors.border }]}
+                >
+                  <Globe size={16} color={journalPrivacy === 'public' ? '#FFFFFF' : theme.colors.textSecondary} />
+                  <Text style={[styles.privacyBtnText, { color: journalPrivacy === 'public' ? '#FFFFFF' : theme.colors.text }]}>Public</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+            
+            <View style={[styles.createJournalFooter, { borderTopColor: theme.colors.border }]}>
+              <Pressable
+                onPress={handleAnalyzeJournal}
+                style={[styles.createJournalSubmit, { backgroundColor: journalTitle.trim() ? theme.colors.primary : theme.colors.border, opacity: isAnalyzing ? 0.7 : 1 }]}
+                disabled={!journalTitle.trim() || isAnalyzing}
+                testID="submit-journal"
+              >
+                {isAnalyzing ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={styles.createJournalSubmitText}>Analyzing...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Sparkles size={18} color="#FFFFFF" />
+                    <Text style={styles.createJournalSubmitText}>Create Post</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showSkillsModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.skillsModalContent, { backgroundColor: theme.colors.card }]}>
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={[styles.iconCircle, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Sparkles size={32} color={theme.colors.primary} />
+              </View>
+            </View>
+            
+            <Text style={[styles.skillsModalTitle, { color: theme.colors.text }]}>Skills You Grew</Text>
+            
+            <Text style={[styles.skillsModalExplanation, { color: theme.colors.textSecondary }]}>
+              {aiExplanation}
+            </Text>
+            
+            <View style={styles.skillsContainer}>
+              {analyzedSkills.map((s) => (
+                <View key={s} style={[styles.skillChip, { backgroundColor: theme.colors.primary }]}>
+                  <Text style={styles.skillChipText}>{labelForSkill(s)}</Text>
+                </View>
+              ))}
+            </View>
+            
+            <View style={styles.skillsModalActions}>
+              <Pressable
+                onPress={() => {
+                  setShowSkillsModal(false);
+                  setShowCreateJournal(true);
+                }}
+                style={[styles.skillsModalButton, styles.skillsModalButtonSecondary, { borderColor: theme.colors.border }]}
+              >
+                <Text style={[styles.skillsModalButtonText, { color: theme.colors.text }]}>Edit</Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={saveJournal}
+                style={[styles.skillsModalButton, styles.skillsModalButtonPrimary, { backgroundColor: theme.colors.primary }]}
+              >
+                <Text style={[styles.skillsModalButtonText, { color: '#FFFFFF' }]}>Share Post</Text>
               </Pressable>
             </View>
           </View>
@@ -747,6 +1057,202 @@ function createStyles(colors: any) {
     pillBadgeText: {
       fontSize: 11,
       fontWeight: '800' as const,
+    },
+    createPostButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: 20,
+      marginVertical: 12,
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+    },
+    createPostText: {
+      flex: 1,
+      fontSize: 16,
+    },
+    createJournalModal: {
+      flex: 1,
+      marginTop: 50,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+    },
+    createJournalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+    },
+    createJournalTitle: {
+      fontSize: 20,
+      fontWeight: '800' as const,
+    },
+    createJournalBody: {
+      flex: 1,
+    },
+    journalLabel: {
+      fontSize: 12,
+      fontWeight: '700' as const,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginBottom: 8,
+    },
+    journalInput: {
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      marginBottom: 16,
+    },
+    journalTextarea: {
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      minHeight: 96,
+      textAlignVertical: 'top' as const,
+      marginBottom: 16,
+    },
+    journalImagesRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    addJournalImageBtn: {
+      width: 72,
+      height: 72,
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    journalImageWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1,
+    },
+    journalImage: {
+      width: '100%',
+      height: '100%',
+    },
+    removeJournalImageBtn: {
+      position: 'absolute' as const,
+      top: 4,
+      right: 4,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    privacyRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 16,
+    },
+    privacyBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    privacyBtnText: {
+      fontSize: 12,
+      fontWeight: '700' as const,
+    },
+    createJournalFooter: {
+      padding: 16,
+      borderTopWidth: 1,
+    },
+    createJournalSubmit: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+    },
+    createJournalSubmitText: {
+      color: '#FFFFFF',
+      fontWeight: '800' as const,
+      fontSize: 16,
+    },
+    skillsModalContent: {
+      borderRadius: 24,
+      padding: 24,
+      width: '100%',
+      maxWidth: 400,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    iconCircle: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    skillsModalTitle: {
+      fontSize: 24,
+      fontWeight: '800' as const,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    skillsModalExplanation: {
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    skillsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 8,
+      marginBottom: 24,
+    },
+    skillChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    skillChipText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700' as const,
+    },
+    skillsModalActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    skillsModalButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    skillsModalButtonSecondary: {
+      borderWidth: 1,
+    },
+    skillsModalButtonPrimary: {},
+    skillsModalButtonText: {
+      fontSize: 16,
+      fontWeight: '700' as const,
     },
   });
 }
