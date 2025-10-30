@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, LineChart, Sparkles, Medal } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, LineChart, Sparkles, Medal, Users } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -152,6 +152,14 @@ export default function HomeScreen() {
           >
             <LineChart size={18} color={theme.colors.text} />
             <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Growth</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { setMenuOpen(false); router.push('/teams' as any); }}
+            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: pressed ? theme.colors.backgroundSecondary : 'transparent' }]}
+            testID="menu-item-teams"
+          >
+            <Users size={18} color={theme.colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '700' as const, color: theme.colors.text }}>Teams</Text>
           </Pressable>
         </Animated.View>
       )}
