@@ -1,16 +1,17 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform, TextInput, ScrollView, Modal, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform, TextInput, ScrollView, Modal, Linking, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Menu, Share2, Search, MapPin, Plus, Navigation, X, Sparkles } from 'lucide-react-native';
+import { ChevronLeft, Menu, Share2, Search, MapPin, Plus, Navigation, X, Sparkles, RefreshCw, List } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { useAuth } from '@/contexts/AuthContext';
 import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue } from '@/services/supabase/map';
 import { generateText } from '@rork/toolkit-sdk';
+import type { Quest } from '@/types';
 
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCHMHlOrPPSRULrUf-FqPWHz0Y6PJoPrRk';
@@ -28,7 +29,12 @@ interface Place {
   place_id: string;
 }
 
-
+interface AIGeneratedQuest extends Quest {
+  latitude: number;
+  longitude: number;
+  placeName: string;
+  placeAddress?: string;
+}
 
 export default function MapScreen() {
   const { theme } = useTheme();
@@ -44,6 +50,10 @@ export default function MapScreen() {
   const [queueItems, setQueueItems] = useState<any[]>([]);
   const [isLoadingQueue, setIsLoadingQueue] = useState<boolean>(false);
   const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
+  const [aiGeneratedQuests, setAiGeneratedQuests] = useState<AIGeneratedQuest[]>([]);
+  const [isGeneratingAIQuests, setIsGeneratingAIQuests] = useState<boolean>(false);
+  const [selectedQuest, setSelectedQuest] = useState<AIGeneratedQuest | null>(null);
+  const [showQuestQueueModal, setShowQuestQueueModal] = useState<boolean>(false);
 
   const styles = createStyles(theme.colors);
 
@@ -83,6 +93,12 @@ export default function MapScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (userLocation && aiGeneratedQuests.length === 0 && !isGeneratingAIQuests) {
+      generateAIQuests();
+    }
+  }, [userLocation]);
+
   const loadQueue = useCallback(async () => {
     if (!user?.id) return;
     
@@ -106,6 +122,131 @@ export default function MapScreen() {
       loadQueue();
     }
   }, [user?.id, loadQueue]);
+
+  const generateAIQuests = async () => {
+    if (!userLocation) return;
+
+    setIsGeneratingAIQuests(true);
+    console.log('Generating 10 AI quests within 10 mile radius...');
+
+    try {
+      const nearbyResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${userLocation.latitude},${userLocation.longitude}&radius=16093&key=${GOOGLE_PLACES_API_KEY}`
+      );
+      
+      const nearbyData = await nearbyResponse.json();
+      
+      if (!nearbyData.results || nearbyData.results.length === 0) {
+        console.log('No nearby places found');
+        setIsGeneratingAIQuests(false);
+        return;
+      }
+
+      const places = nearbyData.results.slice(0, 20);
+      const generatedQuests: AIGeneratedQuest[] = [];
+
+      for (let i = 0; i < Math.min(10, places.length); i++) {
+        const place = places[i];
+        
+        try {
+          const questPrompt = `Generate a rejection therapy quest for this location: "${place.name}" (${place.types?.[0] || 'establishment'}).
+
+Create a specific quest that involves getting rejected by asking strangers or the business something at this location.
+
+Provide your response in this exact format:
+Title: [A short, catchy quest title mentioning the location]
+Description: [A clear action statement. For example: "Ask 3 people at ${place.name} to take a photo with you" or "Ask for a 50% discount at ${place.name}"]
+MinNo: [Number between 3-5]`;
+
+          const aiResponse = await generateText(questPrompt);
+          
+          const titleMatch = aiResponse.match(/Title:\s*(.+?)(?:\n|$)/i);
+          const descMatch = aiResponse.match(/Description:\s*(.+?)(?:\n|$)/i);
+          const minNoMatch = aiResponse.match(/MinNo:\s*(\d+)/i);
+          
+          let questTitle = titleMatch ? titleMatch[1].trim() : `Challenge at ${place.name}`;
+          let questDescription = descMatch ? descMatch[1].trim() : `Complete a rejection challenge at ${place.name}`;
+          const minNo = minNoMatch ? parseInt(minNoMatch[1]) : 3;
+          
+          questTitle = questTitle.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
+          questDescription = questDescription.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
+
+          const newQuest: AIGeneratedQuest = {
+            id: `ai-quest-${Date.now()}-${i}`,
+            title: questTitle,
+            description: questDescription,
+            type: 'daily',
+            difficulty: 'medium',
+            points: 100,
+            xp: 50,
+            completed: false,
+            icon: 'target',
+            minNoRequired: minNo,
+            durationMinutes: 60,
+            source: 'ai',
+            latitude: place.geometry.location.lat,
+            longitude: place.geometry.location.lng,
+            placeName: place.name,
+            placeAddress: place.vicinity || place.formatted_address,
+          };
+
+          generatedQuests.push(newQuest);
+          console.log(`Generated quest ${i + 1}/10: ${questTitle}`);
+        } catch (error) {
+          console.error(`Error generating quest for ${place.name}:`, error);
+        }
+      }
+
+      setAiGeneratedQuests(generatedQuests);
+      console.log(`Successfully generated ${generatedQuests.length} AI quests`);
+    } catch (error) {
+      console.error('Error generating AI quests:', error);
+      Alert.alert('Error', 'Failed to generate quests. Please try again.');
+    } finally {
+      setIsGeneratingAIQuests(false);
+    }
+  };
+
+  const handleRegenerateQuests = async () => {
+    Alert.alert(
+      'Regenerate Quests',
+      'This will remove all current AI quests and generate new ones. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Regenerate',
+          onPress: async () => {
+            setAiGeneratedQuests([]);
+            await generateAIQuests();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleQuestMarkerClick = (quest: AIGeneratedQuest) => {
+    setSelectedQuest(quest);
+  };
+
+  const handleAcceptQuest = async (quest: AIGeneratedQuest) => {
+    try {
+      const newQuest = await addCustomQuest({
+        title: quest.title,
+        description: quest.description,
+        minNoRequired: quest.minNoRequired || 3,
+        durationMinutes: quest.durationMinutes || 60,
+      });
+
+      console.log('Quest accepted and added to queue:', newQuest);
+      setSelectedQuest(null);
+      Alert.alert('Quest Added!', 'The quest has been added to your Quest Queue. Check the home screen to start!');
+      
+      setAiGeneratedQuests(prev => prev.filter(q => q.id !== quest.id));
+    } catch (error) {
+      console.error('Error accepting quest:', error);
+      Alert.alert('Error', 'Failed to add quest. Please try again.');
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !userLocation) {
@@ -189,90 +330,8 @@ export default function MapScreen() {
     }
   };
 
-  const handleGenerateLocationQuest = async () => {
-    if (!userLocation || !user?.id) {
-      console.log('No location or user ID available');
-      return;
-    }
-
-    setIsGeneratingQuest(true);
-    try {
-      console.log('Generating location-based quest...');
-      
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${userLocation.latitude},${userLocation.longitude}&key=${GOOGLE_PLACES_API_KEY}`
-      );
-      
-      const data = await response.json();
-      let locationName = 'your current area';
-      let locationDetails: string = '';
-      
-      if (data.results && data.results[0]) {
-        const addressComponents = data.results[0].address_components;
-        const neighborhood = addressComponents.find((c: any) => c.types.includes('neighborhood'));
-        const city = addressComponents.find((c: any) => c.types.includes('locality'));
-        
-        if (neighborhood) {
-          locationName = neighborhood.long_name;
-        } else if (city) {
-          locationName = city.long_name;
-        }
-        
-        locationDetails = data.results[0].formatted_address;
-      }
-
-      const nearbyResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${userLocation.latitude},${userLocation.longitude}&radius=500&key=${GOOGLE_PLACES_API_KEY}`
-      );
-      
-      const nearbyData = await nearbyResponse.json();
-      const placeTypes = nearbyData.results
-        ?.slice(0, 5)
-        .map((p: any) => p.types?.[0])
-        .filter(Boolean)
-        .join(', ') || 'various establishments';
-
-      const questPrompt = `Generate a rejection therapy quest based on the user's location in ${locationName}. Nearby places include: ${placeTypes}.
-
-Create a specific quest that involves getting rejected by asking strangers or businesses something in this area.
-
-Provide your response in this exact format:
-Title: [A short, catchy quest title mentioning ${locationName}]
-Description: [A clear action statement of what to do and how many times. For example: "Ask 3 strangers in ${locationName} to take a photo with you" or "Visit 5 local shops and ask for a discount"]
-MinNo: [Number between 3-5]`;
-
-      const aiResponse = await generateText(questPrompt);
-      console.log('AI Response:', aiResponse);
-      
-      const titleMatch = aiResponse.match(/Title:\s*(.+?)(?:\n|$)/i);
-      const descMatch = aiResponse.match(/Description:\s*(.+?)(?:\n|$)/i);
-      const minNoMatch = aiResponse.match(/MinNo:\s*(\d+)/i);
-      
-      let questTitle = titleMatch ? titleMatch[1].trim() : `${locationName} Challenge`;
-      let questDescription = descMatch ? descMatch[1].trim() : `Complete a rejection challenge in ${locationName}`;
-      const minNo = minNoMatch ? parseInt(minNoMatch[1]) : 3;
-      
-      questTitle = questTitle.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
-      questDescription = questDescription.replace(/^[*#\s]+/, '').replace(/[*#\s]+$/, '');
-
-      const newQuest = await addCustomQuest({
-        title: questTitle,
-        description: questDescription,
-        minNoRequired: minNo,
-        durationMinutes: 60,
-      });
-
-      console.log('Location quest generated:', newQuest);
-      router.push('/(tabs)/(home)/?focus=1' as any);
-    } catch (error) {
-      console.error('Error generating location quest:', error);
-    } finally {
-      setIsGeneratingQuest(false);
-    }
-  };
-
   const generateMapHTML = () => {
-    const markers = completedQuests
+    const completedMarkers = completedQuests
       .filter((quest) => quest.location)
       .map(
         (quest) => `
@@ -281,10 +340,27 @@ MinNo: [Number between 3-5]`;
           title: "${quest.title.replace(/"/g, '\\"')}",
           color: "${getDifficultyColor(quest.difficulty)}",
           description: "${quest.description.replace(/"/g, '\\"')}",
-          date: "${quest.completedAt ? new Date(quest.completedAt).toLocaleDateString() : 'Just now'}"
+          date: "${quest.completedAt ? new Date(quest.completedAt).toLocaleDateString() : 'Just now'}",
+          type: "completed"
         }`
       )
       .join(',');
+
+    const aiQuestMarkers = aiGeneratedQuests
+      .map((quest, index) => `
+        {
+          position: { lat: ${quest.latitude}, lng: ${quest.longitude} },
+          title: "${quest.title.replace(/"/g, '\\"')}",
+          color: "#FFD700",
+          description: "${quest.description.replace(/"/g, '\\"')}",
+          placeName: "${quest.placeName.replace(/"/g, '\\"')}",
+          index: ${index},
+          type: "ai-quest"
+        }`
+      )
+      .join(',');
+
+    const allMarkers = [completedMarkers, aiQuestMarkers].filter(Boolean).join(',');
 
     return `
 <!DOCTYPE html>
@@ -408,19 +484,20 @@ MinNo: [Number between 3-5]`;
         title: "Your Location"
       });
 
-      const questMarkers = [${markers}];
+      const allMarkers = [${allMarkers}];
       
-      questMarkers.forEach((markerData) => {
+      allMarkers.forEach((markerData) => {
+        const isAIQuest = markerData.type === "ai-quest";
         const marker = new google.maps.Marker({
           position: markerData.position,
           map: map,
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
+            scale: isAIQuest ? 14 : 10,
             fillColor: markerData.color,
-            fillOpacity: 1,
+            fillOpacity: isAIQuest ? 0.9 : 1,
             strokeColor: "#ffffff",
-            strokeWeight: 2,
+            strokeWeight: isAIQuest ? 3 : 2,
           },
           title: markerData.title
         });
@@ -430,13 +507,17 @@ MinNo: [Number between 3-5]`;
             <div style="padding: 8px; min-width: 200px;">
               <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700;">\${markerData.title}</h3>
               <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">\${markerData.description}</p>
-              <p style="margin: 0; font-size: 11px; color: #999;">\${markerData.date}</p>
+              \${isAIQuest ? \`<p style="margin: 0; font-size: 11px; color: #FFD700; font-weight: bold;">📍 \${markerData.placeName}</p>\` : \`<p style="margin: 0; font-size: 11px; color: #999;">\${markerData.date}</p>\`}
+              \${isAIQuest ? \`<button onclick="window.ReactNativeWebView.postMessage('quest-clicked:\${markerData.index}')" style="margin-top: 8px; padding: 6px 12px; background: #FFD700; border: none; border-radius: 6px; color: #000; font-weight: bold; cursor: pointer;">View Quest</button>\` : ''}
             </div>
           \`
         });
 
         marker.addListener("click", () => {
           infoWindow.open(map, marker);
+          if (isAIQuest) {
+            window.ReactNativeWebView.postMessage('quest-clicked:' + markerData.index);
+          }
         });
 
         markers.push(marker);
@@ -473,9 +554,9 @@ MinNo: [Number between 3-5]`;
             <ChevronLeft size={24} color={theme.colors.text} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Rejection Map</Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Quest Map</Text>
             <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
-              {totalRejections} rejections tracked
+              {totalRejections} rejections • {aiGeneratedQuests.length} AI quests
             </Text>
           </View>
           <Pressable style={styles.menuButton}>
@@ -518,6 +599,15 @@ MinNo: [Number between 3-5]`;
         javaScriptEnabled={true}
         domStorageEnabled={true}
         startInLoadingState={true}
+        onMessage={(event) => {
+          const message = event.nativeEvent.data;
+          if (message.startsWith('quest-clicked:')) {
+            const index = parseInt(message.split(':')[1]);
+            if (aiGeneratedQuests[index]) {
+              handleQuestMarkerClick(aiGeneratedQuests[index]);
+            }
+          }
+        }}
         renderLoading={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -540,9 +630,9 @@ MinNo: [Number between 3-5]`;
             <ChevronLeft size={24} color={theme.colors.text} />
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Rejection Map</Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Quest Map</Text>
             <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
-              {totalRejections} rejections tracked
+              {totalRejections} completed • {aiGeneratedQuests.length} AI quests
             </Text>
           </View>
           <Pressable 
@@ -556,8 +646,16 @@ MinNo: [Number between 3-5]`;
               </View>
             )}
           </Pressable>
-          <Pressable style={[styles.shareButton, styles.headerButton]}>
-            <Share2 size={20} color={theme.colors.text} />
+          <Pressable 
+            style={[styles.shareButton, styles.headerButton]}
+            onPress={() => setShowQuestQueueModal(true)}
+          >
+            <List size={20} color={theme.colors.text} />
+            {aiGeneratedQuests.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: '#FFD700' }]}>
+                <Text style={[styles.badgeText, { color: '#000' }]}>{aiGeneratedQuests.length}</Text>
+              </View>
+            )}
           </Pressable>
         </View>
 
@@ -608,20 +706,19 @@ MinNo: [Number between 3-5]`;
         </View>
       </View>
 
-      <Pressable
-        style={[styles.generateQuestButton, { backgroundColor: theme.colors.primary, bottom: insets.bottom + 20 }]}
-        onPress={handleGenerateLocationQuest}
-        disabled={isGeneratingQuest}
-      >
-        {isGeneratingQuest ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <>
-            <Sparkles size={24} color="#FFFFFF" />
-            <Text style={styles.generateQuestButtonText}>Generate Location Quest</Text>
-          </>
-        )}
-      </Pressable>
+      <View style={[styles.actionButtonsContainer, { bottom: insets.bottom + 20 }]}>
+        <Pressable
+          style={[styles.regenerateButton, { backgroundColor: theme.colors.card }]}
+          onPress={handleRegenerateQuests}
+          disabled={isGeneratingAIQuests}
+        >
+          {isGeneratingAIQuests ? (
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          ) : (
+            <RefreshCw size={20} color={theme.colors.primary} />
+          )}
+        </Pressable>
+      </View>
 
       <QueueModal
         visible={showQueueModal}
@@ -640,6 +737,27 @@ MinNo: [Number between 3-5]`;
         onGetDirections={handleGetDirections}
         theme={theme.colors}
         isLoading={isLoadingQueue}
+      />
+
+      <QuestDetailsModal
+        visible={selectedQuest !== null}
+        quest={selectedQuest}
+        onClose={() => setSelectedQuest(null)}
+        onAccept={handleAcceptQuest}
+        theme={theme.colors}
+      />
+
+      <QuestQueueModal
+        visible={showQuestQueueModal}
+        onClose={() => setShowQuestQueueModal(false)}
+        quests={aiGeneratedQuests}
+        onSelectQuest={(quest) => {
+          setShowQuestQueueModal(false);
+          setSelectedQuest(quest);
+        }}
+        onRegenerate={handleRegenerateQuests}
+        isRegenerating={isGeneratingAIQuests}
+        theme={theme.colors}
       />
     </View>
   );
@@ -755,6 +873,182 @@ function QueueModal({ visible, onClose, queueItems, onRemoveItem, onGetDirection
   );
 }
 
+interface QuestDetailsModalProps {
+  visible: boolean;
+  quest: AIGeneratedQuest | null;
+  onClose: () => void;
+  onAccept: (quest: AIGeneratedQuest) => void;
+  theme: any;
+}
+
+function QuestDetailsModal({ visible, quest, onClose, onAccept, theme }: QuestDetailsModalProps) {
+  if (!quest) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={questModalStyles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[questModalStyles.container, { backgroundColor: theme.card }]}>
+          <LinearGradient colors={['#FFD70030', theme.card]} style={questModalStyles.gradient}>
+            <View style={questModalStyles.header}>
+              <Sparkles size={48} color="#FFD700" />
+              <Text style={[questModalStyles.title, { color: theme.text }]}>{quest.title}</Text>
+              <Text style={[questModalStyles.location, { color: theme.textSecondary }]}>
+                📍 {quest.placeName}
+              </Text>
+            </View>
+
+            <View style={[questModalStyles.content, { backgroundColor: theme.backgroundTertiary }]}>
+              <Text style={[questModalStyles.description, { color: theme.text }]}>
+                {quest.description}
+              </Text>
+              
+              <View style={questModalStyles.stats}>
+                <View style={[questModalStyles.statBadge, { backgroundColor: '#FFD70020' }]}>
+                  <Text style={[questModalStyles.statValue, { color: '#FFD700' }]}>
+                    {quest.minNoRequired || 3} NOs
+                  </Text>
+                  <Text style={[questModalStyles.statLabel, { color: theme.textSecondary }]}>
+                    Required
+                  </Text>
+                </View>
+                <View style={[questModalStyles.statBadge, { backgroundColor: theme.primary + '20' }]}>
+                  <Text style={[questModalStyles.statValue, { color: theme.primary }]}>
+                    {quest.durationMinutes || 60} min
+                  </Text>
+                  <Text style={[questModalStyles.statLabel, { color: theme.textSecondary }]}>
+                    Duration
+                  </Text>
+                </View>
+              </View>
+
+              <View style={questModalStyles.rewards}>
+                <View style={[questModalStyles.rewardBadge, { backgroundColor: theme.primary + '20' }]}>
+                  <Text style={[questModalStyles.rewardText, { color: theme.primary }]}>
+                    +{quest.xp} XP
+                  </Text>
+                </View>
+                <View style={[questModalStyles.rewardBadge, { backgroundColor: theme.primary + '20' }]}>
+                  <Text style={[questModalStyles.rewardText, { color: theme.primary }]}>
+                    +{quest.points} Points
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={questModalStyles.actions}>
+              <Pressable
+                style={[questModalStyles.acceptButton, { backgroundColor: '#FFD700' }]}
+                onPress={() => onAccept(quest)}
+              >
+                <Text style={questModalStyles.acceptButtonText}>Accept Quest</Text>
+              </Pressable>
+              <Pressable
+                style={[questModalStyles.cancelButton, { borderColor: theme.border }]}
+                onPress={onClose}
+              >
+                <Text style={[questModalStyles.cancelButtonText, { color: theme.text }]}>
+                  Maybe Later
+                </Text>
+              </Pressable>
+            </View>
+          </LinearGradient>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+interface QuestQueueModalProps {
+  visible: boolean;
+  onClose: () => void;
+  quests: AIGeneratedQuest[];
+  onSelectQuest: (quest: AIGeneratedQuest) => void;
+  onRegenerate: () => void;
+  isRegenerating: boolean;
+  theme: any;
+}
+
+function QuestQueueModal({ visible, onClose, quests, onSelectQuest, onRegenerate, isRegenerating, theme }: QuestQueueModalProps) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={queueModalStyles.backdrop}>
+        <View style={[queueModalStyles.container, { backgroundColor: theme.card }]}>
+          <View style={[queueModalStyles.header, { borderBottomColor: theme.border }]}>
+            <Text style={[queueModalStyles.title, { color: theme.text }]}>AI Quest Queue</Text>
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              <Pressable 
+                onPress={onRegenerate}
+                disabled={isRegenerating}
+                style={[queueModalStyles.iconButton, { backgroundColor: theme.backgroundTertiary }]}
+              >
+                {isRegenerating ? (
+                  <ActivityIndicator size="small" color={theme.primary} />
+                ) : (
+                  <RefreshCw size={20} color={theme.primary} />
+                )}
+              </Pressable>
+              <Pressable onPress={onClose}>
+                <X size={24} color={theme.text} />
+              </Pressable>
+            </View>
+          </View>
+
+          {quests.length === 0 ? (
+            <View style={queueModalStyles.emptyState}>
+              <Sparkles size={48} color={theme.textSecondary} />
+              <Text style={[queueModalStyles.emptyText, { color: theme.textSecondary }]}>
+                No AI quests available
+              </Text>
+              <Text style={[queueModalStyles.emptySubtext, { color: theme.textSecondary }]}>
+                Tap the refresh button to generate new quests
+              </Text>
+            </View>
+          ) : (
+            <ScrollView style={queueModalStyles.list}>
+              {quests.map((quest, index) => (
+                <Pressable
+                  key={quest.id}
+                  style={[queueModalStyles.queueItem, { borderBottomColor: theme.border }]}
+                  onPress={() => onSelectQuest(quest)}
+                >
+                  <View style={[queueModalStyles.questNumber, { backgroundColor: '#FFD70020' }]}>
+                    <Text style={[queueModalStyles.questNumberText, { color: '#FFD700' }]}>
+                      {index + 1}
+                    </Text>
+                  </View>
+                  <View style={queueModalStyles.itemInfo}>
+                    <Text style={[queueModalStyles.itemName, { color: theme.text }]}>
+                      {quest.title}
+                    </Text>
+                    <Text style={[queueModalStyles.itemAddress, { color: theme.textSecondary }]} numberOfLines={1}>
+                      📍 {quest.placeName}
+                    </Text>
+                    <Text style={[queueModalStyles.questMeta, { color: theme.primary }]}>
+                      {quest.minNoRequired} NOs • {quest.durationMinutes} min
+                    </Text>
+                  </View>
+                  <Sparkles size={20} color="#FFD700" />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function createStyles(colors: any) {
   return StyleSheet.create({
     container: {
@@ -829,11 +1123,12 @@ function createStyles(colors: any) {
       position: 'absolute',
       top: -4,
       right: -4,
-      width: 18,
+      minWidth: 18,
       height: 18,
       borderRadius: 9,
       justifyContent: 'center',
       alignItems: 'center',
+      paddingHorizontal: 4,
     },
     badgeText: {
       color: '#FFFFFF',
@@ -924,27 +1219,23 @@ function createStyles(colors: any) {
     loadingText: {
       fontSize: 16,
     },
-    generateQuestButton: {
+    actionButtonsContainer: {
       position: 'absolute',
-      left: 20,
       right: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: 'column',
+      gap: 12,
+    },
+    regenerateButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
       justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 16,
-      paddingHorizontal: 24,
-      borderRadius: 16,
+      alignItems: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 8,
-    },
-    generateQuestButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '700' as const,
     },
   });
 }
@@ -972,6 +1263,13 @@ const queueModalStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700' as const,
   },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   list: {
     flex: 1,
   },
@@ -994,6 +1292,17 @@ const queueModalStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
   },
+  questNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  questNumberText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
   itemInfo: {
     flex: 1,
   },
@@ -1009,6 +1318,11 @@ const queueModalStyles = StyleSheet.create({
   itemQuest: {
     fontSize: 12,
     fontWeight: '500' as const,
+  },
+  questMeta: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    marginTop: 2,
   },
   itemActions: {
     flexDirection: 'row',
@@ -1034,5 +1348,112 @@ const queueModalStyles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     textAlign: 'center',
+  },
+});
+
+const questModalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  container: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  gradient: {
+    padding: 24,
+  },
+  header: {
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800' as const,
+    textAlign: 'center',
+  },
+  location: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+  },
+  content: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+    gap: 16,
+  },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  statBadge: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+  rewards: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  rewardBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  rewardText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  actions: {
+    gap: 12,
+  },
+  acceptButton: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  acceptButtonText: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#000',
+  },
+  cancelButton: {
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
   },
 });

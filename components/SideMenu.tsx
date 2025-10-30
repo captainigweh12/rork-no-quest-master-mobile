@@ -49,7 +49,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'achievements', label: 'Achievements', icon: Crown, route: '/growth', section: 'adventure', divider: true },
   
   { id: 'teams', label: 'Guilds', icon: Users, route: '/teams', section: 'community' },
-  { id: 'explore', label: 'Explore World', icon: Compass, route: '/', section: 'community' },
+  { id: 'explore', label: 'Explore World', icon: Compass, route: '/(tabs)/map', section: 'community' },
 ];
 
 const ADMIN_MENU_ITEMS: MenuItem[] = [
