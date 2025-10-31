@@ -20,8 +20,6 @@ import { z } from 'zod';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 
-
-
 export default function CommunityScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -320,8 +318,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         </Pressable>
       </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-
+      <View style={[styles.searchContainer, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>        
         <Search size={20} color={theme.colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: theme.colors.text }]}
@@ -344,10 +341,14 @@ Provide a brief encouraging explanation of the skills they developed and why.`
           refreshing={feedQuery.isFetching}
           onRefresh={() => queryClient.invalidateQueries({ queryKey: ['communityFeed'] })}
           contentContainerStyle={[styles.feedContent, { paddingBottom: insets.bottom + 20 }]}
+          initialNumToRender={6}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS !== 'web'}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
           ListHeaderComponent={
             <View>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text, paddingHorizontal: 20 }]}>Community Feed</Text>
-              
+              <Text style={[styles.sectionTitle, { color: theme.colors.text, paddingHorizontal: 20 }]}>Community Feed</Text>              
               <Pressable 
                 style={[styles.createPostButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
                 onPress={() => setShowCreateJournal(true)}
@@ -365,19 +366,19 @@ Provide a brief encouraging explanation of the skills they developed and why.`
             <Text style={[styles.emptyText, { color: theme.colors.textSecondary, paddingHorizontal: 20 }]}>No posts yet. Share a journal or quest!</Text>
           )}
           renderItem={({ item }) => (
-            <View style={[styles.postCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={[styles.postCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>              
               <View style={styles.postHeader}>
                 <Avatar name={item.username} imageUrl={item.avatarUrl} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.friendName, { color: theme.colors.text }]}>{item.username}</Text>
                   <Text style={[styles.postMeta, { color: theme.colors.textSecondary }]}>{new Date(item.createdAt).toLocaleString()}</Text>
                 </View>
-                <View style={[styles.pillBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+                <View style={[styles.pillBadge, { backgroundColor: theme.colors.primary + '20' }]}>                  
                   <Text style={[styles.pillBadgeText, { color: theme.colors.primary }]}>{item.content.type === 'journal' ? 'Journal' : 'Quest'}</Text>
                 </View>
               </View>
               <View style={{ gap: 8 }}>
-                <Text style={[styles.postTitle, { color: theme.colors.text }]}>
+                <Text style={[styles.postTitle, { color: theme.colors.text }] }>
                   {item.content.title}
                 </Text>
                 {'notes' in item.content && item.content.notes ? (
@@ -389,7 +390,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                 {item.content.type === 'journal' && item.content.skills && item.content.skills.length > 0 ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {item.content.skills.map((s, idx) => (
-                      <View key={`${item.id}-${idx}`} style={[styles.postTag, { backgroundColor: theme.colors.backgroundTertiary }]}>
+                      <View key={`${item.id}-${idx}`} style={[styles.postTag, { backgroundColor: theme.colors.backgroundTertiary }] }>
                         <Text style={[styles.postTagText, { color: theme.colors.textSecondary }]}>{s}</Text>
                       </View>
                     ))}
@@ -410,14 +411,13 @@ Provide a brief encouraging explanation of the skills they developed and why.`
             {searchUsersQuery.isLoading ? (
               <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
             ) : searchQuery.length < 3 ? (
-              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                Type at least 3 characters to search
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>                Type at least 3 characters to search
               </Text>
             ) : searchResults.length === 0 ? (
               <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No users found</Text>
             ) : (
               searchResults.map((user) => (
-                <View key={user.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>
+                <View key={user.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  
                   <View style={styles.friendHeader}>
                     <Avatar
                       name={user.fullName || user.username}
@@ -456,19 +456,17 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         ) : (
           <>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Friends</Text>
-            <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
-              {filteredFriends.length} friends
+            <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>              {filteredFriends.length} friends
             </Text>
 
             {friendsQuery.isLoading ? (
               <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
             ) : filteredFriends.length === 0 ? (
-              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                No friends yet. Add some friends to start sharing quests!
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>                No friends yet. Add some friends to start sharing quests!
               </Text>
             ) : (
               filteredFriends.map((friend) => (
-                <View key={friend.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>
+                <View key={friend.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  
                   <View style={styles.friendHeader}>
                     <Avatar
                       name={friend.fullName || friend.username}
@@ -478,7 +476,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                     <View style={styles.friendInfo}>
                       <View style={styles.friendNameRow}>
                         <Text style={[styles.friendName, { color: theme.colors.text }]}>{friend.username}</Text>
-                        <View style={[styles.rankBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+                        <View style={[styles.rankBadge, { backgroundColor: theme.colors.primary + '20' }]}>                          
                           <Text style={[styles.rankText, { color: theme.colors.primary }]}>Lv {friend.level}</Text>
                         </View>
                       </View>
@@ -528,8 +526,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Invite Friends</Text>
-            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
-              Share an invite link to add friends easily
+            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>              Share an invite link to add friends easily
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -560,10 +557,9 @@ Provide a brief encouraging explanation of the skills they developed and why.`
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Send Quest</Text>
             {selectedFriend && activeQuest && (
               <>
-                <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
-                  Send &quot;{activeQuest.title}&quot; to {selectedFriend.username}?
+                <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>                  Send &quot;{activeQuest.title}&quot; to {selectedFriend.username}?
                 </Text>
-                <View style={[styles.questPreview, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
+                <View style={[styles.questPreview, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>                  
                   <Text style={[styles.questPreviewTitle, { color: theme.colors.text }]}>{activeQuest.title}</Text>
                   <Text style={[styles.questPreviewDesc, { color: theme.colors.textSecondary }]}>{activeQuest.description}</Text>
                   <View style={styles.questPreviewStats}>
@@ -605,8 +601,8 @@ Provide a brief encouraging explanation of the skills they developed and why.`
 
       <Modal visible={showCreateJournal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.createJournalModal, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.createJournalHeader, { borderBottomColor: theme.colors.border }]}>
+          <View style={[styles.createJournalModal, { backgroundColor: theme.colors.background }]}>            
+            <View style={[styles.createJournalHeader, { borderBottomColor: theme.colors.border }]}>              
               <Text style={[styles.createJournalTitle, { color: theme.colors.text }]}>Create Journal Post</Text>
               <Pressable onPress={() => setShowCreateJournal(false)}>
                 <X size={24} color={theme.colors.text} />
@@ -632,8 +628,8 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                   keyExtractor={(u, i) => `${u}-${i}`}
                   contentContainerStyle={{ gap: 8 }}
                   renderItem={({ item, index }) => (
-                    <View style={[styles.journalImageWrap, { borderColor: theme.colors.border }]}>
-                      <Image source={{ uri: item }} style={styles.journalImage} contentFit="cover" />
+                    <View style={[styles.journalImageWrap, { borderColor: theme.colors.border }]}>                      
+                      <Image source={{ uri: item }} style={styles.journalImage} contentFit="cover" cachePolicy="memory-disk" />
                       <Pressable
                         onPress={() => setJournalImages(prev => prev.filter((_, i) => i !== index))}
                         style={[styles.removeJournalImageBtn, { backgroundColor: theme.colors.background + 'AA' }]}
@@ -643,7 +639,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                     </View>
                   )}
                   ListFooterComponent={
-                    <Pressable onPress={pickJournalImages} style={[styles.addJournalImageBtn, { borderColor: theme.colors.border }]}>
+                    <Pressable onPress={pickJournalImages} style={[styles.addJournalImageBtn, { borderColor: theme.colors.border }]}>                      
                       <ImagePlus size={20} color={theme.colors.textSecondary} />
                       <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Add</Text>
                     </Pressable>
@@ -691,7 +687,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
               </View>
             </ScrollView>
             
-            <View style={[styles.createJournalFooter, { borderTopColor: theme.colors.border }]}>
+            <View style={[styles.createJournalFooter, { borderTopColor: theme.colors.border }]}>              
               <Pressable
                 onPress={handleAnalyzeJournal}
                 style={[styles.createJournalSubmit, { backgroundColor: journalTitle.trim() ? theme.colors.primary : theme.colors.border, opacity: isAnalyzing ? 0.7 : 1 }]}
@@ -717,22 +713,21 @@ Provide a brief encouraging explanation of the skills they developed and why.`
 
       <Modal visible={showSkillsModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.skillsModalContent, { backgroundColor: theme.colors.card }]}>
+          <View style={[styles.skillsModalContent, { backgroundColor: theme.colors.card }]}>            
             <View style={{ alignItems: 'center', marginBottom: 16 }}>
-              <View style={[styles.iconCircle, { backgroundColor: theme.colors.primary + '20' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: theme.colors.primary + '20' }]}>                
                 <Sparkles size={32} color={theme.colors.primary} />
               </View>
             </View>
             
             <Text style={[styles.skillsModalTitle, { color: theme.colors.text }]}>Skills You Grew</Text>
             
-            <Text style={[styles.skillsModalExplanation, { color: theme.colors.textSecondary }]}>
-              {aiExplanation}
+            <Text style={[styles.skillsModalExplanation, { color: theme.colors.textSecondary }]}>              {aiExplanation}
             </Text>
             
             <View style={styles.skillsContainer}>
               {analyzedSkills.map((s) => (
-                <View key={s} style={[styles.skillChip, { backgroundColor: theme.colors.primary }]}>
+                <View key={s} style={[styles.skillChip, { backgroundColor: theme.colors.primary }]}>                  
                   <Text style={styles.skillChipText}>{labelForSkill(s)}</Text>
                 </View>
               ))}

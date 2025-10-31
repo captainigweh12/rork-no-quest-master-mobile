@@ -178,7 +178,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
             contentContainerStyle={{ gap: 8 }}
             renderItem={({ item, index }) => (
               <View style={[styles.imageWrap, { borderColor: theme.colors.border }]}>
-                <Image source={{ uri: item }} style={styles.image} contentFit="cover" />
+                <Image source={{ uri: item }} style={styles.image} contentFit="cover" cachePolicy="memory-disk" />
                 <Pressable
                   onPress={() => setImages(prev => prev.filter((_, i) => i !== index))}
                   style={[styles.removeImageBtn, { backgroundColor: theme.colors.background + 'AA' }]}
@@ -267,6 +267,11 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         data={journals}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+        initialNumToRender={8}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]} testID={`journal-item-${item.id}`}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -304,7 +309,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                 keyExtractor={(u, i) => `${item.id}-${i}`}
                 contentContainerStyle={{ gap: 8, marginTop: 8 }}
                 renderItem={({ item: img }) => (
-                  <Image source={{ uri: img }} style={styles.cardImage} contentFit="cover" />
+                  <Image source={{ uri: img }} style={styles.cardImage} contentFit="cover" cachePolicy="memory-disk" />
                 )}
               />
             ) : null}
