@@ -5,4 +5,4 @@ EXPO_PUBLIC_APP_BASE_URL=https://rejectionhero.com
 EXPO_PUBLIC_EMAIL_REDIRECT=noquest://verify-email
 
 # OpenAI API Key (fallback for quest generation)
-EXPO_PUBLIC_OPENAI_API_KEY=your-openai-api-key-here
+EXPO_PUBLIC_OPENAI_API_KEY=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
