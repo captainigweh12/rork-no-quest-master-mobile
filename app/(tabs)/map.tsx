@@ -12,9 +12,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue } from '@/services/supabase/map';
 import { generateText } from '@rork/toolkit-sdk';
 import type { Quest } from '@/types';
+import OpenAI from 'openai';
 
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCHMHlOrPPSRULrUf-FqPWHz0Y6PJoPrRk';
+const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 interface Place {
   name: string;
@@ -221,7 +223,29 @@ Title: <catchy title>
 Description: <1 actionable sentence with the ask>
 MinNo: <integer 3-7>`;
 
-          const aiResponse = await generateText(questPrompt);
+          let aiResponse: string;
+          try {
+            aiResponse = await generateText(questPrompt);
+            console.log(`Quest ${i + 1}: Generated via Rork AI`);
+          } catch (error) {
+            console.log(`Quest ${i + 1}: Rork AI failed, trying OpenAI fallback...`, error);
+            try {
+              if (!OPENAI_API_KEY) {
+                throw new Error('OpenAI API key not configured');
+              }
+              const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+              const completion = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: questPrompt }],
+                temperature: 0.8,
+              });
+              aiResponse = completion.choices[0]?.message?.content || '';
+              console.log(`Quest ${i + 1}: Generated via OpenAI fallback`);
+            } catch (openaiError) {
+              console.error(`Quest ${i + 1}: OpenAI fallback also failed`, openaiError);
+              throw new Error('Both AI providers failed');
+            }
+          }
 
           const titleMatch = aiResponse.match(/Title:\s*(.+?)(?:\n|$)/i);
           const descMatch = aiResponse.match(/Description:\s*(.+?)(?:\n|$)/i);
