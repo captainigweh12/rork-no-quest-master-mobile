@@ -84,8 +84,14 @@ export async function getUserTeams(userId: string): Promise<Team[]> {
     .eq('user_id', userId);
 
   if (memberError) {
-    console.error('[getUserTeams] Error fetching team memberships:', memberError);
-    throw memberError;
+    console.error('[getUserTeams] Error fetching team memberships:', JSON.stringify(memberError, null, 2));
+    console.error('[getUserTeams] Error details:', {
+      message: memberError.message,
+      details: memberError.details,
+      hint: memberError.hint,
+      code: memberError.code
+    });
+    return [];
   }
 
   if (!teamMembers || teamMembers.length === 0) {
@@ -102,8 +108,14 @@ export async function getUserTeams(userId: string): Promise<Team[]> {
     .order('created_at', { ascending: false });
 
   if (teamsError) {
-    console.error('[getUserTeams] Error fetching teams:', teamsError);
-    throw teamsError;
+    console.error('[getUserTeams] Error fetching teams:', JSON.stringify(teamsError, null, 2));
+    console.error('[getUserTeams] Error details:', {
+      message: teamsError.message,
+      details: teamsError.details,
+      hint: teamsError.hint,
+      code: teamsError.code
+    });
+    return [];
   }
 
   console.log('[getUserTeams] Found teams:', teams?.length || 0);
