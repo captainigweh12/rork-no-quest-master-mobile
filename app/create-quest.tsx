@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { QuestLoadingModal } from '@/components/QuestLoadingModal';
 import { X, Sparkles, Heart, Briefcase, Flame, Map } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState, useCallback } from 'react';
@@ -20,6 +21,7 @@ export default function CreateQuestScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [generatingQuest, setGeneratingQuest] = useState(false);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
   const [customDescription, setCustomDescription] = useState('');
   const [customMinNo, setCustomMinNo] = useState('3');
@@ -43,9 +45,10 @@ export default function CreateQuestScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
       setGeneratingQuest(true);
+      setShowAIModal(false);
+      setShowLoadingModal(true);
       try {
         await addAIQuest(difficulty, false, undefined, selectedCategory || undefined);
-        setShowAIModal(false);
         setSelectedCategory(null);
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -62,6 +65,7 @@ export default function CreateQuestScreen() {
         }
       } finally {
         setGeneratingQuest(false);
+        setShowLoadingModal(false);
       }
     },
     [addAIQuest, router, selectedCategory]
@@ -351,17 +355,12 @@ export default function CreateQuestScreen() {
               />
             </View>
 
-            {generatingQuest && (
-              <View style={styles.generatingContainer}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={[styles.generatingText, { color: theme.colors.textSecondary }]}>
-                  Generating your quest...
-                </Text>
-              </View>
-            )}
+
           </View>
         </View>
       </Modal>
+
+      <QuestLoadingModal visible={showLoadingModal} />
     </View>
   );
 }

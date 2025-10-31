@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { SafeImage } from '@/components/SafeImage';
+import { QuestLoadingModal } from '@/components/QuestLoadingModal';
 import { ArrowRight, Sparkles, X } from 'lucide-react-native';
 import { useState } from 'react';
 
@@ -208,6 +209,7 @@ export default function CategoryScreen() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState<boolean>(false);
+  const [showLoadingModal, setShowLoadingModal] = useState<boolean>(false);
 
   const meta = CATEGORY_META[String(category)];
   const items = SUBS[String(category)] ?? [];
@@ -342,15 +344,20 @@ export default function CategoryScreen() {
           </Pressable>
         </KeyboardAvoidingView>
       </Modal>
+
+      <QuestLoadingModal visible={showLoadingModal} />
     </View>
   );
 
   async function handleQuickGenerate() {
+    setShowLoadingModal(true);
     try {
       await addAIQuest('medium', false, undefined, String(category) as any);
       router.replace('/(tabs)/(home)?focus=1' as any);
     } catch (error) {
       console.error('Failed to generate quest:', error);
+    } finally {
+      setShowLoadingModal(false);
     }
   }
 
@@ -363,14 +370,16 @@ export default function CategoryScreen() {
       setCurrentQuestionIndex((prev) => prev + 1);
     } else {
       setGenerating(true);
+      setShowModal(false);
+      setShowLoadingModal(true);
       try {
         await addAIQuest('medium', false, undefined, String(category) as any);
-        setShowModal(false);
         router.replace('/(tabs)/(home)?focus=1' as any);
       } catch (error) {
         console.error('Failed to generate quest:', error);
       } finally {
         setGenerating(false);
+        setShowLoadingModal(false);
       }
     }
   }
