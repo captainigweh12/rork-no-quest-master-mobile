@@ -13,6 +13,7 @@ import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue } from '@/services
 import { generateText } from '@rork/toolkit-sdk';
 import type { Quest } from '@/types';
 import OpenAI from 'openai';
+import { QuestLoadingModal } from '@/components/QuestLoadingModal';
 
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCHMHlOrPPSRULrUf-FqPWHz0Y6PJoPrRk';
@@ -899,6 +900,8 @@ MinNo: <integer 3-7>`;
         isRegenerating={isGeneratingAIQuests}
         theme={theme.colors}
       />
+
+      <QuestLoadingModal visible={isGeneratingAIQuests} />
     </View>
   );
 }
