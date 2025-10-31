@@ -95,7 +95,7 @@ export default function MapScreen() {
               setUserLocation({ latitude: update.coords.latitude, longitude: update.coords.longitude });
             }
           );
-          // @ts-expect-error keep subscription on window
+          
           (global as any).__mapLocSub = sub;
         } catch (e) {
           console.log('watchPositionAsync failed', e);
