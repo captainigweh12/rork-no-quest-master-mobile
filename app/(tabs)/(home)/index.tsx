@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Sparkles, Radio } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Users, Radio } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,10 @@ import type { Quest } from '@/types';
 import SideMenu from '@/components/SideMenu';
 import { useCategories, type AppCategory } from '@/contexts/CategoriesContext';
 import { SafeImage } from '@/components/SafeImage';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useQuery } from '@tanstack/react-query';
+import { getUserTeams, type Team } from '@/services/supabase/teams';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -31,6 +35,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ focus?: string }>();
   const { selected, isLoading: catsLoading } = useCategories();
+  const { user } = useAuth();
+  const { hasFeature } = useSubscription();
   const [search, setSearch] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
@@ -38,6 +44,15 @@ export default function HomeScreen() {
   const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
   const [questMode, setQuestMode] = useState<boolean>(false);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
+
+  const teamsQuery = useQuery({
+    queryKey: ['teams-mini', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('No user');
+      return getUserTeams(user.id);
+    },
+    enabled: !!user?.id && hasFeature('teamDashboard'),
+  });
 
   const activeQuests = quests.filter(q => !q.completed);
   const startedQuests = activeQuests.filter(q => q.timerEndAt);
@@ -234,7 +249,53 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
 
-          <View style={[styles.heroBanner, { 
+          <View style={{ gap: 12, marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '900' as const, color: theme.colors.text }}>Groups</Text>
+              <Pressable onPress={() => router.push('/teams' as any)} testID="see-all-groups" style={({pressed})=>[{opacity: pressed?0.7:1}]}> 
+                <Text style={{ color: theme.colors.primary, fontWeight: '800' as const }}>See all</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12 }}
+              testID="groups-horizontal"
+            >
+              {(teamsQuery.data as Team[] | undefined)?.map((t) => (
+                <Pressable
+                  key={t.id}
+                  onPress={() => router.push('/teams' as any)}
+                  style={({ pressed }) => [
+                    styles.groupPill,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border, opacity: pressed ? 0.9 : 1 },
+                  ]}
+                  testID={`group-${t.id}`}
+                >
+                  <View style={[styles.groupAvatar, { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.border }]}> 
+                    <Users size={18} color={theme.colors.primary} />
+                  </View>
+                  <Text style={[styles.groupLabel, { color: theme.colors.text }]} numberOfLines={1}>{t.name}</Text>
+                </Pressable>
+              ))}
+
+              <Pressable
+                onPress={() => router.push(hasFeature('teamDashboard') ? '/teams' as any : '/subscription' as any)}
+                style={({ pressed }) => [
+                  styles.groupPill,
+                  { backgroundColor: theme.colors.glass, borderColor: theme.colors.border, opacity: pressed ? 0.8 : 1 },
+                ]}
+                testID="create-group-pill"
+              >
+                <View style={[styles.groupAvatar, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}>
+                  <Plus size={18} color="#fff" />
+                </View>
+                <Text style={[styles.groupLabel, { color: theme.colors.text }]}>Create Group</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+
+          <View style={[styles.heroBanner, { display: 'none', 
             backgroundColor: theme.colors.glass,
             shadowColor: theme.colors.shadow,
             shadowOffset: { width: 0, height: 8 },
@@ -256,7 +317,7 @@ export default function HomeScreen() {
               shadowRadius: 12,
               elevation: 6,
             }}>
-              <Sparkles size={28} color="#fff" />
+              <Users size={28} color="#fff" />
             </View>
           </View>
 
@@ -1000,6 +1061,25 @@ function createStyles(colors: any) {
     },
     heroTitle: { fontSize: 18, fontWeight: '900' as const },
     heroSubtitle: { fontSize: 12, fontWeight: '600' as const },
+    groupPill: {
+      width: 140,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    groupAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+    },
+    groupLabel: { fontSize: 12, fontWeight: '800' as const, flexShrink: 1 },
     categoryCard: {
       width: 180,
       height: 100,
