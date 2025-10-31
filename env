@@ -10,3 +10,6 @@ EXPO_PUBLIC_PERPLEXITY_API_KEY=pplx-Pp28ytuCNIbpbFIfaYU4bkOhYhj6vIgLsrRtWWI1tHbJ
 EXPO_PUBLIC_OPENAI_API_KEY=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
 # Comma-separated, left-to-right priority. Supported: perplexity,openai
 EXPO_PUBLIC_AI_PROVIDER_ORDER=perplexity,openai
+
+# YouTube
+EXPO_PUBLIC_YOUTUBE_API_KEY=AIzaSyDSYqu0CwENbpfAWFLzMyGT2PHFVEntLzY
