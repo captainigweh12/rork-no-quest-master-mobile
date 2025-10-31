@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useTheme, type Theme } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
-import { Calendar } from 'lucide-react-native';
+import { Calendar, ArrowLeft } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 
 type CalendarDay = {
@@ -18,6 +18,7 @@ export default function QuestCalendarScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { quests } = useGame();
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const completedQuestsByDate = useMemo(() => {
@@ -122,6 +123,16 @@ export default function QuestCalendarScreen() {
           headerTitleStyle: {
             fontWeight: '700' as const,
           },
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => ([
+                { padding: 8, opacity: pressed ? 0.6 : 1 }
+              ])}
+            >
+              <ArrowLeft size={24} color="#fff" />
+            </Pressable>
+          ),
         }}
       />
 

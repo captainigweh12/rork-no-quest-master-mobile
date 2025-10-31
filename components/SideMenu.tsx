@@ -2,7 +2,6 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Animated } from '
 import { useRouter } from 'expo-router';
 import { 
   User, 
-  Settings, 
   HelpCircle, 
   UserPlus, 
   TrendingUp, 
@@ -10,13 +9,9 @@ import {
   Compass,
   Medal,
   Trophy,
-  LineChart,
   ListPlus,
   Shield,
-  Sword,
   Scroll,
-  Crown,
-  Target,
   Calendar
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,17 +34,15 @@ type MenuItem = {
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'profile', label: 'My Profile', icon: User, route: '/profile', section: 'profile' },
+  { id: 'profile', label: 'Profile & Settings', icon: User, route: '/profile', section: 'profile' },
   { id: 'skill', label: 'Skill Level', icon: Medal, route: '/profile', section: 'profile' },
-  { id: 'settings', label: 'Settings', icon: Settings, route: '/settings', section: 'profile' },
   { id: 'help', label: 'Help & Support', icon: HelpCircle, route: '/disclaimer', section: 'profile' },
   { id: 'refer', label: 'Invite Warriors', icon: UserPlus, route: '/profile', section: 'profile', divider: true },
   
   { id: 'calendar', label: 'Quest Calendar', icon: Calendar, route: '/quest-calendar', section: 'adventure' },
   { id: 'quests', label: 'Past Quests', icon: Scroll, route: '/growth', section: 'adventure' },
   { id: 'ranks', label: 'Leaderboard', icon: Trophy, route: '/ranks', section: 'adventure' },
-  { id: 'trends', label: 'Growth Stats', icon: TrendingUp, route: '/growth', section: 'adventure' },
-  { id: 'achievements', label: 'Achievements', icon: Crown, route: '/growth', section: 'adventure', divider: true },
+  { id: 'growth-achievements', label: 'Growth & Achievements', icon: TrendingUp, route: '/growth', section: 'adventure', divider: true },
   
   { id: 'teams', label: 'Groups', icon: Users, route: '/teams', section: 'community' },
   { id: 'categories', label: 'Manage Categories', icon: ListPlus, route: '/manage-categories', section: 'community' },

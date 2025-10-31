@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJournals, type Skill } from '@/contexts/JournalsContext';
-import { Stack } from 'expo-router';
-import { LineChart, Trophy, Sparkles } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { LineChart, Trophy, Sparkles, ArrowLeft } from 'lucide-react-native';
 import { useMemo, useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -48,6 +48,7 @@ export default function GrowthAchievementsScreen() {
   const { journals } = useJournals();
   const { user } = useAuth();
   const { profile, quests } = useGame();
+  const router = useRouter();
 
   const stats = useMemo(() => {
     const counts: Record<Skill, number> = { charisma: 0, intellect: 0, courage: 0, empathy: 0, creativity: 0, discipline: 0 };
@@ -111,7 +112,29 @@ export default function GrowthAchievementsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]} testID="growth-achievements-screen">
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Growth & Achievements',
+          headerStyle: {
+            backgroundColor: theme.colors.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: '700' as const,
+          },
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => ([
+                { padding: 8, opacity: pressed ? 0.6 : 1 }
+              ])}
+            >
+              <ArrowLeft size={24} color="#fff" />
+            </Pressable>
+          ),
+        }}
+      />
       <LinearGradient colors={[theme.colors.backgroundTertiary, theme.colors.background]} style={StyleSheet.absoluteFillObject} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}>
