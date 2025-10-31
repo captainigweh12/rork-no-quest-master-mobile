@@ -7,14 +7,17 @@ export default function HomeStackLayout() {
   return (
     <Stack
       screenOptions={{
-        headerShown: false,
+        headerShown: true,
+        headerStyle: { backgroundColor: theme.colors.background },
+        headerTitleStyle: { color: theme.colors.text },
+        headerTintColor: theme.colors.text,
         contentStyle: {
           backgroundColor: theme.colors.background,
         },
       }}
     >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="category/[category]" />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="category/[category]" options={{ title: 'Category' }} />
     </Stack>
   );
 }

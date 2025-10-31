@@ -4,6 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function TabLayout() {
   const router = useRouter();
@@ -16,27 +17,31 @@ export default function TabLayout() {
 
   const { theme } = themeContext;
 
+  const clampedInset = Math.max(8, Math.min(insets.bottom, 16));
+
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: {
-            backgroundColor: theme.colors.card,
-            borderTopColor: theme.colors.border,
-            borderTopWidth: 1,
-            height: 60 + insets.bottom,
-            paddingBottom: insets.bottom,
-          },
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textSecondary,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '700' as const,
-            letterSpacing: 0.5,
-          },
-        }}
-      >
+      <ErrorBoundary>
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+            tabBarStyle: {
+              backgroundColor: theme.colors.card,
+              borderTopColor: theme.colors.border,
+              borderTopWidth: 1,
+              height: 56 + clampedInset,
+              paddingBottom: clampedInset,
+              paddingTop: 6,
+            },
+            tabBarActiveTintColor: theme.colors.primary,
+            tabBarInactiveTintColor: theme.colors.textSecondary,
+            tabBarLabelStyle: {
+              fontSize: 11,
+              fontWeight: '700' as const,
+              letterSpacing: 0.5,
+            },
+          }}
+        >
         <Tabs.Screen
           name="(home)"
           options={{
@@ -94,8 +99,8 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
           }}
         />
-      </Tabs>
-
+        </Tabs>
+      </ErrorBoundary>
     </View>
   );
 }

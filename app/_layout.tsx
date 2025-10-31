@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { LogBox } from "react-native";
+import { LogBox, Pressable } from "react-native";
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import { LocalizationProvider } from "@/contexts/LocalizationContext";
 import { JournalsProvider } from "@/contexts/JournalsContext";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
+import { ChevronLeft } from 'lucide-react-native';
 
 
 LogBox.ignoreLogs([
@@ -72,15 +73,124 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ presentation: "modal" }} />
-      <Stack.Screen name="profile" options={{ presentation: "modal" }} />
-      <Stack.Screen name="account" options={{ presentation: "modal" }} />
-      <Stack.Screen name="create-quest" options={{ presentation: "modal" }} />
-      <Stack.Screen name="disclaimer" options={{ presentation: "modal" }} />
-      <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
-      <Stack.Screen name="chat" options={{ presentation: "modal" }} />
-      <Stack.Screen name="subscription" options={{ presentation: "modal" }} />
-      <Stack.Screen name="manage-categories" options={{ presentation: "modal" }} />
+
+      <Stack.Screen 
+        name="settings" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Settings',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-settings">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="profile" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Profile',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-profile">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="account" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Account',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-account">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="create-quest" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Create Quest',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-create-quest">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="disclaimer" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Disclaimer',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-disclaimer">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="notifications" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Notifications',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-notifications">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="chat" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Chat',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-chat">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="subscription" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Subscription',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-subscription">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
+      <Stack.Screen 
+        name="manage-categories" 
+        options={({ navigation }) => ({ 
+          presentation: "modal", 
+          headerShown: true,
+          title: 'Manage Categories',
+          headerLeft: () => (
+            <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-manage-categories">
+              <ChevronLeft size={22} color="#000" />
+            </Pressable>
+          ),
+        })} 
+      />
     </Stack>
   );
 }
