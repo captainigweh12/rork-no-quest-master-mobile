@@ -76,36 +76,42 @@ const SUBSCRIPTION_PRICES = {
 export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
   const { user } = useAuth();
 
+  const isAdmin = !!user?.isAdmin;
+
   const tier = useMemo<SubscriptionTier>(() => {
-    return user?.subscriptionTier || 'free';
-  }, [user?.subscriptionTier]);
+    const effective: SubscriptionTier = isAdmin ? 'team' : (user?.subscriptionTier || 'free');
+    return effective;
+  }, [isAdmin, user?.subscriptionTier]);
 
   const features = useMemo<SubscriptionFeatures>(() => {
     return SUBSCRIPTION_FEATURES[tier];
   }, [tier]);
 
   const isSubscriptionActive = useMemo(() => {
+    if (isAdmin) return true;
     if (tier === 'free') return false;
     if (!user?.subscriptionExpiresAt) return false;
-    
+
     const expiresAt = new Date(user.subscriptionExpiresAt);
     return expiresAt > new Date();
-  }, [tier, user?.subscriptionExpiresAt]);
+  }, [isAdmin, tier, user?.subscriptionExpiresAt]);
 
   const canUseDailyChallenge = useMemo(() => {
+    if (isAdmin) return true;
     const used = user?.dailyChallengesUsed || 0;
     return used < features.dailyChallengeLimit;
-  }, [user?.dailyChallengesUsed, features.dailyChallengeLimit]);
+  }, [isAdmin, user?.dailyChallengesUsed, features.dailyChallengeLimit]);
 
   const remainingChallenges = useMemo(() => {
-    if (features.unlimitedChallenges) return Infinity;
+    if (isAdmin || features.unlimitedChallenges) return Infinity;
     const used = user?.dailyChallengesUsed || 0;
     return Math.max(0, features.dailyChallengeLimit - used);
-  }, [user?.dailyChallengesUsed, features.dailyChallengeLimit, features.unlimitedChallenges]);
+  }, [isAdmin, user?.dailyChallengesUsed, features.dailyChallengeLimit, features.unlimitedChallenges]);
 
   const hasFeature = useCallback((featureName: keyof SubscriptionFeatures): boolean => {
+    if (isAdmin) return true;
     return features[featureName] as boolean;
-  }, [features]);
+  }, [isAdmin, features]);
 
   const getPricing = useCallback((selectedTier: 'pro' | 'hero' | 'team') => {
     return SUBSCRIPTION_PRICES[selectedTier];
