@@ -18,6 +18,7 @@ import { QuestLoadingModal } from '@/components/QuestLoadingModal';
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCHMHlOrPPSRULrUf-FqPWHz0Y6PJoPrRk';
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+const ACCESS_RADIUS_METERS = 80;
 
 interface Place {
   name: string;
