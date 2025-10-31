@@ -138,14 +138,53 @@ export default function MapScreen() {
 
       const typeQueries: { url: string; kind: string }[] = [
         { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=cafe&key=${GOOGLE_PLACES_API_KEY}`, kind: 'coffee' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=restaurant&key=${GOOGLE_PLACES_API_KEY}`, kind: 'restaurant' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=meal_takeaway&key=${GOOGLE_PLACES_API_KEY}`, kind: 'fast_food' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=bar&key=${GOOGLE_PLACES_API_KEY}`, kind: 'bar' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=convenience_store&key=${GOOGLE_PLACES_API_KEY}`, kind: 'convenience' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=gas_station&key=${GOOGLE_PLACES_API_KEY}`, kind: 'gas' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=supermarket&key=${GOOGLE_PLACES_API_KEY}`, kind: 'supermarket' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=shopping_mall&key=${GOOGLE_PLACES_API_KEY}`, kind: 'mall' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=clothing_store&key=${GOOGLE_PLACES_API_KEY}`, kind: 'clothing' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=gym&key=${GOOGLE_PLACES_API_KEY}`, kind: 'gym' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=yoga%20studio&key=${GOOGLE_PLACES_API_KEY}`, kind: 'yoga' },
         { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=park&key=${GOOGLE_PLACES_API_KEY}`, kind: 'park' },
-        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=museum&key=${GOOGLE_PLACES_API_KEY}`, kind: 'museum' },
-        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=lodging&key=${GOOGLE_PLACES_API_KEY}`, kind: 'hotel' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=playground&key=${GOOGLE_PLACES_API_KEY}`, kind: 'playground' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=dog%20park&key=${GOOGLE_PLACES_API_KEY}`, kind: 'dog_park' },
         { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=beach&key=${GOOGLE_PLACES_API_KEY}`, kind: 'beach' },
         { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=lake&key=${GOOGLE_PLACES_API_KEY}`, kind: 'lake' },
-        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=tourist_attraction&key=${GOOGLE_PLACES_API_KEY}`, kind: 'attraction' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=riverwalk&key=${GOOGLE_PLACES_API_KEY}`, kind: 'riverwalk' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=community_center&key=${GOOGLE_PLACES_API_KEY}`, kind: 'community_center' },
         { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=library&key=${GOOGLE_PLACES_API_KEY}`, kind: 'library' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=book_store&key=${GOOGLE_PLACES_API_KEY}`, kind: 'bookstore' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=university&key=${GOOGLE_PLACES_API_KEY}`, kind: 'campus' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=convention%20center&key=${GOOGLE_PLACES_API_KEY}`, kind: 'events' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=festival&key=${GOOGLE_PLACES_API_KEY}`, kind: 'festival' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=farmers%20market&key=${GOOGLE_PLACES_API_KEY}`, kind: 'farmers_market' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=flea%20market&key=${GOOGLE_PLACES_API_KEY}`, kind: 'flea_market' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=movie_theater&key=${GOOGLE_PLACES_API_KEY}`, kind: 'cinema' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=live%20music&key=${GOOGLE_PLACES_API_KEY}`, kind: 'music' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=open%20mic&key=${GOOGLE_PLACES_API_KEY}`, kind: 'open_mic' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=comedy%20club&key=${GOOGLE_PLACES_API_KEY}`, kind: 'comedy' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=museum&key=${GOOGLE_PLACES_API_KEY}`, kind: 'museum' },
         { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=art_gallery&key=${GOOGLE_PLACES_API_KEY}`, kind: 'art' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=food%20truck&key=${GOOGLE_PLACES_API_KEY}`, kind: 'food_truck' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=bakery&key=${GOOGLE_PLACES_API_KEY}`, kind: 'bakery' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=ice%20cream&key=${GOOGLE_PLACES_API_KEY}`, kind: 'ice_cream' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=hair_care&key=${GOOGLE_PLACES_API_KEY}`, kind: 'hair' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=beauty_salon&key=${GOOGLE_PLACES_API_KEY}`, kind: 'salon' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=pharmacy&key=${GOOGLE_PLACES_API_KEY}`, kind: 'pharmacy' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=tourist_attraction&key=${GOOGLE_PLACES_API_KEY}`, kind: 'attraction' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=bus_station&key=${GOOGLE_PLACES_API_KEY}`, kind: 'bus' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=subway_station&key=${GOOGLE_PLACES_API_KEY}`, kind: 'subway' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=train_station&key=${GOOGLE_PLACES_API_KEY}`, kind: 'train' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=basketball%20court&key=${GOOGLE_PLACES_API_KEY}`, kind: 'basketball' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=skatepark&key=${GOOGLE_PLACES_API_KEY}`, kind: 'skatepark' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=pet_store&key=${GOOGLE_PLACES_API_KEY}`, kind: 'pet_store' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=hardware_store&key=${GOOGLE_PLACES_API_KEY}`, kind: 'hardware' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=home_goods_store&key=${GOOGLE_PLACES_API_KEY}`, kind: 'home_goods' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&type=lodging&key=${GOOGLE_PLACES_API_KEY}`, kind: 'hotel' },
+        { url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${base}&radius=${radius10mi}&keyword=coworking&key=${GOOGLE_PLACES_API_KEY}`, kind: 'coworking' },
       ];
 
       const fetchBatch = async (queries: { url: string; kind: string }[]) => {
@@ -218,6 +257,14 @@ Constraints:
 - Must involve asking strangers or staff something likely to be rejected
 - Keep it social, safe, and respectful
 - Tailor to this place context
+Examples (style guide):
+- Ask a barista at a coffee shop for a free refill before buying anything.
+- Ask a restaurant server if you can customize the entire menu item (replace the bun with pancakes).
+- At a park, ask a stranger if they’d race you to the fountain for fun.
+- Ask a store manager if you can announce a motivational quote over the intercom.
+- Ask at a gym if you can train one client for 1 minute for confidence practice.
+- Ask a museum guide if you can pose dramatically beside an artwork for their Instagram.
+- Ask at a food truck if they’ll swap one fry for your high five.
 Return in EXACT format:
 Title: <catchy title>
 Description: <1 actionable sentence with the ask>
