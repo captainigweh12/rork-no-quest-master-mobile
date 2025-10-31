@@ -22,14 +22,14 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: '#1a1d26',
-            borderTopColor: '#ffffff15',
+            backgroundColor: theme.colors.card,
+            borderTopColor: theme.colors.border,
             borderTopWidth: 1,
             height: 60,
             overflow: 'hidden',
           },
-          tabBarActiveTintColor: '#FF6B35',
-          tabBarInactiveTintColor: '#6B7280',
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.textSecondary,
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '700' as const,
@@ -60,8 +60,8 @@ export default function TabLayout() {
                 style={[
                   styles.createButton,
                   {
-                    backgroundColor: '#FF6B35',
-                    shadowColor: '#FF6B35',
+                    backgroundColor: theme.colors.primary,
+                    shadowColor: theme.colors.primary,
                   },
                 ]}
               >
