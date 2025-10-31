@@ -7,6 +7,10 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useGame } from '@/contexts/GameContext';
+import { useJournals } from '@/contexts/JournalsContext';
+import { useQuery } from '@tanstack/react-query';
+import { getUserTeams, type Team } from '@/services/supabase/teams';
 
 type ProfileTab = 'Quests' | 'Journals' | 'About';
 
@@ -38,18 +42,47 @@ export default function ProfileScreen() {
     setTab(key);
   };
 
-  const achievements = useMemo<AchievementBadge[]>(() => [
-    { id: 'a1', title: 'Streak 7', iconUrl: 'https://images.unsplash.com/photo-1606813907291-76a7207a7411?q=80&w=512&auto=format&fit=crop' },
-    { id: 'a2', title: 'Explorer', iconUrl: 'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=512&auto=format&fit=crop' },
-    { id: 'a3', title: 'Contributor', iconUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=512&auto=format&fit=crop' },
-  ], []);
+  const { quests, profile } = useGame();
+  const { journals } = useJournals();
 
-  const groups = useMemo<GroupItem[]>(() => [
-    { id: 'g1', name: 'NoQuest Devs', avatarUrl: 'https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?q=80&w=256&auto=format&fit=crop' },
-    { id: 'g2', name: 'Morning Crew', avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop' },
-    { id: 'g3', name: 'Trail Blazers', avatarUrl: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?q=80&w=256&auto=format&fit=crop' },
-    { id: 'g4', name: 'Writers', avatarUrl: 'https://images.unsplash.com/photo-1521575107034-e0fa0b594529?q=80&w=256&auto=format&fit=crop' },
-  ], []);
+  const achievements = useMemo<AchievementBadge[]>(() => {
+    const badges: AchievementBadge[] = [];
+    const userBadges = (profile?.achievements ?? []).slice(0, 8).map((a, i) => ({
+      id: a.id || `ach-${i}`,
+      title: a.title,
+      iconUrl: a.icon || 'https://images.unsplash.com/photo-1520975922324-c2c2948110f8?q=80&w=256&auto=format&fit=crop',
+    }));
+    badges.push(...userBadges);
+    if (badges.length === 0) {
+      const streak = profile?.streak ?? 0;
+      if (streak >= 1) badges.push({ id: 'streak', title: `Streak ${streak}`, iconUrl: 'https://images.unsplash.com/photo-1606813907291-76a7207a7411?q=80&w=256&auto=format&fit=crop' });
+      const total = journals.length;
+      if (total >= 1) badges.push({ id: 'journaler', title: `${total} Journals`, iconUrl: 'https://images.unsplash.com/photo-1520975619010-2f8ab8d78f04?q=80&w=256&auto=format&fit=crop' });
+      const completed = quests.filter(q => q.completed).length;
+      if (completed >= 1) badges.push({ id: 'quester', title: `${completed} Quests`, iconUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=256&auto=format&fit=crop' });
+    }
+    return badges;
+  }, [profile?.achievements, profile?.streak, journals.length, quests]);
+
+  const { data: teamsData } = useQuery({
+    queryKey: ['userTeams', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as Team[];
+      try {
+        const t = await getUserTeams(user.id);
+        return t;
+      } catch (e) {
+        console.error('teams load error', e);
+        return [] as Team[];
+      }
+    },
+    staleTime: 60000,
+  });
+
+  const groups = useMemo<GroupItem[]>(() => {
+    const items = (teamsData ?? []).map((t) => ({ id: t.id, name: t.name, avatarUrl: t.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop' }));
+    return items;
+  }, [teamsData]);
 
   return (
     <ErrorBoundary>
@@ -97,9 +130,9 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.metricsRow}>
-            <Metric label="Quests" value="38" />
-            <Metric label="Followers" value="87.8K" />
-            <Metric label="Following" value="526" />
+            <Metric label="Quests" value={String(quests.length)} />
+            <Metric label="Level" value={String(profile?.level ?? 1)} />
+            <Metric label="Streak" value={String(profile?.streak ?? 0)} />
           </View>
 
           <View style={[styles.tabsBar, { backgroundColor: theme.colors.card }]} testID="profile-tabs">
@@ -119,8 +152,8 @@ export default function ProfileScreen() {
             <View>
               <SectionHeader title="Featured Quests" icon={<Swords size={18} color={theme.colors.text} />} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                {sampleCards.map((c) => (
-                  <QuestCard key={c.id} title={c.title} imageUrl={c.imageUrl} themeColor={theme.colors.primary} />
+                {quests.slice(0, 8).map((q) => (
+                  <QuestCard key={q.id} title={q.title} imageUrl={pickQuestImage(q)} themeColor={theme.colors.primary} />
                 ))}
               </ScrollView>
             </View>
@@ -130,8 +163,8 @@ export default function ProfileScreen() {
             <View>
               <SectionHeader title="Recent Journals" icon={<BookOpenText size={18} color={theme.colors.text} />} />
               <View style={{ gap: 12 }}>
-                {sampleJournals.map((j) => (
-                  <JournalRow key={j.id} title={j.title} excerpt={j.excerpt} coverUrl={j.coverUrl} />
+                {journals.slice(0, 10).map((j) => (
+                  <JournalRow key={j.id} title={j.title} excerpt={j.notes ?? ''} coverUrl={(j.images && j.images[0]) || 'https://images.unsplash.com/photo-1520975922324-c2c2948110f8?q=80&w=256&auto=format&fit=crop'} />
                 ))}
               </View>
             </View>
@@ -221,17 +254,18 @@ function JournalRow({ title, excerpt, coverUrl }: { title: string; excerpt: stri
   );
 }
 
-const sampleCards = [
-  { id: 'q1', title: 'Call of Duty Mission', imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=512&auto=format&fit=crop' },
-  { id: 'q2', title: 'Fortnite Night', imageUrl: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=512&auto=format&fit=crop' },
-  { id: 'q3', title: 'The Abyss', imageUrl: 'https://images.unsplash.com/photo-1542751110-97427bbecf20?q=80&w=512&auto=format&fit=crop' },
-  { id: 'q4', title: 'Origins', imageUrl: 'https://images.unsplash.com/photo-1520975922324-c2c2948110f8?q=80&w=512&auto=format&fit=crop' },
-];
+function pickQuestImage(q: { icon?: string | undefined; category?: string | undefined }): string {
+  const map: Record<string, string> = {
+    coffee: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=512&auto=format&fit=crop',
+    mail: 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?q=80&w=512&auto=format&fit=crop',
+    'trending-up': 'https://images.unsplash.com/photo-1554224155-3a589877462f?q=80&w=512&auto=format&fit=crop',
+    'message-circle': 'https://images.unsplash.com/photo-1520975619010-2f8ab8d78f04?q=80&w=512&auto=format&fit=crop',
+    briefcase: 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=512&auto=format&fit=crop',
+    target: 'https://images.unsplash.com/photo-1518600578461-16b0b2fe5e2a?q=80&w=512&auto=format&fit=crop',
+  };
+  return map[q.icon ?? ''] || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=512&auto=format&fit=crop';
+}
 
-const sampleJournals = [
-  { id: 'j1', title: 'Leveling Focus', excerpt: 'Woke up early, crushed the dailies, and planned the weekly arc...', coverUrl: 'https://images.unsplash.com/photo-1520975922324-c2c2948110f8?q=80&w=256&auto=format&fit=crop' },
-  { id: 'j2', title: 'Guild Standup', excerpt: 'Synced with the team and aligned on the new questline...', coverUrl: 'https://images.unsplash.com/photo-1520975619010-2f8ab8d78f04?q=80&w=256&auto=format&fit=crop' },
-];
 
 const styles = StyleSheet.create({
   contentContainer: { },
