@@ -371,21 +371,30 @@ MinNo: <integer 3-7>`;
 
   const handleAcceptQuest = async (quest: AIGeneratedQuest) => {
     try {
-      const newQuest = await addCustomQuest({
-        title: quest.title,
-        description: quest.description,
-        minNoRequired: quest.minNoRequired || 3,
-        durationMinutes: quest.durationMinutes || 60,
-      });
+      if (!user?.id) {
+        Alert.alert('Error', 'You must be logged in to accept quests');
+        return;
+      }
 
-      console.log('Quest accepted and added to queue:', newQuest);
+      await addPlaceToQueue(
+        user.id,
+        'map-quest',
+        quest.placeName,
+        quest.placeAddress,
+        quest.latitude,
+        quest.longitude,
+        `${quest.title} - ${quest.description}`
+      );
+
+      console.log('Map quest accepted and added to Places Queue:', quest.title);
+      await loadQueue();
       setSelectedQuest(null);
-      Alert.alert('Quest Added!', 'The quest has been added to your Quest Queue. Check the home screen to start!');
+      Alert.alert('Quest Added to Places Queue!', 'The quest location has been added to your Places Queue. Open the menu to get directions!');
       
       setAiGeneratedQuests(prev => prev.filter(q => q.id !== quest.id));
     } catch (error) {
       console.error('Error accepting quest:', error);
-      Alert.alert('Error', 'Failed to add quest. Please try again.');
+      Alert.alert('Error', 'Failed to add quest to Places Queue. Please try again.');
     }
   };
 
