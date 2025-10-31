@@ -7,12 +7,14 @@ import { useOnboarding } from '@/contexts/OnboardingContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocalization } from '@/contexts/LocalizationContext';
+import { useCategories } from '@/contexts/CategoriesContext';
 
 export default function OnboardingScreen() {
   const { prefs, update } = useOnboarding();
   const { theme } = useTheme();
   const { user, updateRelationshipStatus, updateUsername } = useAuth();
   const { t } = useLocalization();
+  const { all, selectedIds, toggle } = useCategories();
   const router = useRouter();
 
   const [username, setUsername] = useState<string>(user?.username || '');
@@ -22,20 +24,24 @@ export default function OnboardingScreen() {
   const [dailyQuests, setDailyQuests] = useState<string>(String(prefs.dailyQuests ?? 2));
   const [relationshipStatus, setRelationshipStatus] = useState<'single' | 'married'>(user?.relationshipStatus || 'single');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
   const [error, setError] = useState<string>('');
 
   const styles = useMemo(() => createStyles(theme.colors), [theme.colors]);
 
   const handleContinue = async () => {
     setError('');
-    
-    if (!username.trim()) {
-      setError('Please enter a username');
-      return;
-    }
 
-    if (username.trim().length < 3) {
-      setError('Username must be at least 3 characters');
+    if (page === 1) {
+      if (!username.trim()) {
+        setError('Please enter a username');
+        return;
+      }
+      if (username.trim().length < 3) {
+        setError('Username must be at least 3 characters');
+        return;
+      }
+      setPage(2);
       return;
     }
 
@@ -44,12 +50,12 @@ export default function OnboardingScreen() {
     try {
       await updateUsername(username.trim());
       await updateRelationshipStatus(relationshipStatus);
-      await update({ 
-        goal: goal.trim() || prefs.goal, 
-        personality, 
-        preferredTime, 
+      await update({
+        goal: goal.trim() || prefs.goal,
+        personality,
+        preferredTime,
         dailyQuests: parsedDaily,
-        completed: true 
+        completed: true,
       });
       router.replace('/(tabs)/(home)');
     } catch (e: any) {
@@ -191,6 +197,13 @@ export default function OnboardingScreen() {
         ) : (
           <Text style={styles.ctaText}>{t('onboarding.continue')}</Text>
         )}
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/manage-categories' as any)}
+        style={[styles.cta, { backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border }]}
+        testID="onboarding-open-categories"
+      >
+        <Text style={[styles.ctaText, { color: theme.colors.text }]}>Choose categories (optional)</Text>
       </Pressable>
       </SafeAreaView>
     </View>

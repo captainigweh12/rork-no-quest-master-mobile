@@ -10,23 +10,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import type { Quest } from '@/types';
 import SideMenu from '@/components/SideMenu';
+import { useCategories } from '@/contexts/CategoriesContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const CATEGORY_CARDS: { id: string; title: string; color: string; image: string; }[] = [
-  { id: 'business', title: 'Business', color: '#3787ff', image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'door-knocking', title: 'Door Knocking', color: '#FF6B35', image: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'cold-calling', title: 'Cold Calling', color: '#004E89', image: 'https://images.unsplash.com/photo-1553484771-371a605b060b?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'marketing', title: 'Marketing', color: '#F77F00', image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'dating', title: 'Dating', color: '#ff5d8f', image: 'https://images.unsplash.com/photo-1529336953121-ad5a56b0eece?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'adventure', title: 'Adventure', color: '#ff8a30', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'fitness', title: 'Fitness', color: '#27c37b', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'creativity', title: 'Creativity', color: '#9b5cff', image: 'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'wealth', title: 'Wealth', color: '#20b2aa', image: 'https://images.unsplash.com/photo-1554224155-3a589877462f?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'mindset', title: 'Mindset', color: '#ffb020', image: 'https://images.unsplash.com/photo-1533371452382-d45a9da51ad9?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'relationships', title: 'Relationships', color: '#ff6b6b', image: 'https://images.unsplash.com/photo-1517884467360-71c4b3d48ee0?q=80&w=1200&auto=format&fit=crop' },
-  { id: 'community', title: 'Community', color: '#00bcd4', image: 'https://images.unsplash.com/photo-1532634896-26909d0d4b6a?q=80&w=1200&auto=format&fit=crop' },
-];
+const CATEGORY_CARDS: { id: string; title: string; color: string; image: string; }[] = [];
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -35,6 +23,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ focus?: string }>();
+  const { selected, isLoading: catsLoading } = useCategories();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
@@ -119,7 +108,7 @@ export default function HomeScreen() {
           </LinearGradient>
 
           <View style={{ gap: 16, marginTop: 16 }}>
-            {CATEGORY_CARDS.map((c) => (
+            {(catsLoading ? [] : selected).map((c) => (
               <Pressable
                 key={c.id}
                 onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
@@ -134,6 +123,13 @@ export default function HomeScreen() {
                 </View>
               </Pressable>
             ))}
+            <Pressable
+              onPress={() => router.push('/manage-categories' as any)}
+              style={({ pressed }) => [styles.categoryCardVertical, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary, opacity: pressed ? 0.9 : 1, alignItems: 'center', justifyContent: 'center' }]}
+              testID="manage-categories"
+            >
+              <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>Add or remove categories</Text>
+            </Pressable>
           </View>
 
           {startedQuests.length > 0 && (

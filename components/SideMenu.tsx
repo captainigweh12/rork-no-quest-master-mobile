@@ -11,6 +11,7 @@ import {
   Medal,
   Trophy,
   LineChart,
+  ListPlus,
   Shield,
   Sword,
   Scroll,
@@ -51,6 +52,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'achievements', label: 'Achievements', icon: Crown, route: '/growth', section: 'adventure', divider: true },
   
   { id: 'teams', label: 'Groups', icon: Users, route: '/teams', section: 'community' },
+  { id: 'categories', label: 'Manage Categories', icon: ListPlus, route: '/manage-categories', section: 'community' },
   { id: 'explore', label: 'Explore World', icon: Compass, route: '/(tabs)/map', section: 'community' },
 ];
 

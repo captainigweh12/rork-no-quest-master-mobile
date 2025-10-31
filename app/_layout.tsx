@@ -14,6 +14,7 @@ import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
 import { JournalsProvider } from "@/contexts/JournalsContext";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
+import { CategoriesProvider } from '@/contexts/CategoriesContext';
 
 
 LogBox.ignoreLogs([
@@ -78,6 +79,7 @@ function RootLayoutNav() {
       <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
       <Stack.Screen name="chat" options={{ presentation: "modal" }} />
       <Stack.Screen name="subscription" options={{ presentation: "modal" }} />
+      <Stack.Screen name="manage-categories" options={{ presentation: "modal" }} />
     </Stack>
   );
 }
@@ -102,9 +104,11 @@ export default function RootLayout() {
                   <NotificationsProvider>
                     <GameProvider>
                       <JournalsProvider>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          <RootLayoutNav />
-                        </GestureHandlerRootView>
+                        <CategoriesProvider>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            <RootLayoutNav />
+                          </GestureHandlerRootView>
+                        </CategoriesProvider>
                       </JournalsProvider>
                     </GameProvider>
                   </NotificationsProvider>
