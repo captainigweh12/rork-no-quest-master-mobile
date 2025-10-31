@@ -561,7 +561,7 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
   const requiredCount = minNoByDifficulty[difficulty];
 
   let title = baseTemplate.title;
-  let description = baseTemplate.descriptionTemplate
+  let baseDescription = baseTemplate.descriptionTemplate
     ? baseTemplate.descriptionTemplate(requiredCount)
     : baseTemplate.description;
 
@@ -577,8 +577,24 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     ];
     const variant = variants[Math.floor(Math.random() * variants.length)];
     title = `${title} – ${params.rank} Remix`;
-    description = `${description}. Do it ${variant}.`;
+    baseDescription = `${baseDescription}. Do it ${variant}.`;
   }
+
+  const encouragements = [
+    'Getting a no is a win.',
+    'Each rejection builds your resilience.',
+    'Every no earns XP.'
+  ] as const;
+  const reflectionByDifficulty: Record<QuestDifficulty, string> = {
+    easy: 'Write one sentence on how the first no felt.',
+    medium: 'After the third attempt, note what opener felt most natural.',
+    hard: 'Reflect on a visible moment of discomfort and what you learned.',
+    extreme: 'Journal how you managed pressure when others were watching.'
+  };
+  const reflection = reflectionByDifficulty[difficulty];
+  const encouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+
+  const description = `${baseDescription} Goal: Get at least ${requiredCount} ${requiredCount === 1 ? 'no' : "no's"}. ${encouragement} Reflection: ${reflection}`;
 
   const quest: Quest = {
     id: Date.now().toString(),
