@@ -48,37 +48,37 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
-        colors={[theme.colors.backgroundTertiary, theme.colors.background]}
+        colors={['#1a1d26', '#0f1216']}
         style={StyleSheet.absoluteFillObject}
       />
 
       <View style={styles.header}>
         <View style={styles.statsRow}>
-          <View style={styles.statBadge}>
+          <View style={[styles.statBadge, { backgroundColor: '#ffffff08', borderColor: '#ffffff15' }]}>
             <Text style={[styles.statValue, { color: theme.colors.error }]}>🔥 {profile.streak}</Text>
           </View>
-          <View style={styles.statBadge}>
+          <View style={[styles.statBadge, { backgroundColor: '#ffffff08', borderColor: '#ffffff15' }]}>
             <Text style={[styles.statValue, { color: theme.colors.warning }]}>🏆 {profile.totalRejections}</Text>
           </View>
-          <View style={styles.statBadge}>
+          <View style={[styles.statBadge, { backgroundColor: '#ffffff08', borderColor: '#ffffff15' }]}>
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>💎 {profile.totalPoints}</Text>
           </View>
         </View>
 
         <View style={styles.headerActions}>
           <Pressable
-            style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
+            style={[styles.iconButton, { backgroundColor: '#ffffff08', borderColor: '#ffffff15' }]}
             onPress={() => router.push('/notifications' as any)}
           >
             <Bell size={20} color={theme.colors.text} />
             {unreadCount > 0 && (
-              <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
+              <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
               </View>
             )}
           </Pressable>
           <Pressable
-            style={[styles.iconButton, { backgroundColor: theme.colors.card }]}
+            style={[styles.iconButton, { backgroundColor: '#ffffff08', borderColor: '#ffffff15' }]}
             onPress={() => setMenuOpen(true)}
             testID="hamburger-button"
           >
@@ -99,12 +99,14 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         >
-          <LinearGradient colors={[theme.colors.primary + '33', theme.colors.card]} style={styles.heroBanner}>
+          <LinearGradient colors={['#ff6b3520', '#252930']} style={styles.heroBanner}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.heroTitle, { color: theme.colors.text }]}>Complete 3 Quests today</Text>
               <Text style={[styles.heroSubtitle, { color: theme.colors.textSecondary }]}>Earn bonus XP and keep your streak alive</Text>
             </View>
-            <Sparkles size={28} color={theme.colors.primary} />
+            <View style={{ backgroundColor: theme.colors.primary, padding: 8, borderRadius: 12 }}>
+              <Sparkles size={24} color="#fff" />
+            </View>
           </LinearGradient>
 
           <View style={{ gap: 16, marginTop: 16 }}>
@@ -112,12 +114,12 @@ export default function HomeScreen() {
               <Pressable
                 key={c.id}
                 onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
-                style={({ pressed }) => [styles.categoryCardVertical, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.9 : 1 }]}
+                style={({ pressed }) => [styles.categoryCardVertical, { borderColor: '#ffffff12', backgroundColor: '#252930', opacity: pressed ? 0.8 : 1 }]}
                 testID={`category-${c.id}`}
               >
                 <View style={{ flex: 1, justifyContent: 'space-between' }}>
                   <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>{c.title}</Text>
-                  <View style={[styles.pill, { backgroundColor: c.color }]}>
+                  <View style={[styles.pill, { backgroundColor: theme.colors.primary }]}>
                     <Text style={styles.pillText}>Get Quest</Text>
                   </View>
                 </View>
@@ -125,10 +127,11 @@ export default function HomeScreen() {
             ))}
             <Pressable
               onPress={() => router.push('/manage-categories' as any)}
-              style={({ pressed }) => [styles.categoryCardVertical, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundSecondary, opacity: pressed ? 0.9 : 1, alignItems: 'center', justifyContent: 'center' }]}
+              style={({ pressed }) => [styles.categoryCardVertical, { borderColor: '#ffffff12', backgroundColor: '#ffffff06', opacity: pressed ? 0.8 : 1, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }]}
               testID="manage-categories"
             >
-              <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>Add or remove categories</Text>
+              <Plus size={20} color={theme.colors.textSecondary} style={{ marginBottom: 4 }} />
+              <Text style={[styles.categoryTitle, { color: theme.colors.textSecondary, fontSize: 14 }]}>Add or remove categories</Text>
             </Pressable>
           </View>
 
@@ -146,7 +149,7 @@ export default function HomeScreen() {
                       setQuestMode(true);
                       setCurrentIndex(originalIndex);
                     }}
-                    style={({ pressed }) => [styles.activeQuestItem, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.95 : 1 }]}
+                    style={({ pressed }) => [styles.activeQuestItem, { borderColor: '#ffffff12', backgroundColor: '#252930', opacity: pressed ? 0.8 : 1 }]}
                     testID={`active-quest-${q.id}`}
                   >
                     <View style={{ flex: 1 }}>
@@ -463,7 +466,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
       ]}
     >
       <LinearGradient
-        colors={[theme.backgroundTertiary, theme.card]}
+        colors={['#2a2d36', '#252930']}
         style={styles.cardGradient}
       >
         <Pressable
@@ -746,12 +749,10 @@ function createStyles(colors: any) {
       gap: 8,
     },
     statBadge: {
-      backgroundColor: colors.card,
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 20,
       borderWidth: 1,
-      borderColor: colors.border,
     },
     statValue: {
       fontSize: 14,
@@ -775,10 +776,10 @@ function createStyles(colors: any) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      padding: 16,
-      borderRadius: 18,
+      padding: 18,
+      borderRadius: 20,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: '#ffffff12',
       marginBottom: 6,
     },
     heroTitle: { fontSize: 18, fontWeight: '900' as const },
@@ -793,8 +794,8 @@ function createStyles(colors: any) {
     categoryCardVertical: {
       width: '100%',
       height: 100,
-      borderRadius: 16,
-      padding: 14,
+      borderRadius: 18,
+      padding: 16,
       borderWidth: 1,
     },
     categoryTitle: { fontSize: 16, fontWeight: '800' as const },

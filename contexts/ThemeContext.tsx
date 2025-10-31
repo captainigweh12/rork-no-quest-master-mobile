@@ -45,19 +45,19 @@ const lightTheme: Theme = {
 const darkTheme: Theme = {
   mode: 'dark',
   colors: {
-    background: '#0f1419',
-    backgroundSecondary: '#1e293b',
-    backgroundTertiary: '#1a1a2e',
+    background: '#1a1d26',
+    backgroundSecondary: '#22252e',
+    backgroundTertiary: '#2a2d36',
     text: '#FFFFFF',
-    textSecondary: '#94A3B8',
-    primary: '#8B5CF6',
-    secondary: '#EC4899',
+    textSecondary: '#9CA3AF',
+    primary: '#FF6B35',
+    secondary: '#FF8A5B',
     success: '#10B981',
     error: '#EF4444',
     warning: '#F59E0B',
-    border: '#334155',
-    card: '#1e293b',
-    shadow: '#00000040',
+    border: '#ffffff15',
+    card: '#252930',
+    shadow: '#00000060',
   },
 };
 

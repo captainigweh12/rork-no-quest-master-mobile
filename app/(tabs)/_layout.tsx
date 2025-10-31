@@ -22,17 +22,18 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: theme.colors.card,
-            borderTopColor: theme.colors.border,
+            backgroundColor: '#1a1d26',
+            borderTopColor: '#ffffff15',
             borderTopWidth: 1,
             height: 60,
             overflow: 'hidden',
           },
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textSecondary,
+          tabBarActiveTintColor: '#FF6B35',
+          tabBarInactiveTintColor: '#6B7280',
           tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600' as const,
+            fontSize: 11,
+            fontWeight: '700' as const,
+            letterSpacing: 0.5,
           },
         }}
       >
@@ -59,12 +60,12 @@ export default function TabLayout() {
                 style={[
                   styles.createButton,
                   {
-                    backgroundColor: theme.colors.primary,
-                    shadowColor: theme.colors.primary,
+                    backgroundColor: '#FF6B35',
+                    shadowColor: '#FF6B35',
                   },
                 ]}
               >
-                <Plus size={24} color="#FFFFFF" strokeWidth={3} />
+                <Plus size={26} color="#FFFFFF" strokeWidth={3} />
               </View>
             ),
           }}
@@ -101,15 +102,15 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   createButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -20,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: Platform.OS === 'web' ? 0 : 0.3,
-    shadowRadius: Platform.OS === 'web' ? 0 : 8,
-    elevation: Platform.OS === 'web' ? 0 : 8,
+    marginTop: -24,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: Platform.OS === 'web' ? 0 : 0.4,
+    shadowRadius: Platform.OS === 'web' ? 0 : 12,
+    elevation: Platform.OS === 'web' ? 0 : 10,
   },
 });
