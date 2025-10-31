@@ -375,9 +375,9 @@ export default function HomeScreen() {
             };
             const nextDifficulty = difficultyProgression[currentDifficulty] ?? 'medium';
             const categoryId = completedQuest?.category as any;
-            console.log('Continuing in same category:', categoryId);
+            console.log('[QUEST] AI STAYING ON CATEGORY:', categoryId, 'from quest:', completedQuest?.title);
             const newQuest = await addAIQuest(nextDifficulty, false, completedQuest, categoryId);
-            console.log('New sequential quest generated with category:', newQuest.category);
+            console.log('[QUEST] New quest generated in category:', newQuest.category, '| Quest:', newQuest.title);
             
             setShowCompletionModal(false);
             setCompletionData(null);

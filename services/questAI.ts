@@ -12,7 +12,10 @@ export type CategoryId =
   | 'creativity'
   | 'mindset'
   | 'relationships'
-  | 'community';
+  | 'community'
+  | 'entrepreneurship'
+  | 'sales'
+  | 'confidence';
 
 export interface GenerateQuestParams {
   userGoal?: string;
@@ -457,6 +460,84 @@ const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
       descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'group' : 'groups'} if you can join their activity. Be prepared for rejection.` 
     },
   ],
+  entrepreneurship: [
+    { 
+      title: 'Pitch Your Startup Idea', 
+      description: 'Present your idea to potential investors or mentors', 
+      icon: 'briefcase', 
+      descriptionTemplate: (count: number) => `Pitch your startup idea to ${count} ${count === 1 ? 'person' : 'people'}. Ask for honest feedback or investment interest.` 
+    },
+    { 
+      title: 'Cold Outreach to Mentors', 
+      description: 'Reach out to successful entrepreneurs', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Send ${count} cold ${count === 1 ? 'email' : 'emails'} to successful entrepreneurs asking for advice or mentorship.` 
+    },
+    { 
+      title: 'Launch a Minimum Viable Product', 
+      description: 'Put your product idea out there', 
+      icon: 'trending-up', 
+      descriptionTemplate: (count: number) => `Share your MVP with ${count} potential ${count === 1 ? 'customer' : 'customers'} and ask them to try it. Be ready for critiques.` 
+    },
+    { 
+      title: 'Ask for Customer Testimonials', 
+      description: 'Request honest reviews from early users', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Ask ${count} early ${count === 1 ? 'user' : 'users'} for a testimonial. They might say they're too busy.` 
+    },
+  ],
+  sales: [
+    { 
+      title: 'Cold Pitch to Prospects', 
+      description: 'Reach out to potential buyers', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Make ${count} cold ${count === 1 ? 'pitch' : 'pitches'} to potential customers. Practice handling objections.` 
+    },
+    { 
+      title: 'Ask for Upsells', 
+      description: 'Offer premium versions to existing customers', 
+      icon: 'trending-up', 
+      descriptionTemplate: (count: number) => `Ask ${count} existing ${count === 1 ? 'customer' : 'customers'} to upgrade to a premium plan. Some will decline.` 
+    },
+    { 
+      title: 'Request Referrals', 
+      description: 'Ask satisfied customers for referrals', 
+      icon: 'mail', 
+      descriptionTemplate: (count: number) => `Ask ${count} satisfied ${count === 1 ? 'customer' : 'customers'} to refer you to someone else. They might say no.` 
+    },
+    { 
+      title: 'Follow Up on Lost Deals', 
+      description: 'Re-engage prospects who said no', 
+      icon: 'target', 
+      descriptionTemplate: (count: number) => `Follow up with ${count} ${count === 1 ? 'prospect' : 'prospects'} who previously declined. Be persistent but respectful.` 
+    },
+  ],
+  confidence: [
+    { 
+      title: 'Speak Up in Public', 
+      description: 'Share your opinion in a group setting', 
+      icon: 'message-circle', 
+      descriptionTemplate: (count: number) => `Speak up and share your thoughts in ${count} public ${count === 1 ? 'setting' : 'settings'}. Be bold and authentic.` 
+    },
+    { 
+      title: 'Ask Bold Questions', 
+      description: "Ask questions you're afraid to ask", 
+      icon: 'flame', 
+      descriptionTemplate: (count: number) => `Ask ${count} bold ${count === 1 ? 'question' : 'questions'} that challenge conventional thinking. Embrace discomfort.` 
+    },
+    { 
+      title: 'Introduce Yourself to Strangers', 
+      description: 'Break the ice with new people', 
+      icon: 'coffee', 
+      descriptionTemplate: (count: number) => `Introduce yourself to ${count} ${count === 1 ? 'stranger' : 'strangers'} and start a genuine conversation.` 
+    },
+    { 
+      title: 'Share Your Accomplishments', 
+      description: 'Talk about your wins without holding back', 
+      icon: 'award', 
+      descriptionTemplate: (count: number) => `Share ${count === 1 ? 'an accomplishment' : `${count} accomplishments`} with ${count === 1 ? 'someone' : 'people'} who might dismiss it. Own your success.` 
+    },
+  ],
 };
 
 const questTemplatesGeneral: QuestTemplate[] = [
@@ -519,7 +600,10 @@ const questTemplatesGeneral: QuestTemplate[] = [
 export async function generateQuest(params: GenerateQuestParams): Promise<Quest> {
   const { difficulty, level, isSuperQuest = false, relationshipStatus, previousQuest, excludeTitles, categoryId } = params;
 
-  console.log('Generating quest locally with params:', params);
+  console.log('[QUEST AI] Generating quest locally with params:', params);
+  if (categoryId) {
+    console.log('[QUEST AI] Category locked:', categoryId);
+  }
 
   let questPool: QuestTemplate[] = questTemplatesGeneral;
   let priorityPool: QuestTemplate[] = [];
@@ -610,6 +694,6 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     category: categoryId,
   };
 
-  console.log('Quest generated successfully:', quest);
+  console.log('[QUEST AI] Quest generated successfully with category:', quest.category, '| Title:', quest.title);
   return quest;
 }
