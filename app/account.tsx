@@ -5,7 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, User, Award, Target, TrendingUp, Heart, Camera, Upload, Sparkles, Edit3, Moon, Sun, Bell, Shield, Globe, ChevronRight, Crown } from 'lucide-react-native';
+import { X, User, Award, Target, TrendingUp, Heart, Camera, Upload, Sparkles, Edit3, Moon, Sun, Bell, Shield, Globe, ChevronRight, Crown, Wrench } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useLocalization } from '@/contexts/LocalizationContext';
@@ -198,7 +198,16 @@ export default function AccountScreen() {
             </View>
           </Pressable>
 
-          <Text style={[styles.profileName, { color: theme.colors.text }]}>{profile.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.profileName, { color: theme.colors.text }]}>{profile.name}</Text>
+            {user?.isAdmin ? (
+              <View style={[styles.adminBadge, { backgroundColor: theme.colors.primary }]}
+                testID="account-admin-badge">
+                <Shield size={12} color={theme.colors.background} />
+                <Text style={[styles.adminBadgeText, { color: theme.colors.background }]}>ADMIN</Text>
+              </View>
+            ) : null}
+          </View>
           {user?.username ? (
             <Pressable onPress={handleUsernameEdit} style={styles.usernameContainer}>
               <Text style={[styles.username, { color: theme.colors.textSecondary }]}>@{user.username}</Text>
@@ -304,6 +313,23 @@ export default function AccountScreen() {
             </View>
           )
         )}
+
+        {user?.isAdmin ? (
+          <View style={[styles.section, { backgroundColor: theme.colors.card }]}
+            testID="account-admin-tools">
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Admin Tools</Text>
+            <Pressable style={styles.settingRow} onPress={() => router.push('/admin' as any)}>
+              <View style={styles.settingLeft}>
+                <Wrench size={20} color={theme.colors.text} />
+                <View>
+                  <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Open Admin Dashboard</Text>
+                  <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>Manage users, subscriptions, and content</Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={theme.colors.textSecondary} />
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.appearance')}</Text>
@@ -491,7 +517,10 @@ function createStyles(colors: any) {
     avatar: { width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center' },
     editAvatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFFFFF' },
     avatarText: { fontSize: 40, fontWeight: '700' as const, color: '#FFFFFF' },
-    profileName: { fontSize: 28, fontWeight: '700' as const, marginBottom: 12 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    profileName: { fontSize: 28, fontWeight: '700' as const },
+        adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+    adminBadgeText: { fontSize: 10, fontWeight: '800' as const },
     levelBadge: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 16 },
     levelText: { fontSize: 16, fontWeight: '700' as const },
     statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 20, borderRadius: 24, gap: 20 },
