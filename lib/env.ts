@@ -3,6 +3,9 @@ import Constants from "expo-constants";
 type Extra = Partial<{
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
+  OPENAI_API_KEY: string;
+  PERPLEXITY_API_KEY: string;
+  AI_PROVIDER_ORDER: string;
 }>;
 
 export function getSupabaseEnv() {
@@ -30,4 +33,34 @@ export function getSupabaseEnv() {
   }
 
   return { url, key };
+}
+
+export type AIEnv = {
+  openaiKey?: string;
+  perplexityKey?: string;
+  providerOrder: ("perplexity" | "openai")[];
+};
+
+export function getAIEnv(): AIEnv {
+  const openaiFromEnv = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  const perplexityFromEnv = process.env.EXPO_PUBLIC_PERPLEXITY_API_KEY;
+  const orderFromEnv = process.env.EXPO_PUBLIC_AI_PROVIDER_ORDER;
+
+  const extra = (Constants.expoConfig?.extra ??
+                 Constants.manifest?.extra ??
+                 {}) as Extra;
+
+  const openaiKey = openaiFromEnv || extra.OPENAI_API_KEY;
+  const perplexityKey = perplexityFromEnv || extra.PERPLEXITY_API_KEY;
+
+  const providerOrder = (orderFromEnv || extra.AI_PROVIDER_ORDER || "perplexity,openai")
+    .split(",")
+    .map((s: string) => s.trim().toLowerCase())
+    .filter((s: string): s is "perplexity" | "openai" => s === "perplexity" || s === "openai");
+
+  return {
+    openaiKey: openaiKey || undefined,
+    perplexityKey: perplexityKey || undefined,
+    providerOrder: providerOrder.length > 0 ? providerOrder : ["perplexity", "openai"],
+  };
 }

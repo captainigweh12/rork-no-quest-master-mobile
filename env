@@ -4,5 +4,9 @@ EXPO_PUBLIC_TOOLKIT_URL=https://toolkit.rork.com
 EXPO_PUBLIC_APP_BASE_URL=https://rejectionhero.com
 EXPO_PUBLIC_EMAIL_REDIRECT=noquest://verify-email
 
-# OpenAI API Key (fallback for quest generation)
+# AI providers
+# Set both to enable fallback. Order is controlled by EXPO_PUBLIC_AI_PROVIDER_ORDER
+EXPO_PUBLIC_PERPLEXITY_API_KEY=
 EXPO_PUBLIC_OPENAI_API_KEY=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
+# Comma-separated, left-to-right priority. Supported: perplexity,openai
+EXPO_PUBLIC_AI_PROVIDER_ORDER=perplexity,openai
