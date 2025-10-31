@@ -336,7 +336,7 @@ export default function HomeScreen() {
                     }, 100);
                   }}
                   onBackToMain={() => setQuestMode(false)}
-                  theme={theme.colors}
+                  theme={theme}
                 />
               );
             }).reverse()
@@ -394,7 +394,7 @@ export default function HomeScreen() {
           router.push('/create-quest' as any);
         }}
         isGeneratingQuest={isGeneratingQuest}
-        theme={theme.colors}
+        theme={theme}
       />
     </View>
   );
@@ -415,6 +415,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
   const { progressMap, failQuest } = useGame();
   const progress = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 } as { noCount: number; yesCount: number };
   const minNo = quest.minNoRequired ?? 0;
+  const colors = theme.colors;
   const pan = useRef(new Animated.ValueXY()).current;
   const panResponder = useRef(
     PanResponder.create({
@@ -559,7 +560,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
     community: 'Community',
   };
 
-  const styles = createCardStyles(theme);
+  const styles = createCardStyles(colors);
 
   const isTopCard = index === currentIndex;
 
@@ -585,7 +586,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
         style={[
           styles.cardGradient,
           {
-            backgroundColor: theme.colors.glassHeavy,
+            backgroundColor: colors.glassHeavy,
             borderWidth: theme.mode === 'dark' ? 1 : 0,
             borderColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
           }
@@ -604,7 +605,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
-            backgroundColor: theme.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.15)',
+            backgroundColor: theme.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.6)',
             opacity: pressed ? 0.9 : 1
           }]}
           testID={`back-to-main-${quest.id}`}
@@ -642,8 +643,8 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
             </View>
           </View>
 
-          <Text style={[styles.questTitle, { color: theme.text }]}>{quest.title}</Text>
-          <Text style={[styles.questDescription, { color: theme.textSecondary }]} numberOfLines={expanded ? undefined : 2}>
+          <Text style={[styles.questTitle, { color: colors.text }]}>{quest.title}</Text>
+          <Text style={[styles.questDescription, { color: colors.textSecondary }]} numberOfLines={expanded ? undefined : 2}>
             {truncateToWords(quest.description ?? '', expanded ? undefined : 10)}
           </Text
 >
@@ -666,10 +667,10 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
           ) : (
             <View style={styles.rewardsRow}>
               <View style={styles.rewardBadge}>
-                <Text style={[styles.rewardText, { color: theme.text }]}>+{quest.xp} XP</Text>
+                <Text style={[styles.rewardText, { color: colors.text }]}>+{quest.xp} XP</Text>
               </View>
               <View style={styles.rewardBadge}>
-                <Text style={[styles.rewardText, { color: theme.text }]}>+{quest.points} pts</Text>
+                <Text style={[styles.rewardText, { color: colors.text }]}>+{quest.points} pts</Text>
               </View>
             </View>
           )}
@@ -744,6 +745,7 @@ function QuestCompletionModal({
 }: QuestCompletionModalProps) {
   const modalScale = useRef(new Animated.Value(0)).current;
   const confettiOpacity = useRef(new Animated.Value(0)).current;
+  const colors = theme.colors;
 
   useEffect(() => {
     if (visible) {
@@ -779,17 +781,17 @@ function QuestCompletionModal({
         <Animated.View
           style={[
             modalStyles.container,
-            { backgroundColor: theme.card, transform: [{ scale: modalScale }] },
+            { backgroundColor: colors.card, transform: [{ scale: modalScale }] },
           ]}
         >
           <LinearGradient
-            colors={['#10B98140', theme.card]}
+            colors={['#10B98140', colors.card]}
             style={modalStyles.gradient}
           >
             <View style={modalStyles.header}>
               <Trophy size={64} color="#10B981" />
-              <Text style={[modalStyles.title, { color: theme.text }]}>Quest Complete!</Text>
-              <Text style={[modalStyles.subtitle, { color: theme.textSecondary }]}>
+              <Text style={[modalStyles.title, { color: colors.text }]}>Quest Complete!</Text>
+              <Text style={[modalStyles.subtitle, { color: colors.textSecondary }]}>
                 {quest.title}
               </Text>
             </View>
@@ -798,28 +800,28 @@ function QuestCompletionModal({
               <View style={[modalStyles.statCard, { backgroundColor: '#10B98120' }]}>
                 <Flame size={32} color="#EF4444" />
                 <Text style={[modalStyles.statValue, { color: '#EF4444' }]}>{newStreak}</Text>
-                <Text style={[modalStyles.statLabel, { color: theme.textSecondary }]}>Day Streak</Text>
+                <Text style={[modalStyles.statLabel, { color: colors.textSecondary }]}>Day Streak</Text>
               </View>
 
               <View style={[modalStyles.statCard, { backgroundColor: '#F59E0B20' }]}>
                 <Trophy size={32} color="#F59E0B" />
                 <Text style={[modalStyles.statValue, { color: '#F59E0B' }]}>#{leaderboardRank}</Text>
-                <Text style={[modalStyles.statLabel, { color: theme.textSecondary }]}>Rank</Text>
+                <Text style={[modalStyles.statLabel, { color: colors.textSecondary }]}>Rank</Text>
               </View>
             </View>
 
             <View style={modalStyles.rewards}>
-              <View style={[modalStyles.rewardItem, { backgroundColor: theme.backgroundTertiary }]}>
-                <Text style={[modalStyles.rewardText, { color: theme.text }]}>+{quest.xp} XP</Text>
+              <View style={[modalStyles.rewardItem, { backgroundColor: colors.backgroundTertiary }]}>
+                <Text style={[modalStyles.rewardText, { color: colors.text }]}>+{quest.xp} XP</Text>
               </View>
-              <View style={[modalStyles.rewardItem, { backgroundColor: theme.backgroundTertiary }]}>
-                <Text style={[modalStyles.rewardText, { color: theme.text }]}>+{quest.points} Points</Text>
+              <View style={[modalStyles.rewardItem, { backgroundColor: colors.backgroundTertiary }]}>
+                <Text style={[modalStyles.rewardText, { color: colors.text }]}>+{quest.points} Points</Text>
               </View>
             </View>
 
             <View style={modalStyles.actions}>
               <Pressable
-                style={[modalStyles.actionButton, { backgroundColor: theme.primary, opacity: isGeneratingQuest ? 0.6 : 1 }]}
+                style={[modalStyles.actionButton, { backgroundColor: colors.primary, opacity: isGeneratingQuest ? 0.6 : 1 }]}
                 onPress={onNextQuest}
                 disabled={isGeneratingQuest}
               >
@@ -834,11 +836,11 @@ function QuestCompletionModal({
               </Pressable>
 
               <Pressable
-                style={[modalStyles.actionButtonSecondary, { borderColor: theme.border, backgroundColor: theme.backgroundTertiary }]}
+                style={[modalStyles.actionButtonSecondary, { borderColor: colors.border, backgroundColor: colors.backgroundTertiary }]}
                 onPress={onCreateCustom}
               >
-                <Plus size={20} color={theme.text} />
-                <Text style={[modalStyles.actionButtonTextSecondary, { color: theme.text }]}>Custom Quest</Text>
+                <Plus size={20} color={colors.text} />
+                <Text style={[modalStyles.actionButtonTextSecondary, { color: colors.text }]}>Custom Quest</Text>
               </Pressable>
             </View>
           </LinearGradient>
