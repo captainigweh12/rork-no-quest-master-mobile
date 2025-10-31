@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { useAuth } from '@/contexts/AuthContext';
-import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue } from '@/services/supabase/map';
+import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue, markPlaceAsCompleted } from '@/services/supabase/map';
 import { generateText } from '@rork/toolkit-sdk';
 import type { Quest } from '@/types';
 import OpenAI from 'openai';
@@ -57,6 +57,7 @@ export default function MapScreen() {
   const [isGeneratingAIQuests, setIsGeneratingAIQuests] = useState<boolean>(false);
   const [selectedQuest, setSelectedQuest] = useState<AIGeneratedQuest | null>(null);
   const [showQuestQueueModal, setShowQuestQueueModal] = useState<boolean>(false);
+  const [activeNavTarget, setActiveNavTarget] = useState<null | { id: string; latitude: number; longitude: number; placeName: string; placeAddress?: string; notes?: string }>(null);
 
   const styles = createStyles(theme.colors);
 
@@ -81,11 +82,24 @@ export default function MapScreen() {
           return;
         }
 
-        const location = await Location.getCurrentPositionAsync({});
+        const loc = await Location.getCurrentPositionAsync({});
         setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
         });
+
+        try {
+          const sub = await Location.watchPositionAsync(
+            { accuracy: Location.Accuracy.Balanced, timeInterval: 2000, distanceInterval: 5 },
+            (update) => {
+              setUserLocation({ latitude: update.coords.latitude, longitude: update.coords.longitude });
+            }
+          );
+          // @ts-expect-error keep subscription on window
+          (global as any).__mapLocSub = sub;
+        } catch (e) {
+          console.log('watchPositionAsync failed', e);
+        }
       } catch (error) {
         console.error('Location error:', error);
         setUserLocation({
@@ -462,8 +476,53 @@ MinNo: <integer 3-7>`;
       default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
     });
     
+    const target = { id: place.place_id, latitude: lat, longitude: lng, placeName: place.name, placeAddress: place.vicinity || place.formatted_address };
+    setActiveNavTarget(target);
     Linking.openURL(url);
+    console.log('[NAV] Started tracking arrival to', place.name);
+    Alert.alert('Navigation Started', 'We will unlock the quest automatically when you arrive.');
   };
+
+  const haversine = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const R = 6371000;
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLon = toRad(b.longitude - a.longitude);
+    const lat1 = toRad(a.latitude);
+    const lat2 = toRad(b.latitude);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  useEffect(() => {
+    if (!activeNavTarget || !userLocation || !user?.id) return;
+    const distance = haversine(userLocation, { latitude: activeNavTarget.latitude, longitude: activeNavTarget.longitude });
+    if (distance <= 80) {
+      console.log('[NAV] Arrived at target:', activeNavTarget.placeName);
+      const matching = queueItems.find((q) => q.id === activeNavTarget.id || (Math.abs(q.latitude - activeNavTarget.latitude) < 0.0005 && Math.abs(q.longitude - activeNavTarget.longitude) < 0.0005));
+      (async () => {
+        try {
+          if (matching && user?.id) {
+            await markPlaceAsCompleted(matching.id, user.id);
+          }
+          const titleFromNotes = matching?.notes?.split(' - ')[0];
+          const descFromNotes = matching?.notes?.split(' - ').slice(1).join(' - ');
+          addCustomQuest({
+            title: titleFromNotes || `Quest at ${activeNavTarget.placeName}`,
+            description: descFromNotes || `You have arrived at ${activeNavTarget.placeName}. Time to start your challenge!`,
+            minNoRequired: 3,
+            durationMinutes: 60,
+          });
+          setActiveNavTarget(null);
+          await loadQueue();
+          Alert.alert('You have arrived!', 'Quest unlocked and added to your active quests.');
+          setShowQueueModal(false);
+        } catch (e) {
+          console.error('Arrival handling failed', e);
+        }
+      })();
+    }
+  }, [userLocation, activeNavTarget, user?.id, queueItems]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
