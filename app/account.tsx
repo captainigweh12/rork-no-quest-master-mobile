@@ -30,7 +30,7 @@ const LANGUAGES = [
 export default function AccountScreen() {
   const { theme, themeMode, toggleTheme } = useTheme();
   const { profile } = useGame();
-  const { user, updateRelationshipStatus, updateUsername, updateAvatarUrl, signOut, updatePreferredLanguage } = useAuth();
+  const { user, updateRelationshipStatus, updateUsername, updateAvatarUrl, updatePreferredLanguage } = useAuth();
   const { tier, isSubscriptionActive } = useSubscription();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -370,37 +370,7 @@ export default function AccountScreen() {
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{t('settings.account')}</Text>
-          <Pressable style={styles.settingRow} onPress={() => {
-            Alert.alert(
-              t('settings.signOut'),
-              t('settings.signOutConfirm'),
-              [
-                { text: t('settings.cancel'), style: 'cancel' },
-                {
-                  text: t('settings.signOut'),
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await signOut();
-                      router.replace('/auth');
-                    } catch (error: any) {
-                      Alert.alert('Error', error.message || 'Failed to sign out');
-                    }
-                  },
-                },
-              ]
-            );
-          }}>
-            <View style={styles.settingLeft}>
-              <Shield size={20} color={theme.colors.error} />
-              <View>
-                <Text style={[styles.settingLabel, { color: theme.colors.error }]}>{t('settings.signOut')}</Text>
-                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {user?.email || ''}
-                </Text>
-              </View>
-            </View>
-          </Pressable>
+
         </View>
       </ScrollView>
 

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Animated, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
   User, 
@@ -12,7 +12,8 @@ import {
   ListPlus,
   Shield,
   Scroll,
-  Calendar
+  Calendar,
+  LogOut
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef } from 'react';
@@ -56,7 +57,7 @@ const ADMIN_MENU_ITEMS: MenuItem[] = [
 export default function SideMenu({ visible, onClose, theme }: SideMenuProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const slideAnim = useRef(new Animated.Value(-300)).current;
 
   useEffect(() => {
@@ -208,6 +209,30 @@ export default function SideMenu({ visible, onClose, theme }: SideMenuProps) {
           </ScrollView>
 
           <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+            <Pressable
+              onPress={() => {
+                Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign out',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await signOut();
+                        router.replace('/auth');
+                      } catch (error) {
+                        console.error('Sign out failed', error);
+                      }
+                    },
+                  },
+                ]);
+              }}
+              style={({ pressed }) => [styles.logoutButton, pressed && styles.menuItemPressed]}
+              testID="menu-logout"
+            >
+              <LogOut size={20} color={theme.error ?? '#E11D48'} />
+              <Text style={[styles.logoutLabel, { color: theme.error ?? '#E11D48' }]}>Log out</Text>
+            </Pressable>
             <Text style={styles.footerText}>Version 1.0.0</Text>
           </View>
         </Animated.View>
@@ -308,14 +333,29 @@ function createStyles(theme: any) {
     },
     footer: {
       paddingHorizontal: 24,
-      paddingTop: 16,
+      paddingTop: 12,
       borderTopWidth: 1,
       borderTopColor: theme.border,
+      gap: 8,
     },
     footerText: {
       fontSize: 12,
       color: theme.textSecondary,
       fontWeight: '500' as const,
+      textAlign: 'center' as const,
+    },
+    logoutButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: theme.backgroundSecondary,
+    },
+    logoutLabel: {
+      fontSize: 15,
+      fontWeight: '700' as const,
     },
   });
 }
