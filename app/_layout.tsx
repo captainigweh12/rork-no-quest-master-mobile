@@ -15,6 +15,8 @@ import { LocalizationProvider } from "@/contexts/LocalizationContext";
 import { JournalsProvider } from "@/contexts/JournalsContext";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
+import { SchemaProvider } from '@/contexts/SchemaContext';
+import MigrationBanner from '@/components/MigrationBanner';
 import { ChevronLeft } from 'lucide-react-native';
 
 
@@ -208,25 +210,28 @@ export default function RootLayout() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SubscriptionProvider>
-            <LocalizationProvider>
-              <ThemeProvider>
-                <OnboardingProvider>
-                  <NotificationsProvider>
-                    <GameProvider>
-                      <JournalsProvider>
-                        <CategoriesProvider>
-                          <GestureHandlerRootView style={{ flex: 1 }}>
-                            <RootLayoutNav />
-                          </GestureHandlerRootView>
-                        </CategoriesProvider>
-                      </JournalsProvider>
-                    </GameProvider>
-                  </NotificationsProvider>
-                </OnboardingProvider>
-              </ThemeProvider>
-            </LocalizationProvider>
-          </SubscriptionProvider>
+          <SchemaProvider>
+            <SubscriptionProvider>
+              <LocalizationProvider>
+                <ThemeProvider>
+                  <OnboardingProvider>
+                    <NotificationsProvider>
+                      <GameProvider>
+                        <JournalsProvider>
+                          <CategoriesProvider>
+                            <GestureHandlerRootView style={{ flex: 1 }}>
+                              <MigrationBanner />
+                              <RootLayoutNav />
+                            </GestureHandlerRootView>
+                          </CategoriesProvider>
+                        </JournalsProvider>
+                      </GameProvider>
+                    </NotificationsProvider>
+                  </OnboardingProvider>
+                </ThemeProvider>
+              </LocalizationProvider>
+            </SubscriptionProvider>
+          </SchemaProvider>
         </AuthProvider>
       </QueryClientProvider>
     </trpc.Provider>
