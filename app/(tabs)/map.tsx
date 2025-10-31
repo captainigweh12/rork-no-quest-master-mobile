@@ -1387,7 +1387,8 @@ const queueModalStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    maxHeight: '70%',
+    maxHeight: '80%',
+    minHeight: '50%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
@@ -1412,6 +1413,7 @@ const queueModalStyles = StyleSheet.create({
   },
   list: {
     flex: 1,
+    paddingBottom: 20,
   },
   queueItem: {
     flexDirection: 'row',
