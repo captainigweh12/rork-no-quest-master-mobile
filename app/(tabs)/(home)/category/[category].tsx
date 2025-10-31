@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
@@ -258,78 +258,89 @@ export default function CategoryScreen() {
       </ScrollView>
 
       <Modal visible={showModal} animationType="slide" transparent onRequestClose={() => setShowModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Personalize Your Quest</Text>
-              <Pressable onPress={() => setShowModal(false)} style={styles.closeButton}>
-                <X size={24} color={theme.colors.text} />
-              </Pressable>
-            </View>
-
-            {questions.length > 0 && currentQuestionIndex < questions.length ? (
-              <View style={styles.questionContainer}>
-                <Text style={[styles.questionText, { color: theme.colors.text }]}>
-                  {questions[currentQuestionIndex].question}
-                </Text>
-
-                {questions[currentQuestionIndex].type === 'text' && (
-                  <TextInput
-                    style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-                    placeholder="Type your answer..."
-                    placeholderTextColor={theme.colors.text + '80'}
-                    value={answers[questions[currentQuestionIndex].id] ?? ''}
-                    onChangeText={(text) => setAnswers({ ...answers, [questions[currentQuestionIndex].id]: text })}
-                    multiline
-                  />
-                )}
-
-                {questions[currentQuestionIndex].type === 'scale' && (
-                  <View style={styles.scaleContainer}>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                      <Pressable
-                        key={num}
-                        onPress={() => setAnswers({ ...answers, [questions[currentQuestionIndex].id]: String(num) })}
-                        style={[styles.scaleButton, { backgroundColor: answers[questions[currentQuestionIndex].id] === String(num) ? meta?.color : theme.colors.background, borderColor: theme.colors.border }]}
-                      >
-                        <Text style={[styles.scaleText, { color: answers[questions[currentQuestionIndex].id] === String(num) ? '#fff' : theme.colors.text }]}>{num}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-
-                {questions[currentQuestionIndex].type === 'choice' && (
-                  <View style={styles.choiceContainer}>
-                    {questions[currentQuestionIndex].choices?.map((choice) => (
-                      <Pressable
-                        key={choice}
-                        onPress={() => setAnswers({ ...answers, [questions[currentQuestionIndex].id]: choice })}
-                        style={[styles.choiceButton, { backgroundColor: answers[questions[currentQuestionIndex].id] === choice ? meta?.color : theme.colors.background, borderColor: theme.colors.border }]}
-                      >
-                        <Text style={[styles.choiceText, { color: answers[questions[currentQuestionIndex].id] === choice ? '#fff' : theme.colors.text }]}>{choice}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-
-                <View style={styles.modalActions}>
-                  {currentQuestionIndex > 0 && (
-                    <Pressable onPress={handlePrevious} style={[styles.actionButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
-                      <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Previous</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={handleNext}
-                    disabled={!answers[questions[currentQuestionIndex].id]}
-                    style={[styles.actionButton, { backgroundColor: meta?.color, opacity: answers[questions[currentQuestionIndex].id] ? 1 : 0.5 }]}
-                  >
-                    <Text style={styles.actionButtonText}>{currentQuestionIndex < questions.length - 1 ? 'Next' : generating ? 'Generating...' : 'Generate Quest'}</Text>
-                  </Pressable>
-                </View>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setShowModal(false)}>
+            <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Personalize Your Quest</Text>
+                <Pressable onPress={() => setShowModal(false)} style={styles.closeButton}>
+                  <X size={24} color={theme.colors.text} />
+                </Pressable>
               </View>
-            ) : null}
-          </View>
-        </View>
+
+              {questions.length > 0 && currentQuestionIndex < questions.length ? (
+                <ScrollView
+                  style={styles.questionContainer}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <Text style={[styles.questionText, { color: theme.colors.text }]}>
+                    {questions[currentQuestionIndex].question}
+                  </Text>
+
+                  {questions[currentQuestionIndex].type === 'text' && (
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
+                      placeholder="Type your answer..."
+                      placeholderTextColor={theme.colors.text + '80'}
+                      value={answers[questions[currentQuestionIndex].id] ?? ''}
+                      onChangeText={(text) => setAnswers({ ...answers, [questions[currentQuestionIndex].id]: text })}
+                      multiline
+                    />
+                  )}
+
+                  {questions[currentQuestionIndex].type === 'scale' && (
+                    <View style={styles.scaleContainer}>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                        <Pressable
+                          key={num}
+                          onPress={() => setAnswers({ ...answers, [questions[currentQuestionIndex].id]: String(num) })}
+                          style={[styles.scaleButton, { backgroundColor: answers[questions[currentQuestionIndex].id] === String(num) ? meta?.color : theme.colors.background, borderColor: theme.colors.border }]}
+                        >
+                          <Text style={[styles.scaleText, { color: answers[questions[currentQuestionIndex].id] === String(num) ? '#fff' : theme.colors.text }]}>{num}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+
+                  {questions[currentQuestionIndex].type === 'choice' && (
+                    <View style={styles.choiceContainer}>
+                      {questions[currentQuestionIndex].choices?.map((choice) => (
+                        <Pressable
+                          key={choice}
+                          onPress={() => setAnswers({ ...answers, [questions[currentQuestionIndex].id]: choice })}
+                          style={[styles.choiceButton, { backgroundColor: answers[questions[currentQuestionIndex].id] === choice ? meta?.color : theme.colors.background, borderColor: theme.colors.border }]}
+                        >
+                          <Text style={[styles.choiceText, { color: answers[questions[currentQuestionIndex].id] === choice ? '#fff' : theme.colors.text }]}>{choice}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={styles.modalActions}>
+                    {currentQuestionIndex > 0 && (
+                      <Pressable onPress={handlePrevious} style={[styles.actionButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
+                        <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Previous</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={handleNext}
+                      disabled={!answers[questions[currentQuestionIndex].id]}
+                      style={[styles.actionButton, { backgroundColor: meta?.color, opacity: answers[questions[currentQuestionIndex].id] ? 1 : 0.5 }]}
+                    >
+                      <Text style={styles.actionButtonText}>{currentQuestionIndex < questions.length - 1 ? 'Next' : generating ? 'Generating...' : 'Generate Quest'}</Text>
+                    </Pressable>
+                  </View>
+                </ScrollView>
+              ) : null}
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -377,7 +388,7 @@ function createStyles(colors: any) {
     cta: { marginTop: 8, paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
     ctaText: { color: '#fff', fontSize: 16, fontWeight: '900' as const },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, minHeight: 400 },
+    modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalTitle: { fontSize: 20, fontWeight: '900' as const },
     closeButton: { padding: 4 },
