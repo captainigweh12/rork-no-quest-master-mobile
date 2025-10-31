@@ -74,6 +74,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ presentation: "modal" }} />
       <Stack.Screen name="profile" options={{ presentation: "modal" }} />
+      <Stack.Screen name="account" options={{ presentation: "modal" }} />
       <Stack.Screen name="create-quest" options={{ presentation: "modal" }} />
       <Stack.Screen name="disclaimer" options={{ presentation: "modal" }} />
       <Stack.Screen name="notifications" options={{ presentation: "modal" }} />

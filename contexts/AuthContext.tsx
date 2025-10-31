@@ -23,6 +23,8 @@ interface User {
   isAdmin?: boolean;
 }
 
+const ADMIN_EMAILS = new Set<string>(['rizn.management@gmail.com']);
+
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<SupabaseSession | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -86,6 +88,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       if (profile) {
         console.log('✅ Profile loaded:', profile.full_name);
+        let isAdmin = profile.is_admin || false;
+        try {
+          if (!isAdmin && supabaseUser.email && ADMIN_EMAILS.has(supabaseUser.email)) {
+            const { error: adminErr } = await supabase
+              .from('user_profiles')
+              .update({ is_admin: true })
+              .eq('id', supabaseUser.id);
+            if (!adminErr) {
+              isAdmin = true;
+              console.log('🛡️ Auto-granted admin based on email');
+            } else {
+              console.warn('Could not auto-grant admin:', adminErr.message);
+            }
+          }
+        } catch (e) {
+          console.warn('Auto-admin check failed', e);
+        }
         setUser({
           id: profile.id,
           email: supabaseUser.email || '',
@@ -97,7 +116,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           subscriptionTier: profile.subscription_tier || 'free',
           subscriptionExpiresAt: profile.subscription_expires_at,
           dailyChallengesUsed: profile.daily_challenges_used || 0,
-          isAdmin: profile.is_admin || false,
+          isAdmin,
         });
         return;
       }
@@ -107,6 +126,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         id: supabaseUser.id,
         email: supabaseUser.email,
         full_name: supabaseUser.user_metadata?.full_name || 'User',
+        is_admin: supabaseUser.email ? ADMIN_EMAILS.has(supabaseUser.email) : false,
         updated_at: new Date().toISOString(),
       };
 
@@ -164,7 +184,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         subscriptionTier: row.subscription_tier || 'free',
         subscriptionExpiresAt: row.subscription_expires_at,
         dailyChallengesUsed: row.daily_challenges_used || 0,
-        isAdmin: row.is_admin || false,
+        isAdmin: (row.is_admin || (supabaseUser.email ? ADMIN_EMAILS.has(supabaseUser.email) : false)) ?? false,
       });
     } catch (err) {
       console.error('💥 Exception loading profile:', err);
