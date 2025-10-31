@@ -1,20 +1,27 @@
-import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator, ScrollView, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Sparkles } from 'lucide-react-native';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Sparkles, Radio } from 'lucide-react-native';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import type { Quest } from '@/types';
 import SideMenu from '@/components/SideMenu';
-import { useCategories } from '@/contexts/CategoriesContext';
+import { useCategories, type AppCategory } from '@/contexts/CategoriesContext';
+import { SafeImage } from '@/components/SafeImage';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const CATEGORY_CARDS: { id: string; title: string; color: string; image: string; }[] = [];
+const CATEGORY_ICON_MAP: Record<string, string> = {
+  overwatch: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
+  dota2: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop',
+  lol: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=800&auto=format&fit=crop',
+  apex: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop',
+  valorant: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800&auto=format&fit=crop',
+};
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -24,6 +31,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ focus?: string }>();
   const { selected, isLoading: catsLoading } = useCategories();
+  const [search, setSearch] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
@@ -44,6 +52,12 @@ export default function HomeScreen() {
   }, [params?.focus, activeQuests.length]);
 
   const styles = createStyles(theme.colors);
+  const categoriesHorizontal = useMemo(() => (catsLoading ? [] : selected).slice(0, 12), [catsLoading, selected]);
+  const liveStreams = useMemo(() => [
+    { id: 's1', title: 'Downtown Cold Calls', viewers: 8123, thumbnail: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop' },
+    { id: 's2', title: 'A/B Testing Pitches', viewers: 415, thumbnail: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=1200&auto=format&fit=crop' },
+    { id: 's3', title: 'Live Street Rejections', viewers: 120, thumbnail: 'https://images.unsplash.com/photo-1508385082359-f38ae991e8f2?q=80&w=1200&auto=format&fit=crop' },
+  ], []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -154,6 +168,72 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
         >
+          <View style={{ gap: 16 }}>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: theme.colors.text }}>Watch Live</Text>
+            <View style={[styles.searchBar, { borderColor: theme.colors.border, backgroundColor: theme.colors.glass }]}>
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search live channels or streamers"
+                placeholderTextColor={theme.colors.textSecondary}
+                style={styles.searchInput}
+                testID="live-search"
+              />
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingVertical: 6, gap: 12 }}
+              testID="categories-horizontal"
+            >
+              {categoriesHorizontal.map((c: AppCategory) => {
+                const icon = CATEGORY_ICON_MAP[c.id] ?? CATEGORY_ICON_MAP.lol;
+                return (
+                  <Pressable
+                    key={`hcat-${c.id}`}
+                    onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
+                    style={({ pressed }) => [styles.gamePill, { borderColor: theme.colors.border, backgroundColor: theme.colors.card, opacity: pressed ? 0.8 : 1 }]}
+                    testID={`hcat-${c.id}`}
+                  >
+                    <View style={[styles.gameIconWrap, { borderColor: theme.colors.border }]}> 
+                      <SafeImage uri={icon} style={styles.gameIcon} testID={`hcat-icon-${c.id}`} />
+                    </View>
+                    <Text style={[styles.gameLabel, { color: theme.colors.text }]} numberOfLines={1}>{c.title}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12 }}
+              testID="live-now-scroll"
+            >
+              {liveStreams.map((s: { id: string; title: string; viewers: number; thumbnail: string }) => (
+                <Pressable
+                  key={s.id}
+                  onPress={() => router.push(`/(tabs)/(home)/live/${s.id}` as any)}
+                  style={({ pressed }) => [styles.liveCard, { backgroundColor: theme.colors.glass, borderColor: theme.colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                  testID={`live-${s.id}`}
+                >
+                  <View style={styles.liveThumbWrap}>
+                    <SafeImage uri={s.thumbnail} style={styles.liveThumb} testID={`live-thumb-${s.id}`} />
+                    <View style={[styles.liveBadge, { backgroundColor: '#EF4444' }]}>
+                      <Radio size={12} color="#fff" />
+                      <Text style={styles.liveBadgeText}>LIVE</Text>
+                    </View>
+                    <View style={[styles.viewerBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                      <Text style={styles.viewerText}>{Intl.NumberFormat().format(s.viewers)}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.liveTitle, { color: theme.colors.text }]} numberOfLines={1}>{s.title}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
           <View style={[styles.heroBanner, { 
             backgroundColor: theme.colors.glass,
             shadowColor: theme.colors.shadow,
@@ -975,6 +1055,68 @@ function createStyles(colors: any) {
       alignItems: 'center',
       gap: 4,
     },
+    searchBar: {
+      height: 44,
+      borderRadius: 14,
+      borderWidth: 1,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+    },
+    searchInput: {
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    gamePill: {
+      width: 84,
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderRadius: 16,
+      borderWidth: 1,
+    },
+    gameIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      overflow: 'hidden',
+      borderWidth: 1,
+      marginBottom: 6,
+    },
+    gameIcon: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 22,
+    },
+    gameLabel: { fontSize: 11, fontWeight: '800' as const },
+    liveCard: {
+      width: SCREEN_WIDTH * 0.74,
+      borderRadius: 16,
+      padding: 10,
+      borderWidth: 1,
+    },
+    liveThumbWrap: { width: '100%', height: 140, borderRadius: 12, overflow: 'hidden' },
+    liveThumb: { width: '100%', height: '100%' },
+    liveBadge: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    liveBadgeText: { color: '#fff', fontWeight: '900' as const, fontSize: 11 },
+    viewerBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    viewerText: { color: '#fff', fontWeight: '800' as const, fontSize: 11 },
+    liveTitle: { fontSize: 14, fontWeight: '800' as const, marginTop: 8 },
     activeQuestItem: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -18,6 +18,7 @@ export default function HomeStackLayout() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="category/[category]" options={{ title: 'Category' }} />
+      <Stack.Screen name="live/[id]" options={{ title: 'Live Quest' }} />
     </Stack>
   );
 }
