@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable, Animated, Platform, PanResponder, Modal, Alert, ActivityIndicator, ScrollView, TextInput, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
@@ -13,6 +13,7 @@ import SideMenu from '@/components/SideMenu';
 import { useCategories, type AppCategory } from '@/contexts/CategoriesContext';
 import { SafeImage } from '@/components/SafeImage';
 import { useAuth } from '@/contexts/AuthContext';
+import { useYouTube } from '@/contexts/YouTubeContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useQuery } from '@tanstack/react-query';
 import { getUserTeams, type Team } from '@/services/supabase/teams';
@@ -68,11 +69,20 @@ export default function HomeScreen() {
 
   const styles = createStyles(theme.colors);
   const categoriesHorizontal = useMemo(() => (catsLoading ? [] : selected).slice(0, 12), [catsLoading, selected]);
-  const liveStreams = useMemo(() => [
-    { id: 's1', title: 'Downtown Cold Calls', viewers: 8123, thumbnail: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop' },
-    { id: 's2', title: 'A/B Testing Pitches', viewers: 415, thumbnail: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=1200&auto=format&fit=crop' },
-    { id: 's3', title: 'Live Street Rejections', viewers: 120, thumbnail: 'https://images.unsplash.com/photo-1508385082359-f38ae991e8f2?q=80&w=1200&auto=format&fit=crop' },
-  ], []);
+  const { isConnected: ytConnected, live: ytLive } = useYouTube();
+  const liveStreams = useMemo(() => {
+    if (ytConnected && ytLive?.isLive && ytLive.videoId) {
+      return [
+        {
+          id: ytLive.videoId,
+          title: ytLive.liveTitle ?? 'Live Now',
+          viewers: typeof ytLive.concurrentViewers === 'number' ? ytLive.concurrentViewers : 0,
+          thumbnail: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop',
+        },
+      ];
+    }
+    return [] as { id: string; title: string; viewers: number; thumbnail: string }[];
+  }, [ytConnected, ytLive]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -220,33 +230,35 @@ export default function HomeScreen() {
               })}
             </ScrollView>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
-              testID="live-now-scroll"
-            >
-              {liveStreams.map((s: { id: string; title: string; viewers: number; thumbnail: string }) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => router.push(`/(tabs)/(home)/live/${s.id}` as any)}
-                  style={({ pressed }) => [styles.liveCard, { backgroundColor: theme.colors.glass, borderColor: theme.colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-                  testID={`live-${s.id}`}
-                >
-                  <View style={styles.liveThumbWrap}>
-                    <SafeImage uri={s.thumbnail} style={styles.liveThumb} testID={`live-thumb-${s.id}`} />
-                    <View style={[styles.liveBadge, { backgroundColor: '#EF4444' }]}>
-                      <Radio size={12} color="#fff" />
-                      <Text style={styles.liveBadgeText}>LIVE</Text>
+            {liveStreams.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12 }}
+                testID="live-now-scroll"
+              >
+                {liveStreams.map((s: { id: string; title: string; viewers: number; thumbnail: string }) => (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => Linking.openURL(`https://www.youtube.com/watch?v=${s.id}`)}
+                    style={({ pressed }) => [styles.liveCard, { backgroundColor: theme.colors.glass, borderColor: theme.colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+                    testID={`live-${s.id}`}
+                  >
+                    <View style={styles.liveThumbWrap}>
+                      <SafeImage uri={s.thumbnail} style={styles.liveThumb} testID={`live-thumb-${s.id}`} />
+                      <View style={[styles.liveBadge, { backgroundColor: '#EF4444' }]}>
+                        <Radio size={12} color="#fff" />
+                        <Text style={styles.liveBadgeText}>LIVE</Text>
+                      </View>
+                      <View style={[styles.viewerBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                        <Text style={styles.viewerText}>{Intl.NumberFormat().format(s.viewers)}</Text>
+                      </View>
                     </View>
-                    <View style={[styles.viewerBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-                      <Text style={styles.viewerText}>{Intl.NumberFormat().format(s.viewers)}</Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.liveTitle, { color: theme.colors.text }]} numberOfLines={1}>{s.title}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+                    <Text style={[styles.liveTitle, { color: theme.colors.text }]} numberOfLines={1}>{s.title}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
           </View>
 
           <View style={{ gap: 12, marginTop: 4 }}>
