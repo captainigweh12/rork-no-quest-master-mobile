@@ -20,44 +20,65 @@ export interface Theme {
     border: string;
     card: string;
     shadow: string;
+    glass: string;
+    glassHeavy: string;
+    glow: string;
+    accentOrange: string;
+    accentViolet: string;
+    accentBlue: string;
+    surfaceElevated: string;
   };
 }
 
 const lightTheme: Theme = {
   mode: 'light',
   colors: {
-    background: '#FFFFFF',
-    backgroundSecondary: '#F8FAFC',
-    backgroundTertiary: '#F1F5F9',
-    text: '#0F172A',
-    textSecondary: '#64748B',
-    primary: '#8B5CF6',
-    secondary: '#EC4899',
+    background: '#F5F7FA',
+    backgroundSecondary: '#FFFFFF',
+    backgroundTertiary: '#E8ECF0',
+    text: '#1A1F36',
+    textSecondary: '#697386',
+    primary: '#FF7A3D',
+    secondary: '#3D8BFF',
     success: '#10B981',
     error: '#EF4444',
     warning: '#F59E0B',
-    border: '#E2E8F0',
+    border: '#DFE3E8',
     card: '#FFFFFF',
-    shadow: '#00000010',
+    shadow: '#1A1F3618',
+    glass: 'rgba(255, 255, 255, 0.85)',
+    glassHeavy: 'rgba(255, 255, 255, 0.95)',
+    glow: 'rgba(255, 122, 61, 0.15)',
+    accentOrange: '#FF7A3D',
+    accentViolet: '#8B5CF6',
+    accentBlue: '#3D8BFF',
+    surfaceElevated: '#FAFBFC',
   },
 };
 
 const darkTheme: Theme = {
   mode: 'dark',
   colors: {
-    background: '#1a1d26',
-    backgroundSecondary: '#22252e',
-    backgroundTertiary: '#2a2d36',
+    background: '#0F1419',
+    backgroundSecondary: '#1A1F2E',
+    backgroundTertiary: '#242938',
     text: '#FFFFFF',
-    textSecondary: '#9CA3AF',
-    primary: '#FF6B35',
-    secondary: '#FF8A5B',
+    textSecondary: '#A0AEC0',
+    primary: '#FF7A3D',
+    secondary: '#A78BFA',
     success: '#10B981',
     error: '#EF4444',
     warning: '#F59E0B',
-    border: '#ffffff15',
-    card: '#252930',
-    shadow: '#00000060',
+    border: '#FFFFFF12',
+    card: '#1E2433',
+    shadow: '#00000080',
+    glass: 'rgba(30, 36, 51, 0.65)',
+    glassHeavy: 'rgba(30, 36, 51, 0.85)',
+    glow: 'rgba(255, 122, 61, 0.25)',
+    accentOrange: '#FF7A3D',
+    accentViolet: '#A78BFA',
+    accentBlue: '#60A5FA',
+    surfaceElevated: '#252B3D',
   },
 };
 
