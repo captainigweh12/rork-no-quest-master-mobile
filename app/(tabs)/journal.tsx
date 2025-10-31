@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator, Platform, ScrollView } from 'react-native';
 import { useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/JournalsContext';
@@ -152,7 +152,12 @@ Provide a brief encouraging explanation of the skills they developed and why.`
       testID="journal-screen">
       <Stack.Screen options={{ title: 'Journal', headerShown: true, headerStyle: { backgroundColor: theme.colors.background }, headerTitleStyle: { color: theme.colors.text } }} />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+        showsVerticalScrollIndicator={true}
+      >
+      <View style={styles.header}>
         <BookOpen size={24} color={theme.colors.primary} />
         <Text style={[styles.title, { color: theme.colors.text }]}>Log a Freeform Win</Text>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Not a quest — your own initiative.</Text>
@@ -263,17 +268,14 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         <Text style={{ color: theme.colors.textSecondary }}>{isLoading ? 'Loading…' : `${journals.length}`}</Text>
       </View>
 
-      <FlatList
-        data={journals}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
-        initialNumToRender={8}
-        windowSize={7}
-        removeClippedSubviews={Platform.OS !== 'web'}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]} testID={`journal-item-${item.id}`}>
+      <View style={{ padding: 16, paddingBottom: 20 }}>
+        {journals.length === 0 && !isLoading ? (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <Text style={{ color: theme.colors.textSecondary }}>No journals yet. Log your first win!</Text>
+          </View>
+        ) : (
+          journals.map((item) => (
+          <View key={item.id} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]} testID={`journal-item-${item.id}`}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.title}</Text>
@@ -325,13 +327,10 @@ Provide a brief encouraging explanation of the skills they developed and why.`
             </View>
             <Text style={[styles.cardDate, { color: theme.colors.textSecondary }]}>{new Date(item.createdAt).toLocaleString()}</Text>
           </View>
+          ))
         )}
-        ListEmptyComponent={!isLoading ? (
-          <View style={{ padding: 24, alignItems: 'center' }}>
-            <Text style={{ color: theme.colors.textSecondary }}>No journals yet. Log your first win!</Text>
-          </View>
-        ) : null}
-      />
+      </View>
+      </ScrollView>
 
       <Modal
         visible={showSkillsModal}
@@ -396,7 +395,7 @@ function labelForSkill(s: Skill): string {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, gap: 6 },
+  header: { paddingHorizontal: 16, paddingTop: 16, gap: 6 },
   title: { fontSize: 22, fontWeight: '800' as const },
   subtitle: { fontSize: 14 },
   form: { padding: 16, gap: 12 },
