@@ -694,6 +694,7 @@ MinNo: <integer 3-7>`;
       });
 
       const allMarkers = [${allMarkers}];
+      const ACCESS_RADIUS_METERS = ${ACCESS_RADIUS_METERS};
       
       allMarkers.forEach((markerData) => {
         const isAIQuest = markerData.type === "ai-quest";
@@ -710,6 +711,32 @@ MinNo: <integer 3-7>`;
           },
           title: markerData.title
         });
+
+        // Draw green access circle if within range for AI quests on load
+        if (isAIQuest) {
+          const distMeters = (function haversinePos(a, b){
+            const toRad = x => (x * Math.PI) / 180;
+            const R = 6371000;
+            const dLat = toRad(b.lat - userLocation.lat);
+            const dLon = toRad(b.lng - userLocation.lng);
+            const lat1 = toRad(userLocation.lat);
+            const lat2 = toRad(b.lat);
+            const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+            return 2 * R * Math.asin(Math.sqrt(h));
+          })(userLocation, markerData.position);
+          if (distMeters <= ACCESS_RADIUS_METERS) {
+            new google.maps.Circle({
+              strokeColor: '#10B981',
+              strokeOpacity: 0.9,
+              strokeWeight: 2,
+              fillColor: '#10B981',
+              fillOpacity: 0.15,
+              map,
+              center: markerData.position,
+              radius: ACCESS_RADIUS_METERS,
+            });
+          }
+        }
 
         const infoWindow = new google.maps.InfoWindow({
           content: \`
