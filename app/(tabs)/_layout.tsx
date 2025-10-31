@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function TabLayout() {
   const router = useRouter();
   const themeContext = useTheme();
-  useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
   if (!themeContext) {
     return <ActivityIndicator size="large" style={{ flex: 1 }} />;
@@ -25,8 +25,8 @@ export default function TabLayout() {
             backgroundColor: theme.colors.card,
             borderTopColor: theme.colors.border,
             borderTopWidth: 1,
-            height: 60,
-            overflow: 'hidden',
+            height: 60 + insets.bottom,
+            paddingBottom: insets.bottom,
           },
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textSecondary,
