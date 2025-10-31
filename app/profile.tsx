@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, SafeImage } from '@/components/SafeImage';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award, Radio, Link2, LogOut } from 'lucide-react-native';
+import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award, Radio, Link2, LogOut, Calendar, Eye } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useYouTube } from '@/contexts/YouTubeContext';
@@ -81,7 +81,7 @@ export default function ProfileScreen() {
     staleTime: 60000,
   });
 
-  const { isConnected, state: ytState, connectManually, disconnect, goLive, openChannel, isLoading: ytLoading } = useYouTube();
+  const { isConnected, state: ytState, connectManually, disconnect, goLive, openChannel, isLoading: ytLoading, live, upcoming, isFetchingLive, refetchLive } = useYouTube();
 
   const groups = useMemo<GroupItem[]>(() => {
     const items = (teamsData ?? []).map((t) => ({ id: t.id, name: t.name, avatarUrl: t.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop' }));
@@ -193,7 +193,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>YouTube Live</Text>
               </View>
               {isConnected ? (
-                <View style={styles.dotConnected} />
+                <View style={[styles.dotConnected, live?.isLive ? { backgroundColor: '#EF4444' } : null]} />
               ) : (
                 <View style={styles.dotDisconnected} />
               )}
@@ -203,7 +203,24 @@ export default function ProfileScreen() {
               <View style={{ marginTop: 12, gap: 10 }}>
                 <Text style={[styles.small, { color: theme.colors.textSecondary }]}>Connected Channel</Text>
                 <Text style={[styles.link, { color: theme.colors.primary }]} numberOfLines={1}>{ytState?.channelUrl}</Text>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
+                {live?.isLive ? (
+                  <View style={{ marginTop: 6, gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 }}>
+                        <Radio size={12} color="#fff" />
+                        <Text style={{ color: '#fff', fontWeight: '900' }}>LIVE</Text>
+                      </View>
+                      {typeof live.concurrentViewers === 'number' && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: theme.colors.border, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 }}>
+                          <Eye size={12} color={theme.colors.text} />
+                          <Text style={{ fontWeight: '800', color: theme.colors.text }}>{Intl.NumberFormat().format(live.concurrentViewers)}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.text }} numberOfLines={2}>{live.liveTitle}</Text>
+                  </View>
+                ) : null}
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
                   <Pressable onPress={goLive} style={[styles.btnPrimary, { backgroundColor: theme.colors.primary }]} testID="btn-yt-go-live">
                     <Text style={styles.btnPrimaryText}>Go Live</Text>
                   </Pressable>
@@ -215,6 +232,26 @@ export default function ProfileScreen() {
                     <LogOut size={16} color={theme.colors.text} />
                     <Text style={[styles.btnSecondaryText, { color: theme.colors.text }]}>Disconnect</Text>
                   </Pressable>
+                </View>
+                <View style={{ marginTop: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Calendar size={14} color={theme.colors.textSecondary} />
+                    <Text style={[styles.small, { color: theme.colors.textSecondary }]}>Upcoming Streams</Text>
+                    <Pressable onPress={() => refetchLive()} testID="btn-yt-refresh" style={({pressed})=>[{opacity: pressed?0.6:1, marginLeft: 'auto'}]}>
+                      <Text style={[styles.small, { color: theme.colors.primary }]}>{isFetchingLive ? 'Refreshing…' : 'Refresh'}</Text>
+                    </Pressable>
+                  </View>
+                  {upcoming && upcoming.length > 0 ? (
+                    <View style={{ gap: 8 }}>
+                      {upcoming.slice(0, 3).map((u) => (
+                        <Text key={u.videoId} style={{ fontSize: 12, fontWeight: '700', color: theme.colors.text }} numberOfLines={1}>
+                          • {u.title}{u.scheduledStartTime ? ` — ${new Date(u.scheduledStartTime).toLocaleString()}` : ''}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[styles.small, { color: theme.colors.textSecondary }]}>No scheduled streams</Text>
+                  )}
                 </View>
               </View>
             ) : (
@@ -383,4 +420,10 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: '#fff', fontWeight: '900' as const },
   btnSecondary: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnSecondaryText: { fontWeight: '800' as const },
+  livePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  livePillText: { color: '#fff', fontWeight: '900' as const, fontSize: 11 },
+  viewerPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  viewerTextSmall: { fontSize: 11, fontWeight: '800' as const },
+  liveTitleInline: { fontSize: 14, fontWeight: '800' as const },
+  upcomingItem: { fontSize: 12, fontWeight: '700' as const },
 });

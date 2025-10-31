@@ -6,6 +6,7 @@ type Extra = Partial<{
   OPENAI_API_KEY: string;
   PERPLEXITY_API_KEY: string;
   AI_PROVIDER_ORDER: string;
+  YOUTUBE_API_KEY: string;
 }>;
 
 export function getSupabaseEnv() {
@@ -63,4 +64,11 @@ export function getAIEnv(): AIEnv {
     perplexityKey: perplexityKey || undefined,
     providerOrder: providerOrder.length > 0 ? providerOrder : ["perplexity", "openai"],
   };
+}
+
+export function getYouTubeApiKey(): string | undefined {
+  const fromEnv = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY;
+  const extra = (Constants.expoConfig?.extra ?? Constants.manifest?.extra ?? {}) as Extra;
+  const key = fromEnv || extra.YOUTUBE_API_KEY;
+  return key || undefined;
 }

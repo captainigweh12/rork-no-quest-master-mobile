@@ -2,6 +2,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery } from '@tanstack/react-query';
+import { getYouTubeApiKey } from '@/lib/env';
 
 export type YouTubeLinkState = {
   channelUrl?: string;
@@ -9,7 +11,112 @@ export type YouTubeLinkState = {
   lastConnectedAt?: string;
 };
 
+export type LiveInfo = {
+  isLive: boolean;
+  liveTitle?: string;
+  concurrentViewers?: number;
+  videoId?: string;
+};
+
+export type UpcomingItem = {
+  videoId: string;
+  title: string;
+  scheduledStartTime?: string;
+};
+
 const STORAGE_KEY = 'yt_link_state_v1';
+
+function extractChannelHint(url?: string): { id?: string; handleOrName?: string } {
+  if (!url) return {};
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.split('/').filter(Boolean);
+    const idx = parts.indexOf('channel');
+    if (idx >= 0 && parts[idx + 1]) return { id: parts[idx + 1] };
+    if (parts[0]?.startsWith('@')) return { handleOrName: parts[0] };
+    if (parts[0] === 'c' && parts[1]) return { handleOrName: parts[1] };
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+async function resolveChannelId(channelUrl: string, apiKey?: string): Promise<string | undefined> {
+  const hint = extractChannelHint(channelUrl);
+  if (hint.id) return hint.id;
+  if (!apiKey || !hint.handleOrName) return undefined;
+  const q = hint.handleOrName.startsWith('@') ? hint.handleOrName : `@${hint.handleOrName}`;
+  try {
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&maxResults=1&key=${apiKey}`;
+    const res = await fetch(searchUrl);
+    const data = await res.json();
+    const id = data?.items?.[0]?.id?.channelId as string | undefined;
+    return id;
+  } catch (e) {
+    console.error('[YouTube] resolveChannelId error', e);
+    return undefined;
+  }
+}
+
+async function fetchLiveAndUpcoming(channelUrl?: string) {
+  const apiKey = getYouTubeApiKey();
+  if (!apiKey || !channelUrl) return { live: { isLive: false } as LiveInfo, upcoming: [] as UpcomingItem[] };
+  const channelId = await resolveChannelId(channelUrl, apiKey);
+  if (!channelId) return { live: { isLive: false } as LiveInfo, upcoming: [] as UpcomingItem[] };
+
+  try {
+    const liveSearch = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&maxResults=1&key=${apiKey}`;
+    const upcomingSearch = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=upcoming&type=video&maxResults=5&key=${apiKey}`;
+
+    const [liveRes, upcomingRes] = await Promise.all([fetch(liveSearch), fetch(upcomingSearch)]);
+    const liveJson = await liveRes.json();
+    const upcomingJson = await upcomingRes.json();
+
+    let live: LiveInfo = { isLive: false };
+    const liveVideoId = liveJson?.items?.[0]?.id?.videoId as string | undefined;
+    const upcomingIds: string[] = (upcomingJson?.items ?? []).map((it: any) => it?.id?.videoId).filter(Boolean);
+
+    const detailsIds = [liveVideoId, ...upcomingIds].filter(Boolean).join(',');
+    let details: any = null;
+    if (detailsIds.length > 0) {
+      const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${detailsIds}&key=${apiKey}`;
+      const detRes = await fetch(detailsUrl);
+      details = await detRes.json();
+    }
+
+    if (liveVideoId && details?.items) {
+      const d = details.items.find((x: any) => x.id === liveVideoId);
+      if (d) {
+        const viewersRaw = d?.liveStreamingDetails?.concurrentViewers;
+        live = {
+          isLive: true,
+          liveTitle: d?.snippet?.title,
+          concurrentViewers: typeof viewersRaw === 'string' ? Number(viewersRaw) : viewersRaw,
+          videoId: liveVideoId,
+        };
+      }
+    }
+
+    const upcoming: UpcomingItem[] = [];
+    if (upcomingIds.length > 0 && details?.items) {
+      for (const vid of upcomingIds) {
+        const d = details.items.find((x: any) => x.id === vid);
+        if (d) {
+          upcoming.push({
+            videoId: vid,
+            title: d?.snippet?.title ?? 'Upcoming stream',
+            scheduledStartTime: d?.liveStreamingDetails?.scheduledStartTime,
+          });
+        }
+      }
+    }
+
+    return { live, upcoming } as { live: LiveInfo; upcoming: UpcomingItem[] };
+  } catch (e) {
+    console.error('[YouTube] fetchLiveAndUpcoming error', e);
+    return { live: { isLive: false } as LiveInfo, upcoming: [] as UpcomingItem[] };
+  }
+}
 
 export const [YouTubeProvider, useYouTube] = createContextHook(() => {
   const [state, setState] = useState<YouTubeLinkState | null>(null);
@@ -90,6 +197,14 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
     }
   }, [state?.liveControlUrl]);
 
+  const liveQuery = useQuery({
+    queryKey: ['yt-live', state?.channelUrl, getYouTubeApiKey()],
+    queryFn: async () => fetchLiveAndUpcoming(state?.channelUrl),
+    enabled: !!state?.channelUrl && !!getYouTubeApiKey(),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
   return useMemo(() => ({
     isLoading,
     isConnected: !!state?.channelUrl,
@@ -98,5 +213,9 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
     disconnect,
     openChannel,
     goLive,
-  }), [isLoading, state, connectManually, disconnect, openChannel, goLive]);
+    live: (liveQuery.data?.live ?? { isLive: false }) as LiveInfo,
+    upcoming: (liveQuery.data?.upcoming ?? []) as UpcomingItem[],
+    isFetchingLive: liveQuery.isFetching,
+    refetchLive: liveQuery.refetch,
+  }), [isLoading, state, connectManually, disconnect, openChannel, goLive, liveQuery.data, liveQuery.isFetching, liveQuery.refetch]);
 });
