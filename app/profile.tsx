@@ -4,9 +4,11 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, SafeImage } from '@/components/SafeImage';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award } from 'lucide-react-native';
+import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award, Radio, Link2, LogOut } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useYouTube } from '@/contexts/YouTubeContext';
+import { TextInput } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useJournals } from '@/contexts/JournalsContext';
 import { useQuery } from '@tanstack/react-query';
@@ -78,6 +80,8 @@ export default function ProfileScreen() {
     },
     staleTime: 60000,
   });
+
+  const { isConnected, state: ytState, connectManually, disconnect, goLive, openChannel, isLoading: ytLoading } = useYouTube();
 
   const groups = useMemo<GroupItem[]>(() => {
     const items = (teamsData ?? []).map((t) => ({ id: t.id, name: t.name, avatarUrl: t.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop' }));
@@ -182,6 +186,47 @@ export default function ProfileScreen() {
 
           <View style={{ height: 18 }} />
 
+          <View style={[styles.youtubeCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]} testID="youtube-card">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Radio size={18} color={theme.colors.text} />
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>YouTube Live</Text>
+              </View>
+              {isConnected ? (
+                <View style={styles.dotConnected} />
+              ) : (
+                <View style={styles.dotDisconnected} />
+              )}
+            </View>
+
+            {isConnected ? (
+              <View style={{ marginTop: 12, gap: 10 }}>
+                <Text style={[styles.small, { color: theme.colors.textSecondary }]}>Connected Channel</Text>
+                <Text style={[styles.link, { color: theme.colors.primary }]} numberOfLines={1}>{ytState?.channelUrl}</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <Pressable onPress={goLive} style={[styles.btnPrimary, { backgroundColor: theme.colors.primary }]} testID="btn-yt-go-live">
+                    <Text style={styles.btnPrimaryText}>Go Live</Text>
+                  </Pressable>
+                  <Pressable onPress={openChannel} style={[styles.btnSecondary, { borderColor: theme.colors.border }]} testID="btn-yt-open">
+                    <Link2 size={16} color={theme.colors.text} />
+                    <Text style={[styles.btnSecondaryText, { color: theme.colors.text }]}>Open Channel</Text>
+                  </Pressable>
+                  <Pressable onPress={disconnect} style={[styles.btnSecondary, { borderColor: theme.colors.border }]} testID="btn-yt-disconnect">
+                    <LogOut size={16} color={theme.colors.text} />
+                    <Text style={[styles.btnSecondaryText, { color: theme.colors.text }]}>Disconnect</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <View style={{ marginTop: 12, gap: 10 }}>
+                <Text style={[styles.small, { color: theme.colors.textSecondary }]}>Paste your YouTube channel URL to link your account. We’ll open YouTube Studio for going live.</Text>
+                <YouTubeConnect onConnect={connectManually} loading={ytLoading} />
+              </View>
+            )}
+          </View>
+
+          <View style={{ height: 18 }} />
+
           <SectionHeader title={`Achievements (${achievements.length})`} icon={<Award size={18} color={theme.colors.text} />} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }} testID="achievements-row">
             {achievements.map((a) => (
@@ -218,6 +263,26 @@ function Metric({ label, value }: { label: string; value: string }) {
     <View style={styles.metric} testID={`metric-${label.toLowerCase()}`}>
       <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function YouTubeConnect({ onConnect, loading }: { onConnect: (url: string) => Promise<{ success: boolean }>; loading: boolean }) {
+  const [value, setValue] = useState<string>('');
+  return (
+    <View style={{ gap: 10 }}>
+      <TextInput
+        value={value}
+        onChangeText={setValue}
+        placeholder="https://www.youtube.com/@your_channel"
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={{ borderWidth: 1, borderColor: '#333', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 }}
+        testID="input-yt-channel"
+      />
+      <Pressable disabled={loading} onPress={async () => { const res = await onConnect(value.trim()); if (!res.success) return; setValue(''); }} style={[styles.btnPrimary, { backgroundColor: '#FF3B30' }]} testID="btn-yt-connect">
+        <Text style={styles.btnPrimaryText}>{loading ? 'Connecting…' : 'Connect YouTube'}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -309,4 +374,13 @@ const styles = StyleSheet.create({
   groupItem: { width: 96, alignItems: 'center', gap: 6 },
   groupAvatar: { width: 64, height: 64, borderRadius: 14 },
   groupName: { fontSize: 11, fontWeight: '700' as const, textAlign: 'center' },
+  youtubeCard: { borderWidth: 1, borderRadius: 16, padding: 14 },
+  dotConnected: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#16A34A' },
+  dotDisconnected: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#475569' },
+  small: { fontSize: 12, fontWeight: '700' as const },
+  link: { fontSize: 12, fontWeight: '800' as const },
+  btnPrimary: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 },
+  btnPrimaryText: { color: '#fff', fontWeight: '900' as const },
+  btnSecondary: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  btnSecondaryText: { fontWeight: '800' as const },
 });

@@ -17,6 +17,7 @@ import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { SchemaProvider } from '@/contexts/SchemaContext';
 import MigrationBanner from '@/components/MigrationBanner';
+import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { ChevronLeft } from 'lucide-react-native';
 
 
@@ -221,7 +222,9 @@ export default function RootLayout() {
                           <CategoriesProvider>
                             <GestureHandlerRootView style={{ flex: 1 }}>
                               <MigrationBanner />
-                              <RootLayoutNav />
+                              <YouTubeProvider>
+                                <RootLayoutNav />
+                              </YouTubeProvider>
                             </GestureHandlerRootView>
                           </CategoriesProvider>
                         </JournalsProvider>
