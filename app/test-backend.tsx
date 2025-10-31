@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 
-export default function TestBackendScreen() {
+function DevTestBackendScreen() {
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {
@@ -167,6 +167,21 @@ export default function TestBackendScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function ProdBlocked() {
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Stack.Screen options={{ title: 'Backend Connection Test' }} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <Text>Not available in production</Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+export default function TestBackendScreen() {
+  return (typeof __DEV__ !== 'undefined' && __DEV__ === true) ? <DevTestBackendScreen /> : <ProdBlocked />;
 }
 
 const styles = StyleSheet.create({

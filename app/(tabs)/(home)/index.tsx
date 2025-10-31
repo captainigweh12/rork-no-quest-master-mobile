@@ -646,8 +646,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
           <Text style={[styles.questTitle, { color: colors.text }]}>{quest.title}</Text>
           <Text style={[styles.questDescription, { color: colors.textSecondary }]} numberOfLines={expanded ? undefined : 2}>
             {truncateToWords(quest.description ?? '', expanded ? undefined : 10)}
-          </Text
->
+          </Text>
 
           {quest.minNoRequired && (
             <View style={[styles.noRequirementBadge, { backgroundColor: '#10B98120', borderColor: '#10B981' }]}>

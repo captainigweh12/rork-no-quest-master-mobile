@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { trpc } from '@/lib/trpc';
 
-export default function DebugEmailScreen() {
+function DevDebugEmailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('test@example.com');
@@ -26,7 +26,7 @@ export default function DebugEmailScreen() {
     console.log(message);
   };
 
-  const sendVerificationEmailMutation = trpc.auth.sendVerificationEmail.useMutation();
+  const sendVerificationEmailMutation = (trpc as any)?.auth?.sendVerificationEmail?.useMutation?.();
 
   const testEmail = async () => {
     setIsLoading(true);
@@ -367,6 +367,21 @@ export default function DebugEmailScreen() {
       </View>
     </>
   );
+}
+
+function ProdBlocked() {
+  return (
+    <>
+      <Stack.Screen options={{ title: 'Email Debug Tool' }} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text>Not available in production</Text>
+      </View>
+    </>
+  );
+}
+
+export default function DebugEmailScreen() {
+  return (typeof __DEV__ !== 'undefined' && __DEV__ === true) ? <DevDebugEmailScreen /> : <ProdBlocked />;
 }
 
 const styles = StyleSheet.create({

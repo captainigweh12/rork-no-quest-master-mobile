@@ -10,7 +10,7 @@ import {
 import { Stack } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-export default function TestSupabaseDirect() {
+function DevTestSupabaseDirect() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<string[]>([]);
 
@@ -179,6 +179,23 @@ export default function TestSupabaseDirect() {
       </View>
     </>
   );
+}
+
+function ProdBlocked() {
+  return (
+    <>
+      <Stack.Screen options={{ title: 'Test Supabase Connection', headerShown: true }} />
+      <View style={styles.container}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <Text>Not available in production</Text>
+        </View>
+      </View>
+    </>
+  );
+}
+
+export default function TestSupabaseDirect() {
+  return (typeof __DEV__ !== 'undefined' && __DEV__ === true) ? <DevTestSupabaseDirect /> : <ProdBlocked />;
 }
 
 const styles = StyleSheet.create({
