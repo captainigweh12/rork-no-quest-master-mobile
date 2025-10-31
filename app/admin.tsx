@@ -6,7 +6,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, Shield, Users, TrendingUp, CheckCircle } from 'lucide-react-native';
+import { Search, Shield, Users, TrendingUp, CheckCircle, ChevronLeft } from 'lucide-react-native';
 
 interface UserProfile {
   id: string;
@@ -175,6 +175,20 @@ export default function AdminDashboard() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
+          <Pressable
+            testID="admin-back-button"
+            accessibilityRole="button"
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/(home)' as any);
+              }
+            }}
+            style={styles.backButton}
+          >
+            <ChevronLeft size={24} color={theme.colors.text} />
+          </Pressable>
           <Shield size={32} color={theme.colors.primary} />
           <Text style={styles.title}>Admin Dashboard</Text>
         </View>
@@ -309,6 +323,15 @@ function createStyles(colors: { background: string; backgroundSecondary: string;
       fontSize: 28,
       fontWeight: '800' as const,
       color: colors.text,
+      flex: 1,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.backgroundSecondary,
     },
     statsGrid: {
       flexDirection: 'row',
