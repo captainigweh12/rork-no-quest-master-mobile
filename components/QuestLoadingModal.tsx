@@ -13,6 +13,7 @@ export function QuestLoadingModal({ visible }: QuestLoadingModalProps) {
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     if (visible) {
@@ -58,12 +59,30 @@ export function QuestLoadingModal({ visible }: QuestLoadingModalProps) {
           }),
         ])
       ).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(progressAnim, {
+            toValue: 0.7,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(progressAnim, {
+            toValue: 0.3,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ])
+      ).start();
     } else {
       spinAnim.setValue(0);
       pulseAnim.setValue(1);
       floatAnim.setValue(0);
+      progressAnim.setValue(0.3);
     }
-  }, [visible, spinAnim, pulseAnim, floatAnim]);
+  }, [visible, spinAnim, pulseAnim, floatAnim, progressAnim]);
 
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
@@ -160,8 +179,8 @@ export function QuestLoadingModal({ visible }: QuestLoadingModalProps) {
                 styles.progressBar,
                 { 
                   backgroundColor: theme.colors.primary,
-                  width: pulseAnim.interpolate({
-                    inputRange: [1, 1.2],
+                  width: progressAnim.interpolate({
+                    inputRange: [0.3, 0.7],
                     outputRange: ['30%', '70%'],
                   }),
                 },
