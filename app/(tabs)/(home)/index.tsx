@@ -473,49 +473,52 @@ export default function HomeScreen() {
               <Text style={[styles.loadingSubtitle, { color: theme.colors.textSecondary }]}>Creating a personalized challenge just for you</Text>
             </View>
           ) : (
-            activeQuests.map((quest, index) => {
-              if (index < currentIndex) return null;
-              return (
-                <QuestCard
-                  key={quest.id}
-                  quest={quest}
-                  index={index}
-                  currentIndex={currentIndex}
-                  onSwipeLeft={() => {
-                    recordQuestOutcome(quest.id, 'yes');
-                    return false;
-                  }}
-                  onSwipeRight={() => {
-                    const prog = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 };
-                    const nextNo = prog.noCount + 1;
-                    const minNo = typeof quest.minNoRequired === 'number' ? quest.minNoRequired : 0;
-                    recordQuestOutcome(quest.id, 'no');
-                    const shouldAdvance = minNo > 0 && nextNo >= minNo;
-                    if (shouldAdvance) {
+            activeQuests
+              .filter((_, index) => index >= currentIndex)
+              .map((quest, filteredIndex) => {
+                const index = currentIndex + filteredIndex;
+                return (
+                  <QuestCard
+                    key={quest.id}
+                    quest={quest}
+                    index={index}
+                    currentIndex={currentIndex}
+                    onSwipeLeft={() => {
+                      recordQuestOutcome(quest.id, 'yes');
+                      return false;
+                    }}
+                    onSwipeRight={() => {
+                      const prog = progressMap[quest.id] ?? { noCount: 0, yesCount: 0 };
+                      const nextNo = prog.noCount + 1;
+                      const minNo = typeof quest.minNoRequired === 'number' ? quest.minNoRequired : 0;
+                      recordQuestOutcome(quest.id, 'no');
+                      const shouldAdvance = minNo > 0 && nextNo >= minNo;
+                      if (shouldAdvance) {
+                        setCurrentIndex((i) => i + 1);
+                        setTimeout(() => {
+                          const rank = Math.floor(Math.random() * 100) + 1;
+                          setCompletionData({ quest, newStreak: profile.streak + 1, leaderboardRank: rank });
+                          setShowCompletionModal(true);
+                        }, 500);
+                      }
+                      return shouldAdvance;
+                    }}
+                    onTimerExpire={(penalty) => {
                       setCurrentIndex((i) => i + 1);
                       setTimeout(() => {
-                        const rank = Math.floor(Math.random() * 100) + 1;
-                        setCompletionData({ quest, newStreak: profile.streak + 1, leaderboardRank: rank });
-                        setShowCompletionModal(true);
-                      }, 500);
-                    }
-                    return shouldAdvance;
-                  }}
-                  onTimerExpire={(penalty) => {
-                    setCurrentIndex((i) => i + 1);
-                    setTimeout(() => {
-                      Alert.alert(
-                        'Quest Failed',
-                        `Time's up! You lost ${penalty.xp} XP and ${penalty.points} points. Your streak was reduced by 1.`,
-                        [{ text: 'OK' }]
-                      );
-                    }, 100);
-                  }}
-                  onBackToMain={() => setQuestMode(false)}
-                  theme={theme}
-                />
-              );
-            }).reverse()
+                        Alert.alert(
+                          'Quest Failed',
+                          `Time's up! You lost ${penalty.xp} XP and ${penalty.points} points. Your streak was reduced by 1.`,
+                          [{ text: 'OK' }]
+                        );
+                      }, 100);
+                    }}
+                    onBackToMain={() => setQuestMode(false)}
+                    theme={theme}
+                  />
+                );
+              })
+              .reverse()
           )}
         </View>
       )}
