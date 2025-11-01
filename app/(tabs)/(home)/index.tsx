@@ -44,7 +44,7 @@ export default function HomeScreen() {
     queryKey: ['teams-mini', user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error('No user');
-      return getUserTeams(user.id);
+      return getUserTeams();
     },
     enabled: !!user?.id && hasFeature('teamDashboard'),
   });
@@ -577,13 +577,13 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
 
   const yesOpacity = pan.x.interpolate({
     inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: [0, 0, 1],
+    outputRange: [1, 0, 0],
     extrapolate: 'clamp',
   });
 
   const noOpacity = pan.x.interpolate({
     inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: [1, 0, 0],
+    outputRange: [0, 0, 1],
     extrapolate: 'clamp',
   });
 
@@ -730,17 +730,17 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
           <ArrowLeft size={16} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' as const }}>Main</Text>
         </Pressable>
-        <Animated.View style={[styles.overlay, styles.noOverlay, { opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)) }]}>
-          <View style={styles.overlayBadge}>
-            <Text style={styles.overlayTextBig}>NO</Text>
-            <Text style={[styles.overlaySubText, { color: '#10B981' }]}>Success!</Text>
-          </View>
-        </Animated.View>
-
         <Animated.View style={[styles.overlay, styles.yesOverlay, { opacity: Animated.multiply(noOpacity, new Animated.Value(0.6)) }]}>
           <View style={styles.overlayBadge}>
             <Text style={styles.overlayTextBig}>YES</Text>
             <Text style={[styles.overlaySubText, { color: '#EF4444' }]}>Try Again</Text>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={[styles.overlay, styles.noOverlay, { opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)) }]}>
+          <View style={styles.overlayBadge}>
+            <Text style={styles.overlayTextBig}>NO</Text>
+            <Text style={[styles.overlaySubText, { color: '#10B981' }]}>Success!</Text>
           </View>
         </Animated.View>
 
@@ -805,8 +805,20 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
               </View>
             )}
           </View>
-          <Pressable onPress={() => setExpanded(!expanded)} testID={`see-more-${quest.id}`} style={{ alignSelf: 'flex-start' }}>
-            <Text style={{ color: '#7DD3FC', fontWeight: '700' as const }}>{expanded ? 'See less' : 'See more'}</Text>
+          <Pressable 
+            onPress={() => {
+              console.log(`[QuestCard] See more/less pressed for quest ${quest.id}, current expanded: ${expanded}`);
+              setExpanded(!expanded);
+            }} 
+            testID={`see-more-${quest.id}`} 
+            style={({ pressed }) => [{ 
+              alignSelf: 'flex-start',
+              paddingVertical: 8,
+              paddingHorizontal: 4,
+              opacity: pressed ? 0.7 : 1 
+            }]}
+          >
+            <Text style={{ color: '#7DD3FC', fontWeight: '700' as const, fontSize: 14 }}>{expanded ? 'See less' : 'See more'}</Text>
           </Pressable>
           </View>
 
