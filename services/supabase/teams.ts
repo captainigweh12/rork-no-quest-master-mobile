@@ -155,14 +155,10 @@ export async function createTeam(name: string, description: string | null): Prom
   }
   
   const { data, error } = await supabase
-    .from('teams')
-    .insert({
-      name,
-      description,
-      owner_id: userData.user.id,
-    })
-    .select()
-    .single();
+    .rpc('rpc_create_team', {
+      p_name: name,
+      p_description: description,
+    });
 
   if (error) {
     console.error('[createTeam] Error:', JSON.stringify(error, null, 2));
@@ -176,7 +172,7 @@ export async function createTeam(name: string, description: string | null): Prom
   }
 
   console.log('[createTeam] Team created:', data.id);
-  return data;
+  return data as Team;
 }
 
 export async function updateTeam(teamId: string, updates: Partial<Pick<Team, 'name' | 'description' | 'avatar_url'>>): Promise<Team> {
