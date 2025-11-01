@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Users, Radio } from 'lucide-react-native';
+import { Settings, Bell, Trophy, Flame, ArrowRight, ArrowLeft, Plus, Clock, Menu, Users, Radio, Zap, TrendingUp, Gift, Award } from 'lucide-react-native';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -34,6 +34,9 @@ export default function HomeScreen() {
   const { hasFeature } = useSubscription();
   const [search, setSearch] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [showStreakModal, setShowStreakModal] = useState<boolean>(false);
+  const [showWinsModal, setShowWinsModal] = useState<boolean>(false);
+  const [showPointsModal, setShowPointsModal] = useState<boolean>(false);
   const [completionData, setCompletionData] = useState<{ quest: Quest; newStreak: number; leaderboardRank: number } | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
   const [isGeneratingQuest, setIsGeneratingQuest] = useState<boolean>(false);
@@ -86,49 +89,103 @@ export default function HomeScreen() {
       />
 
       <View style={styles.header}>
+        <Pressable
+          onPress={() => router.push('/profile' as any)}
+          style={[styles.profileButton, {
+            backgroundColor: theme.colors.glass,
+            borderWidth: 0,
+            shadowColor: theme.colors.shadow,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 4,
+          }]}
+          testID="profile-avatar-button"
+        >
+          <View style={styles.avatarPlaceholder}>
+            <Text style={{ fontSize: 16 }}>👤</Text>
+          </View>
+        </Pressable>
+
         <View style={styles.statsRow}>
-          <View style={[
-            styles.statBadge,
-            {
-              backgroundColor: theme.colors.glass,
-              borderWidth: 0,
-              shadowColor: theme.colors.shadow,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 12,
-              elevation: 4,
-            }
-          ]}>
-            <Text style={[styles.statValue, { color: theme.colors.error }]}>🔥 {profile.streak}</Text>
-          </View>
-          <View style={[
-            styles.statBadge,
-            {
-              backgroundColor: theme.colors.glass,
-              borderWidth: 0,
-              shadowColor: theme.colors.shadow,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 12,
-              elevation: 4,
-            }
-          ]}>
-            <Text style={[styles.statValue, { color: theme.colors.warning }]}>🏆 {profile.totalRejections}</Text>
-          </View>
-          <View style={[
-            styles.statBadge,
-            {
-              backgroundColor: theme.colors.glass,
-              borderWidth: 0,
-              shadowColor: theme.colors.shadow,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 12,
-              elevation: 4,
-            }
-          ]}>
-            <Text style={[styles.statValue, { color: theme.colors.primary }]}>💎 {profile.totalPoints}</Text>
-          </View>
+          <Pressable
+            onPress={() => {
+              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+              setShowStreakModal(true);
+            }}
+            style={({ pressed }) => [{
+              opacity: pressed ? 0.7 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }]
+            }]}
+            testID="stat-streak-badge"
+          >
+            <View style={[
+              styles.statBadge,
+              {
+                backgroundColor: theme.colors.glass,
+                borderWidth: 0,
+                shadowColor: theme.colors.shadow,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 12,
+                elevation: 4,
+              }
+            ]}>
+              <Text style={[styles.statValue, { color: theme.colors.error }]}>🔥 {profile.streak}</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+              setShowWinsModal(true);
+            }}
+            style={({ pressed }) => [{
+              opacity: pressed ? 0.7 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }]
+            }]}
+            testID="stat-wins-badge"
+          >
+            <View style={[
+              styles.statBadge,
+              {
+                backgroundColor: theme.colors.glass,
+                borderWidth: 0,
+                shadowColor: theme.colors.shadow,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 12,
+                elevation: 4,
+              }
+            ]}>
+              <Text style={[styles.statValue, { color: theme.colors.warning }]}>🏆 {profile.totalRejections}</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+              setShowPointsModal(true);
+            }}
+            style={({ pressed }) => [{
+              opacity: pressed ? 0.7 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }]
+            }]}
+            testID="stat-points-badge"
+          >
+            <View style={[
+              styles.statBadge,
+              {
+                backgroundColor: theme.colors.glass,
+                borderWidth: 0,
+                shadowColor: theme.colors.shadow,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 12,
+                elevation: 4,
+              }
+            ]}>
+              <Text style={[styles.statValue, { color: theme.colors.primary }]}>💎 {profile.totalPoints}</Text>
+            </View>
+          </Pressable>
         </View>
 
         <View style={styles.headerActions}>
@@ -189,6 +246,8 @@ export default function HomeScreen() {
         >
           <View style={{ gap: 16 }}>
             <Text style={{ fontSize: 22, fontWeight: '900', color: theme.colors.text }}>Watch Live</Text>
+
+            <DailyAITaskBanner theme={theme} onPress={() => setQuestMode(true)} />
             <View style={[styles.searchBar, { borderColor: theme.colors.border, backgroundColor: theme.colors.glass }]}>
               <TextInput
                 value={search}
@@ -513,7 +572,265 @@ export default function HomeScreen() {
         isGeneratingQuest={isGeneratingQuest}
         theme={theme}
       />
+
+      <StatsModal
+        visible={showStreakModal}
+        onClose={() => setShowStreakModal(false)}
+        type="streak"
+        value={profile.streak}
+        theme={theme}
+        quests={quests}
+      />
+
+      <StatsModal
+        visible={showWinsModal}
+        onClose={() => setShowWinsModal(false)}
+        type="wins"
+        value={profile.totalRejections}
+        theme={theme}
+        quests={quests}
+      />
+
+      <StatsModal
+        visible={showPointsModal}
+        onClose={() => setShowPointsModal(false)}
+        type="points"
+        value={profile.totalPoints}
+        theme={theme}
+        quests={quests}
+      />
     </View>
+  );
+}
+
+function DailyAITaskBanner({ theme, onPress }: { theme: any; onPress: () => void }) {
+  const dailyTasks = [
+    "Ask a stranger for feedback on your idea",
+    "Request a ridiculous discount at a coffee shop",
+    "Cold email a CEO you admire",
+    "Start a conversation with someone intimidating",
+    "Pitch your idea to 3 strangers today",
+  ];
+  const [task] = useState(() => dailyTasks[new Date().getDate() % dailyTasks.length]);
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        padding: 14,
+        borderRadius: 16,
+        borderWidth: 2,
+        backgroundColor: theme.mode === 'dark' ? '#1a103d' : '#f0e7ff',
+        borderColor: theme.colors.primary,
+      }}
+      testID="daily-task-banner"
+    >
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <Zap size={18} color={theme.colors.primary} fill={theme.colors.primary} />
+          <Text style={{ fontSize: 13, fontWeight: '900' as const, letterSpacing: 0.5, color: theme.colors.primary }}>Today&apos;s Fearless Task</Text>
+        </View>
+        <Text style={{ fontSize: 13, fontWeight: '600' as const, lineHeight: 18, color: theme.colors.text }} numberOfLines={2}>
+          {task}
+        </Text>
+      </View>
+      <Pressable
+        onPress={() => {
+          try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+          onPress();
+        }}
+        style={({ pressed }) => [{
+          backgroundColor: theme.colors.primary,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderRadius: 12,
+          opacity: pressed ? 0.85 : 1,
+        }]}
+        testID="daily-task-start"
+      >
+        <Text style={{ color: '#fff', fontWeight: '900' as const, fontSize: 13 }}>Start Now</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+interface StatsModalProps {
+  visible: boolean;
+  onClose: () => void;
+  type: 'streak' | 'wins' | 'points';
+  value: number;
+  theme: any;
+  quests: Quest[];
+}
+
+function StatsModal({ visible, onClose, type, value, theme, quests }: StatsModalProps) {
+  const completedQuests = quests.filter(q => q.completed);
+  const colors = theme.colors;
+
+  const modalConfig = {
+    streak: {
+      icon: Flame,
+      color: '#EF4444',
+      title: 'Streak History',
+      subtitle: `${value} day streak`,
+      description: 'Keep completing quests daily to maintain your streak!',
+    },
+    wins: {
+      icon: Trophy,
+      color: '#F59E0B',
+      title: 'Completed Challenges',
+      subtitle: `${value} total rejections collected`,
+      description: 'Every NO is a step forward. Keep pushing!',
+    },
+    points: {
+      icon: Gift,
+      color: colors.primary,
+      title: 'Points & Rewards',
+      subtitle: `${value} points earned`,
+      description: 'Use your points to unlock exclusive rewards and badges.',
+    },
+  };
+
+  const config = modalConfig[type];
+  const Icon = config.icon;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={statsModalStyles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View
+          style={[
+            statsModalStyles.container,
+            { backgroundColor: colors.card, maxHeight: '80%' },
+          ]}
+        >
+          <View style={[statsModalStyles.modalHeader, { borderBottomColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: `${config.color}20` }}>
+                <Icon size={24} color={config.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[statsModalStyles.modalTitle, { color: colors.text }]}>{config.title}</Text>
+                <Text style={[statsModalStyles.modalSubtitle, { color: colors.textSecondary }]}>{config.subtitle}</Text>
+              </View>
+            </View>
+            <Pressable onPress={onClose} testID="close-modal">
+              <View style={{ width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundTertiary }}>
+                <Text style={{ fontSize: 18, color: colors.textSecondary }}>×</Text>
+              </View>
+            </Pressable>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }}>
+            <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textSecondary }}>
+              {config.description}
+            </Text>
+
+            {type === 'wins' && completedQuests.length > 0 && (
+              <View style={{ gap: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800' as const, marginTop: 8, color: colors.text }}>Recent Completions</Text>
+                {completedQuests.slice(0, 10).map((q) => (
+                  <View
+                    key={q.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 12,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      backgroundColor: colors.backgroundTertiary,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700' as const, color: colors.text }}>{q.title}</Text>
+                      <Text style={{ fontSize: 12, marginTop: 2, color: colors.textSecondary }}>
+                        {q.completedAt ? new Date(q.completedAt).toLocaleDateString() : 'Recently'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: `${colors.primary}20` }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700' as const, color: colors.primary }}>+{q.xp} XP</Text>
+                      </View>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: `${config.color}20` }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700' as const, color: config.color }}>+{q.points} pts</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {type === 'points' && (
+              <View style={{ gap: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800' as const, marginTop: 8, color: colors.text }}>Available Rewards</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, backgroundColor: colors.backgroundTertiary, borderColor: colors.border }}>
+                  <Award size={32} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800' as const, color: colors.text }}>Legendary Badge</Text>
+                    <Text style={{ fontSize: 12, marginTop: 2, color: colors.textSecondary }}>500 points</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: '700' as const, color: value >= 500 ? '#10B981' : colors.textSecondary }}>
+                    {value >= 500 ? 'Available' : 'Locked'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1, backgroundColor: colors.backgroundTertiary, borderColor: colors.border }}>
+                  <TrendingUp size={32} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800' as const, color: colors.text }}>XP Booster</Text>
+                    <Text style={{ fontSize: 12, marginTop: 2, color: colors.textSecondary }}>300 points</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: '700' as const, color: value >= 300 ? '#10B981' : colors.textSecondary }}>
+                    {value >= 300 ? 'Available' : 'Locked'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {type === 'streak' && (
+              <View style={{ gap: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800' as const, marginTop: 8, color: colors.text }}>Streak Milestones</Text>
+                <View style={{ gap: 8 }}>
+                  {[7, 14, 30, 60, 100].map((milestone) => (
+                    <View
+                      key={milestone}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: 12,
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        backgroundColor: colors.backgroundTertiary,
+                        borderColor: value >= milestone ? config.color : colors.border,
+                      }}
+                    >
+                      <View style={{ width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: value >= milestone ? config.color : colors.border }}>
+                        {value >= milestone && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                      </View>
+                      <Text style={{ flex: 1, fontSize: 14, fontWeight: '700' as const, color: colors.text }}>
+                        {milestone} Day Streak
+                      </Text>
+                      {value >= milestone && (
+                        <Text style={{ fontSize: 12, fontWeight: '800' as const, color: '#10B981' }}>Unlocked</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1031,6 +1348,25 @@ function createStyles(colors: any) {
     statsRow: {
       flexDirection: 'row',
       gap: 8,
+      flex: 1,
+      justifyContent: 'center',
+    },
+    profileButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      marginRight: 12,
+    },
+    avatarPlaceholder: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     statBadge: {
       paddingHorizontal: 12,
@@ -1523,5 +1859,42 @@ const modalStyles = StyleSheet.create({
   actionButtonTextSecondary: {
     fontSize: 16,
     fontWeight: '700' as const,
+  },
+});
+
+const statsModalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  container: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '900' as const,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 2,
   },
 });
