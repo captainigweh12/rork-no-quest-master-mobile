@@ -120,7 +120,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   mindset: {
     title: 'Mindset & Courage',
     color: '#ffb020',
-    image: 'https://r2-pub.rork.com/generated-images/4dc3b45a-b861-44ae-b1fb-c62ba33144c9.png',
+    image: 'https://r2-pub.rork.com/generated-images/9781fb20-370c-4538-812f-0c6244f6f46d.png',
     subtitle: 'Micro-fears, daily bravery',
     questions: [
       { id: 'q1', question: 'What area of life do you want to feel bolder in?', type: 'text' },
@@ -131,7 +131,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   relationships: {
     title: 'Relationships & Family',
     color: '#ff6b6b',
-    image: 'https://r2-pub.rork.com/generated-images/1cfa2b14-abca-48ed-941c-e85495f95193.png',
+    image: 'https://r2-pub.rork.com/generated-images/1050440a-76e7-4242-80a9-2481479e80fa.png',
     subtitle: 'Gentle, meaningful social quests',
     questions: [
       { id: 'q1', question: 'Is your focus romantic, family, or friendships?', type: 'choice', choices: ['Romantic', 'Family', 'Friendships', 'All'] },
@@ -142,7 +142,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   community: {
     title: 'Community / Service',
     color: '#00bcd4',
-    image: 'https://r2-pub.rork.com/generated-images/4b690dad-6177-4540-8d2b-13863f5b5398.png',
+    image: 'https://r2-pub.rork.com/generated-images/765821d4-51a1-4023-ad2a-d19fd3ddff00.png',
     subtitle: 'Give back with purpose',
     questions: [
       { id: 'q1', question: 'Do you want to engage with strangers or give back?', type: 'choice', choices: ['Engage with strangers', 'Give back', 'Both'] },
