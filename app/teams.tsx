@@ -4,11 +4,11 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Users, Plus, UserPlus, Crown, Shield, ChevronRight, ClipboardCheck, TrendingUp } from 'lucide-react-native';
+import { X, Users, Plus, UserPlus, Crown, Shield, ChevronRight, ClipboardCheck, TrendingUp, Play, Check, XCircle, Clock } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUserTeams, createTeam, getTeamMembers, getTeamTasks, getTeamAssignments, createTeamTask, createTeamInvite } from '@/services/supabase/teams';
+import { getUserTeams, createTeam, getTeamMembers, getTeamTasks, getTeamAssignments, createTeamTask, createTeamInvite, assignTaskToMember, updateTeamTaskAssignment } from '@/services/supabase/teams';
 import type { Team } from '@/services/supabase/teams';
 
 export default function TeamsScreen() {
@@ -28,6 +28,7 @@ export default function TeamsScreen() {
   const [taskTitle, setTaskTitle] = useState<string>('');
   const [taskDescription, setTaskDescription] = useState<string>('');
   const [taskDifficulty, setTaskDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
+  const [requiredNoCount, setRequiredNoCount] = useState<number>(5);
 
   const styles = createStyles(theme.colors);
 
@@ -37,7 +38,7 @@ export default function TeamsScreen() {
     queryKey: ['teams', user?.id],
     queryFn: () => {
       if (!user?.id) throw new Error('No user');
-      return getUserTeams(user.id);
+      return getUserTeams();
     },
     enabled: !!user?.id && hasTeamFeature,
   });
@@ -93,7 +94,7 @@ export default function TeamsScreen() {
         difficulty: taskDifficulty,
         points: taskDifficulty === 'easy' ? 10 : taskDifficulty === 'medium' ? 20 : taskDifficulty === 'hard' ? 30 : 50,
         xp: taskDifficulty === 'easy' ? 10 : taskDifficulty === 'medium' ? 20 : taskDifficulty === 'hard' ? 30 : 50,
-        min_no_required: 3,
+        min_no_required: requiredNoCount,
       });
     },
     onSuccess: () => {
@@ -102,6 +103,7 @@ export default function TeamsScreen() {
       setTaskTitle('');
       setTaskDescription('');
       setTaskDifficulty('medium');
+      setRequiredNoCount(5);
       Alert.alert('Success', 'Task created successfully!');
     },
     onError: (error: any) => {
@@ -345,30 +347,197 @@ export default function TeamsScreen() {
               ) : tasks.length === 0 ? (
                 <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No tasks yet</Text>
               ) : (
-                tasks.map((task) => (
-                  <View key={task.id} style={[styles.taskCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.taskTitle, { color: theme.colors.text }]}>{task.title}</Text>
-                      {task.description && (
-                        <Text style={[styles.taskDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                          {task.description}
-                        </Text>
-                      )}
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                        <View style={[styles.taskBadge, { backgroundColor: getDifficultyColor(task.difficulty) + '20' }]}>
-                          <Text style={[styles.taskBadgeText, { color: getDifficultyColor(task.difficulty) }]}>
-                            {task.difficulty.toUpperCase()}
-                          </Text>
+                tasks.map((task) => {
+                  const taskAssignments = assignments.filter(a => a.team_task_id === task.id);
+                  const myAssignment = taskAssignments.find(a => a.user_id === user?.id);
+                  const completedMembers = taskAssignments.filter(a => a.status === 'completed');
+                  const inProgressMembers = taskAssignments.filter(a => a.status === 'in_progress');
+                  const failedMembers = taskAssignments.filter(a => a.status === 'failed');
+                  
+                  return (
+                    <View key={task.id} style={[styles.taskCard, { backgroundColor: theme.colors.backgroundSecondary }]}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.taskTitle, { color: theme.colors.text }]}>{task.title}</Text>
+                            {task.description && (
+                              <Text style={[styles.taskDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                                {task.description}
+                              </Text>
+                            )}
+                          </View>
+                          {!myAssignment && (
+                            <Pressable
+                              onPress={async () => {
+                                try {
+                                  await assignTaskToMember(task.id, user?.id || '');
+                                  queryClient.invalidateQueries({ queryKey: ['team-assignments'] });
+                                  Alert.alert('Success', 'Task started!');
+                                } catch (err: any) {
+                                  Alert.alert('Error', err.message || 'Failed to start task');
+                                }
+                              }}
+                              style={[styles.startButton, { backgroundColor: theme.colors.primary }]}
+                            >
+                              <Play size={14} color="#FFFFFF" />
+                              <Text style={styles.startButtonText}>Start</Text>
+                            </Pressable>
+                          )}
                         </View>
-                        <View style={[styles.taskBadge, { backgroundColor: theme.colors.success + '20' }]}>
-                          <Text style={[styles.taskBadgeText, { color: theme.colors.success }]}>
-                            {task.points} pts
-                          </Text>
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                          <View style={[styles.taskBadge, { backgroundColor: getDifficultyColor(task.difficulty) + '20' }]}>
+                            <Text style={[styles.taskBadgeText, { color: getDifficultyColor(task.difficulty) }]}>
+                              {task.difficulty.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={[styles.taskBadge, { backgroundColor: theme.colors.success + '20' }]}>
+                            <Text style={[styles.taskBadgeText, { color: theme.colors.success }]}>
+                              {task.points} pts
+                            </Text>
+                          </View>
+                          <View style={[styles.taskBadge, { backgroundColor: theme.colors.warning + '20' }]}>
+                            <Text style={[styles.taskBadgeText, { color: theme.colors.warning }]}>
+                              {task.min_no_required} No&apos;s Required
+                            </Text>
+                          </View>
                         </View>
+
+                        {myAssignment && (
+                          <View style={[styles.myProgressCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                            <Text style={[styles.myProgressTitle, { color: theme.colors.text }]}>Your Progress</Text>
+                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>No&apos;s</Text>
+                                <Text style={[styles.statValue, { color: theme.colors.success }]}>
+                                  {myAssignment.no_count} / {task.min_no_required}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Yes&apos;s</Text>
+                                <Text style={[styles.statValue, { color: theme.colors.error }]}>{myAssignment.yes_count}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Status</Text>
+                                <View style={[styles.inlineStatusBadge, { backgroundColor: getStatusColor(myAssignment.status) + '20' }]}>
+                                  <Text style={[styles.inlineStatusText, { color: getStatusColor(myAssignment.status) }]}>
+                                    {myAssignment.status === 'in_progress' ? 'Active' : myAssignment.status}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                            {myAssignment.status === 'assigned' && (
+                              <Pressable
+                                onPress={async () => {
+                                  try {
+                                    await updateTeamTaskAssignment(myAssignment.id, {
+                                      status: 'in_progress',
+                                      started_at: new Date().toISOString(),
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: ['team-assignments'] });
+                                  } catch (err: any) {
+                                    Alert.alert('Error', err.message);
+                                  }
+                                }}
+                                style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                              >
+                                <Text style={styles.actionButtonText}>Start Task</Text>
+                              </Pressable>
+                            )}
+                            {myAssignment.status === 'in_progress' && (
+                              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                                <Pressable
+                                  onPress={async () => {
+                                    try {
+                                      const newNoCount = myAssignment.no_count + 1;
+                                      const updates: any = { no_count: newNoCount };
+                                      if (newNoCount >= task.min_no_required) {
+                                        updates.status = 'completed';
+                                        updates.completed_at = new Date().toISOString();
+                                      }
+                                      await updateTeamTaskAssignment(myAssignment.id, updates);
+                                      queryClient.invalidateQueries({ queryKey: ['team-assignments'] });
+                                      if (newNoCount >= task.min_no_required) {
+                                        Alert.alert('Completed!', `You earned ${task.points} points!`);
+                                      }
+                                    } catch (err: any) {
+                                      Alert.alert('Error', err.message);
+                                    }
+                                  }}
+                                  style={[styles.countButton, { backgroundColor: theme.colors.success }]}
+                                >
+                                  <Text style={styles.countButtonText}>Got No</Text>
+                                </Pressable>
+                                <Pressable
+                                  onPress={async () => {
+                                    try {
+                                      await updateTeamTaskAssignment(myAssignment.id, {
+                                        yes_count: myAssignment.yes_count + 1,
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['team-assignments'] });
+                                    } catch (err: any) {
+                                      Alert.alert('Error', err.message);
+                                    }
+                                  }}
+                                  style={[styles.countButton, { backgroundColor: theme.colors.error }]}
+                                >
+                                  <Text style={styles.countButtonText}>Got Yes</Text>
+                                </Pressable>
+                                <Pressable
+                                  onPress={async () => {
+                                    try {
+                                      await updateTeamTaskAssignment(myAssignment.id, {
+                                        status: 'failed',
+                                        completed_at: new Date().toISOString(),
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['team-assignments'] });
+                                    } catch (err: any) {
+                                      Alert.alert('Error', err.message);
+                                    }
+                                  }}
+                                  style={[styles.countButton, { backgroundColor: theme.colors.textSecondary }]}
+                                >
+                                  <Text style={styles.countButtonText}>Give Up</Text>
+                                </Pressable>
+                              </View>
+                            )}
+                          </View>
+                        )}
+
+                        {taskAssignments.length > 0 && (
+                          <View style={{ marginTop: 12 }}>
+                            <Text style={[styles.memberProgressTitle, { color: theme.colors.text }]}>Team Progress</Text>
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                              {completedMembers.length > 0 && (
+                                <View style={[styles.progressBadge, { backgroundColor: theme.colors.success + '20' }]}>
+                                  <Check size={12} color={theme.colors.success} />
+                                  <Text style={[styles.progressBadgeText, { color: theme.colors.success }]}>
+                                    {completedMembers.length} Completed
+                                  </Text>
+                                </View>
+                              )}
+                              {inProgressMembers.length > 0 && (
+                                <View style={[styles.progressBadge, { backgroundColor: theme.colors.warning + '20' }]}>
+                                  <Clock size={12} color={theme.colors.warning} />
+                                  <Text style={[styles.progressBadgeText, { color: theme.colors.warning }]}>
+                                    {inProgressMembers.length} Active
+                                  </Text>
+                                </View>
+                              )}
+                              {failedMembers.length > 0 && (
+                                <View style={[styles.progressBadge, { backgroundColor: theme.colors.error + '20' }]}>
+                                  <XCircle size={12} color={theme.colors.error} />
+                                  <Text style={[styles.progressBadgeText, { color: theme.colors.error }]}>
+                                    {failedMembers.length} Failed
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        )}
                       </View>
                     </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </View>
 
@@ -556,6 +725,23 @@ export default function TeamsScreen() {
                 multiline
                 numberOfLines={4}
               />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.text, marginTop: 16 }]}>Required No&apos;s</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Pressable
+                  onPress={() => setRequiredNoCount(Math.max(1, requiredNoCount - 1))}
+                  style={[styles.counterButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.text }]}>-</Text>
+                </Pressable>
+                <Text style={[styles.counterValue, { color: theme.colors.text }]}>{requiredNoCount}</Text>
+                <Pressable
+                  onPress={() => setRequiredNoCount(requiredNoCount + 1)}
+                  style={[styles.counterButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.text }]}>+</Text>
+                </Pressable>
+              </View>
 
               <Text style={[styles.inputLabel, { color: theme.colors.text, marginTop: 16 }]}>Difficulty</Text>
               <View style={styles.difficultyButtons}>
@@ -965,6 +1151,102 @@ function createStyles(colors: any) {
     },
     difficultyButtonText: {
       fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    counterButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    counterButtonText: {
+      fontSize: 20,
+      fontWeight: '700' as const,
+    },
+    counterValue: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+      minWidth: 40,
+      textAlign: 'center',
+    },
+    startButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    startButtonText: {
+      fontSize: 12,
+      fontWeight: '700' as const,
+      color: '#FFFFFF',
+    },
+    myProgressCard: {
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    myProgressTitle: {
+      fontSize: 14,
+      fontWeight: '700' as const,
+    },
+    statLabel: {
+      fontSize: 11,
+      marginBottom: 4,
+    },
+    statValue: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+    },
+    inlineStatusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+      alignSelf: 'flex-start',
+    },
+    inlineStatusText: {
+      fontSize: 11,
+      fontWeight: '700' as const,
+    },
+    actionButton: {
+      marginTop: 12,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    actionButtonText: {
+      fontSize: 14,
+      fontWeight: '700' as const,
+      color: '#FFFFFF',
+    },
+    countButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    countButtonText: {
+      fontSize: 13,
+      fontWeight: '700' as const,
+      color: '#FFFFFF',
+    },
+    memberProgressTitle: {
+      fontSize: 13,
+      fontWeight: '700' as const,
+    },
+    progressBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    progressBadgeText: {
+      fontSize: 11,
       fontWeight: '600' as const,
     },
   });
