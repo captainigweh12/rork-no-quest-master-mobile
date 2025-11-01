@@ -21,7 +21,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   business: {
     title: 'Business & Growth',
     color: '#3787ff',
-    image: 'https://r2-pub.rork.com/generated-images/cf7f235d-aa51-4bb7-99fb-8d32f6810141.png',
+    image: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/bdfxtmaxus9vybt2o2c8y',
     subtitle: 'Ship ideas, sell, and level up your career',
     questions: [
       { id: 'q1', question: "What's your business or idea about?", type: 'text' },
@@ -32,7 +32,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   'door-knocking': {
     title: 'Door Knocking',
     color: '#FF6B35',
-    image: 'https://r2-pub.rork.com/generated-images/b87b6a98-4385-4ead-b083-a92a72be5bd2.png',
+    image: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/ieqp30t65yxavnxqto88u',
     subtitle: 'Face-to-face sales at the door',
     questions: [
       { id: 'q1', question: 'What are you offering or promoting when you knock?', type: 'text' },
@@ -43,7 +43,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   'cold-calling': {
     title: 'Cold Calling',
     color: '#004E89',
-    image: 'https://r2-pub.rork.com/generated-images/677369db-5628-44f8-9657-f3d1c0c36d1a.png',
+    image: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/93rn2m6ibekcgwi2mxob8',
     subtitle: 'Master phone sales and build confidence',
     questions: [
       { id: 'q1', question: 'Who are you trying to reach or pitch to today?', type: 'text' },
@@ -175,7 +175,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   confidence: {
     title: 'Confidence',
     color: '#10B981',
-    image: 'https://r2-pub.rork.com/generated-images/3b02d246-1548-4210-81b2-d0e5f7fc9d23.png',
+    image: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/zhjopkk2s0ga7n1cu77le',
     subtitle: 'Build unshakeable self-belief',
     questions: [
       { id: 'q1', question: 'What situation makes you most nervous?', type: 'text' },
