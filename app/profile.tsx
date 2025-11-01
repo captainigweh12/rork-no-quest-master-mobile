@@ -224,15 +224,15 @@ export default function ProfileScreen() {
                     <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.text }} numberOfLines={2}>{live.liveTitle}</Text>
                   </View>
                 ) : null}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
-                  <Pressable onPress={goLive} style={[styles.btnPrimary, { backgroundColor: theme.colors.primary }]} testID="btn-yt-go-live">
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 }}>
+                  <Pressable onPress={goLive} style={[styles.btnPrimary, { backgroundColor: theme.colors.primary, flex: 1, minWidth: 100 }]} testID="btn-yt-go-live">
                     <Text style={styles.btnPrimaryText}>Go Live</Text>
                   </Pressable>
-                  <Pressable onPress={openChannel} style={[styles.btnSecondary, { borderColor: theme.colors.border }]} testID="btn-yt-open">
+                  <Pressable onPress={openChannel} style={[styles.btnSecondary, { borderColor: theme.colors.border, flex: 1, minWidth: 120 }]} testID="btn-yt-open">
                     <Link2 size={16} color={theme.colors.text} />
-                    <Text style={[styles.btnSecondaryText, { color: theme.colors.text }]}>Open Channel</Text>
+                    <Text style={[styles.btnSecondaryText, { color: theme.colors.text }]}>Open</Text>
                   </Pressable>
-                  <Pressable onPress={disconnect} style={[styles.btnSecondary, { borderColor: theme.colors.border }]} testID="btn-yt-disconnect">
+                  <Pressable onPress={disconnect} style={[styles.btnSecondary, { borderColor: theme.colors.border, flex: 1, minWidth: 100 }]} testID="btn-yt-disconnect">
                     <LogOut size={16} color={theme.colors.text} />
                     <Text style={[styles.btnSecondaryText, { color: theme.colors.text }]}>Disconnect</Text>
                   </Pressable>
@@ -420,9 +420,9 @@ const styles = StyleSheet.create({
   dotDisconnected: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#475569' },
   small: { fontSize: 12, fontWeight: '700' as const },
   link: { fontSize: 12, fontWeight: '800' as const },
-  btnPrimary: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12 },
+  btnPrimary: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   btnPrimaryText: { color: '#fff', fontWeight: '900' as const },
-  btnSecondary: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  btnSecondary: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   btnSecondaryText: { fontWeight: '800' as const },
   livePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 6 },
   livePillText: { color: '#fff', fontWeight: '900' as const, fontSize: 11 },
