@@ -21,7 +21,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   business: {
     title: 'Business & Growth',
     color: '#3787ff',
-    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/cf7f235d-aa51-4bb7-99fb-8d32f6810141.png',
     subtitle: 'Ship ideas, sell, and level up your career',
     questions: [
       { id: 'q1', question: "What's your business or idea about?", type: 'text' },
@@ -32,7 +32,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   'door-knocking': {
     title: 'Door Knocking',
     color: '#FF6B35',
-    image: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/b87b6a98-4385-4ead-b083-a92a72be5bd2.png',
     subtitle: 'Face-to-face sales at the door',
     questions: [
       { id: 'q1', question: 'What are you offering or promoting when you knock?', type: 'text' },
@@ -43,7 +43,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   'cold-calling': {
     title: 'Cold Calling',
     color: '#004E89',
-    image: 'https://images.unsplash.com/photo-1553484771-371a605b060b?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/677369db-5628-44f8-9657-f3d1c0c36d1a.png',
     subtitle: 'Master phone sales and build confidence',
     questions: [
       { id: 'q1', question: 'Who are you trying to reach or pitch to today?', type: 'text' },
@@ -54,7 +54,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   marketing: {
     title: 'Marketing',
     color: '#F77F00',
-    image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/0695e78f-ee41-45ee-883c-3e7f5f1d859b.png',
     subtitle: 'Promote your product or service boldly',
     questions: [
       { id: 'q1', question: 'What product or message are you trying to spread?', type: 'text' },
@@ -65,7 +65,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   dating: {
     title: 'Dating & Confidence',
     color: '#ff5d8f',
-    image: 'https://images.unsplash.com/photo-1529336953121-ad5a56b0eece?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/e9b23e3b-f576-49f0-b757-b8f0fe9b4bf5.png',
     subtitle: 'Courage reps for social boldness',
     questions: [
       { id: 'q1', question: 'Are you single or just building social confidence?', type: 'choice', choices: ['Single', 'Building confidence', 'Both'] },
@@ -76,7 +76,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   adventure: {
     title: 'Personal Fun / Adventure',
     color: '#ff8a30',
-    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/8a8159ca-e52e-44cd-a6fb-d662133abaa1.png',
     subtitle: 'Novelty, thrill, and playful challenges',
     questions: [
       { id: 'q1', question: 'Do you want your quest outdoors or in public spaces?', type: 'choice', choices: ['Outdoors', 'Public spaces', 'Both'] },
@@ -87,7 +87,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   fitness: {
     title: 'Health & Fitness',
     color: '#27c37b',
-    image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/44164967-f19a-4585-ba74-d335b831f7fc.png',
     subtitle: 'Small daily missions for your body',
     questions: [
       { id: 'q1', question: "What's your fitness goal — strength, endurance, or confidence?", type: 'choice', choices: ['Strength', 'Endurance', 'Confidence', 'All'] },
@@ -98,7 +98,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   wealth: {
     title: 'Wealth & Finance',
     color: '#20b2aa',
-    image: 'https://images.unsplash.com/photo-1554224155-3a589877462f?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/5977b830-39ad-44cc-bd9f-46b6ad6ded31.png',
     subtitle: 'Money moves that build courage',
     questions: [
       { id: 'q1', question: "What's your current goal — earning, investing, or learning?", type: 'choice', choices: ['Earning', 'Investing', 'Learning', 'All'] },
@@ -109,7 +109,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   creativity: {
     title: 'Creativity & Expression',
     color: '#9b5cff',
-    image: 'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/75c4c894-79c7-498a-b334-1771befa4dad.png',
     subtitle: 'Make, share, and create in public',
     questions: [
       { id: 'q1', question: 'What do you create — music, art, content, writing?', type: 'text' },
@@ -120,7 +120,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   mindset: {
     title: 'Mindset & Courage',
     color: '#ffb020',
-    image: 'https://images.unsplash.com/photo-1533371452382-d45a9da51ad9?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/4dc3b45a-b861-44ae-b1fb-c62ba33144c9.png',
     subtitle: 'Micro-fears, daily bravery',
     questions: [
       { id: 'q1', question: 'What area of life do you want to feel bolder in?', type: 'text' },
@@ -131,7 +131,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   relationships: {
     title: 'Relationships & Family',
     color: '#ff6b6b',
-    image: 'https://images.unsplash.com/photo-1517884467360-71c4b3d48ee0?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/1cfa2b14-abca-48ed-941c-e85495f95193.png',
     subtitle: 'Gentle, meaningful social quests',
     questions: [
       { id: 'q1', question: 'Is your focus romantic, family, or friendships?', type: 'choice', choices: ['Romantic', 'Family', 'Friendships', 'All'] },
@@ -142,7 +142,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   community: {
     title: 'Community / Service',
     color: '#00bcd4',
-    image: 'https://images.unsplash.com/photo-1532634896-26909d0d4b6a?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/4b690dad-6177-4540-8d2b-13863f5b5398.png',
     subtitle: 'Give back with purpose',
     questions: [
       { id: 'q1', question: 'Do you want to engage with strangers or give back?', type: 'choice', choices: ['Engage with strangers', 'Give back', 'Both'] },
@@ -153,7 +153,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   entrepreneurship: {
     title: 'Entrepreneurship',
     color: '#3787ff',
-    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/f3093660-32b6-443b-a732-885ce0650caf.png',
     subtitle: 'Ship ideas, sell, and level up your career',
     questions: [
       { id: 'q1', question: "What's your business or idea about?", type: 'text' },
@@ -164,7 +164,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   sales: {
     title: 'Sales',
     color: '#F77F00',
-    image: 'https://images.unsplash.com/photo-1553484771-371a605b060b?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/966fdb94-8e23-4772-b585-1357a23deba7.png',
     subtitle: 'Master the art of persuasion',
     questions: [
       { id: 'q1', question: 'What are you selling?', type: 'text' },
@@ -175,7 +175,7 @@ const CATEGORY_META: Record<string, { title: string; color: string; image: strin
   confidence: {
     title: 'Confidence',
     color: '#10B981',
-    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400&auto=format&fit=crop',
+    image: 'https://r2-pub.rork.com/generated-images/3b02d246-1548-4210-81b2-d0e5f7fc9d23.png',
     subtitle: 'Build unshakeable self-belief',
     questions: [
       { id: 'q1', question: 'What situation makes you most nervous?', type: 'text' },
