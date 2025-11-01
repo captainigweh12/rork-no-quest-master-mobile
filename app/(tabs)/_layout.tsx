@@ -26,7 +26,6 @@ export default function TabLayout() {
           screenOptions={{
             headerShown: false,
             lazy: true,
-            detachInactiveScreens: true,
             tabBarStyle: {
               backgroundColor: theme.colors.card,
               borderTopColor: theme.colors.border,
