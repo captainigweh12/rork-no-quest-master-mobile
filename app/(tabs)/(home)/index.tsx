@@ -354,45 +354,7 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={{ gap: 16, marginTop: 16 }}>
-            {(catsLoading ? [] : selected).map((c) => (
-              <Pressable
-                key={c.id}
-                onPress={() => router.push(`/(tabs)/(home)/category/${c.id}` as any)}
-                style={({ pressed }) => [
-                  styles.categoryCardVertical,
-                  {
-                    backgroundColor: theme.colors.glass,
-                    borderWidth: 0,
-                    shadowColor: theme.colors.shadow,
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: theme.mode === 'dark' ? 0.4 : 0.12,
-                    shadowRadius: 16,
-                    elevation: 6,
-                    transform: [{ scale: pressed ? 0.98 : 1 }],
-                  }
-                ]}
-                testID={`category-${c.id}`}
-              >
-                <View style={{ flex: 1, justifyContent: 'space-between' }}>
-                  <Text style={[styles.categoryTitle, { color: theme.colors.text, fontSize: 18, fontWeight: '800' }]}>{c.title}</Text>
-                  <View style={[
-                    styles.pill,
-                    {
-                      backgroundColor: theme.colors.primary,
-                      shadowColor: theme.colors.primary,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      elevation: 4,
-                    }
-                  ]}>
-                    <Text style={styles.pillText}>Get Quest</Text>
-                  </View>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+
 
           {startedQuests.length > 0 && (
             <View style={{ marginTop: 24, gap: 12 }}>
