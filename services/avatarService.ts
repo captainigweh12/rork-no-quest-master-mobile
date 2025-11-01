@@ -1,26 +1,52 @@
 import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = typeof atob !== 'undefined' ? atob(base64) : Buffer.from(base64, 'base64').toString('binary');
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 export async function uploadAvatar(userId: string, imageUri: string): Promise<string> {
   try {
     console.log('📤 Uploading avatar for user:', userId);
+    console.log('📤 Image URI:', imageUri.substring(0, 100));
 
-    const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileExt = imageUri.includes('base64') ? 'jpg' : imageUri.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${userId}-${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
     let fileData: Blob | ArrayBuffer;
 
-    if (Platform.OS === 'web') {
+    if (imageUri.startsWith('data:')) {
+      console.log('🔄 Processing base64 image...');
+      const base64Data = imageUri.split(',')[1];
+      
+      if (Platform.OS === 'web') {
+        const response = await fetch(imageUri);
+        fileData = await response.blob();
+      } else {
+        fileData = base64ToArrayBuffer(base64Data);
+      }
+    } else if (Platform.OS === 'web') {
+      console.log('🔄 Fetching image on web...');
       const response = await fetch(imageUri);
       fileData = await response.blob();
     } else {
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      fileData = blob;
+      console.log('🔄 Reading file on native...');
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: 'base64',
+      });
+      
+      fileData = base64ToArrayBuffer(base64);
     }
 
+    console.log('⬆️ Uploading to Supabase storage...');
     const { error } = await supabase.storage
       .from('avatars')
       .upload(filePath, fileData, {
@@ -30,7 +56,7 @@ export async function uploadAvatar(userId: string, imageUri: string): Promise<st
 
     if (error) {
       console.error('❌ Upload error:', error);
-      throw error;
+      throw new Error(`Upload failed: ${error.message}`);
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -39,9 +65,9 @@ export async function uploadAvatar(userId: string, imageUri: string): Promise<st
 
     console.log('✅ Avatar uploaded:', publicUrlData.publicUrl);
     return publicUrlData.publicUrl;
-  } catch (error) {
+  } catch (error: any) {
     console.error('💥 Upload avatar exception:', error);
-    throw error;
+    throw new Error(error?.message || 'Failed to upload avatar');
   }
 }
 

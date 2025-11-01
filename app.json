@@ -49,7 +49,8 @@
         "WRITE_EXTERNAL_STORAGE",
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "INTERNET"
       ],
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
