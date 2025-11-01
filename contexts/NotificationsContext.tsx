@@ -2,6 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as notificationsService from '@/services/supabase/notifications';
@@ -56,7 +57,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         return;
       }
 
-      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      if (!projectId) {
+        console.error('No projectId found in app.json');
+        return;
+      }
+
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       console.log('Expo Push Token:', token);
       setExpoPushToken(token);
     } catch (error: any) {
