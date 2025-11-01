@@ -536,17 +536,22 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
   const pan = useRef(new Animated.ValueXY()).current;
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => index === currentIndex,
       onMoveShouldSetPanResponder: (_evt, gesture) => {
+        if (index !== currentIndex) return false;
         return Math.abs(gesture.dx) > 8 || Math.abs(gesture.dy) > 8;
       },
       onPanResponderGrant: () => {
+        if (index !== currentIndex) return;
         pan.setOffset({ x: (pan.x as any)._value ?? 0, y: (pan.y as any)._value ?? 0 });
         pan.setValue({ x: 0, y: 0 });
       },
       onPanResponderMove: (_evt, gesture) => {
+        if (index !== currentIndex) return;
         pan.setValue({ x: gesture.dx, y: gesture.dy });
       },
       onPanResponderRelease: (_evt, gesture) => {
+        if (index !== currentIndex) return;
         pan.flattenOffset();
         const threshold = SCREEN_WIDTH * 0.25;
         if (gesture.dx > threshold) {
@@ -558,6 +563,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
         }
       },
       onPanResponderTerminate: () => {
+        if (index !== currentIndex) return;
         pan.flattenOffset();
         Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
       },
@@ -684,7 +690,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
   return (
     <Animated.View
       testID={`quest-card-${quest.id}`}
-      {...(isTopCard ? panResponder.panHandlers : {})}
+      {...panResponder.panHandlers}
       style={[
         styles.card,
         {
@@ -696,6 +702,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
           ],
           opacity,
           zIndex: 1000 - index,
+          pointerEvents: isTopCard ? 'auto' : 'none',
         },
       ]}
     >
@@ -825,17 +832,31 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
         {isTopCard && (
           <View style={styles.actionsRow}>
             <Pressable
-              style={[styles.actionButton, styles.yesButton]}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.yesButton,
+                { opacity: pressed ? 0.7 : 0.9 }
+              ]}
               testID={`quest-yes-${quest.id}`}
-              onPress={() => handleSwipe('left')}
+              onPress={() => {
+                console.log(`[QuestCard] YES button pressed for quest ${quest.id}`);
+                handleSwipe('left');
+              }}
             >
               <Text style={styles.actionButtonText}>YES</Text>
             </Pressable>
 
             <Pressable
-              style={[styles.actionButton, styles.noButton]}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.noButton,
+                { opacity: pressed ? 0.7 : 0.9 }
+              ]}
               testID={`quest-no-${quest.id}`}
-              onPress={() => handleSwipe('right')}
+              onPress={() => {
+                console.log(`[QuestCard] NO button pressed for quest ${quest.id}`);
+                handleSwipe('right');
+              }}
             >
               <Text style={styles.actionButtonText}>NO</Text>
             </Pressable>
