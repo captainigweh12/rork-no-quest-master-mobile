@@ -762,7 +762,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
 
           <Text style={[styles.questTitle, { color: colors.text }]}>{quest.title}</Text>
           <Text style={[styles.questDescription, { color: colors.textSecondary }]} numberOfLines={expanded ? undefined : 2}>
-            {truncateToWords(quest.description ?? '', expanded ? undefined : 10)}
+            {quest.description}
           </Text>
 
           {quest.minNoRequired && (
@@ -805,11 +805,9 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
               </View>
             )}
           </View>
-          {!expanded && (
-            <Pressable onPress={() => setExpanded(true)} testID={`see-more-${quest.id}`} style={{ alignSelf: 'flex-start' }}>
-              <Text style={{ color: '#7DD3FC', fontWeight: '700' as const }}>See more</Text>
-            </Pressable>
-          )}
+          <Pressable onPress={() => setExpanded(!expanded)} testID={`see-more-${quest.id}`} style={{ alignSelf: 'flex-start' }}>
+            <Text style={{ color: '#7DD3FC', fontWeight: '700' as const }}>{expanded ? 'See less' : 'See more'}</Text>
+          </Pressable>
           </View>
 
         {isTopCard && (
