@@ -22,9 +22,9 @@ const ALL_CATEGORIES: AppCategory[] = [
   { id: 'fitness', title: 'Fitness', color: '#27c37b', image: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/n1mhyfzhpv7j3o65crpe6' },
   { id: 'creativity', title: 'Creativity', color: '#9b5cff', image: 'https://r2-pub.rork.com/generated-images/75c4c894-79c7-498a-b334-1771befa4dad.png' },
   { id: 'wealth', title: 'Wealth', color: '#20b2aa', image: 'https://r2-pub.rork.com/generated-images/5977b830-39ad-44cc-bd9f-46b6ad6ded31.png' },
-  { id: 'mindset', title: 'Mindset', color: '#9b5cff', image: 'https://r2-pub.rork.com/generated-images/4dc3b45a-b861-44ae-b1fb-c62ba33144c9.png' },
-  { id: 'relationships', title: 'Relationships', color: '#ff5d8f', image: 'https://r2-pub.rork.com/generated-images/1cfa2b14-abca-48ed-941c-e85495f95193.png' },
-  { id: 'community', title: 'Community', color: '#00bcd4', image: 'https://r2-pub.rork.com/generated-images/4b690dad-6177-4540-8d2b-13863f5b5398.png' },
+  { id: 'mindset', title: 'Mindset', color: '#9b5cff', image: 'https://r2-pub.rork.com/generated-images/9781fb20-370c-4538-812f-0c6244f6f46d.png' },
+  { id: 'relationships', title: 'Relationships', color: '#ff5d8f', image: 'https://r2-pub.rork.com/generated-images/1050440a-76e7-4242-80a9-2481479e80fa.png' },
+  { id: 'community', title: 'Community', color: '#00bcd4', image: 'https://r2-pub.rork.com/generated-images/765821d4-51a1-4023-ad2a-d19fd3ddff00.png' },
 ];
 
 const DEFAULT_SELECTED_IDS: string[] = ['entrepreneurship','dating','sales','confidence'];
