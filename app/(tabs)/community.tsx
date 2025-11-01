@@ -24,7 +24,7 @@ export default function CommunityScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { quests } = useGame();
+  const { quests, profile } = useGame();
   const queryClient = useQueryClient();
   const router = useRouter();
   
@@ -149,6 +149,28 @@ export default function CommunityScreen() {
     const friendIds = new Set(friendsQuery.data?.map((f) => f.id) || []);
     return searchUsersQuery.data.filter((searchUser) => searchUser.id !== user?.id && !friendIds.has(searchUser.id));
   }, [searchUsersQuery.data, friendsQuery.data, user]);
+
+  const recommendedUsersQuery = useQuery({
+    queryKey: ['recommendedUsers', user?.id],
+    queryFn: () => friendsService.searchUsers(''),
+    enabled: !!user?.id && showAddFriend,
+  });
+
+  const recommendedUsers = useMemo(() => {
+    if (!recommendedUsersQuery.data) return [];
+    const friendIds = new Set(friendsQuery.data?.map((f) => f.id) || []);
+    const userLevel = profile?.level ?? 1;
+    
+    return recommendedUsersQuery.data
+      .filter((recUser) => recUser.id !== user?.id && !friendIds.has(recUser.id))
+      .sort((a, b) => {
+        const aLevelDiff = Math.abs(a.level - userLevel);
+        const bLevelDiff = Math.abs(b.level - userLevel);
+        if (aLevelDiff !== bLevelDiff) return aLevelDiff - bLevelDiff;
+        return b.totalPoints - a.totalPoints;
+      })
+      .slice(0, 10);
+  }, [recommendedUsersQuery.data, friendsQuery.data, user, profile?.level]);
 
   const handleSendQuest = (friend: Friend) => {
     if (!activeQuest) {
@@ -407,50 +429,110 @@ Provide a brief encouraging explanation of the skills they developed and why.`
       >
         {showAddFriend ? (
           <>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Search Results</Text>
-            {searchUsersQuery.isLoading ? (
-              <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
-            ) : searchQuery.length < 3 ? (
-              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>                Type at least 3 characters to search
-              </Text>
-            ) : searchResults.length === 0 ? (
-              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No users found</Text>
-            ) : (
-              searchResults.map((user) => (
-                <View key={user.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  
-                  <View style={styles.friendHeader}>
-                    <Avatar
-                      name={user.fullName || user.username}
-                      imageUrl={user.avatarUrl}
-                      size={56}
-                    />
-                    <View style={styles.friendInfo}>
-                      <Text style={[styles.friendName, { color: theme.colors.text }]}>{user.username}</Text>
-                      {user.fullName && (
-                        <Text style={[styles.fullName, { color: theme.colors.textSecondary }]}>{user.fullName}</Text>
-                      )}
-                      <View style={styles.statsRow}>
-                        <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>Lv {user.level}</Text>
-                        <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>💎 {user.totalPoints}</Text>
+            {searchQuery.length >= 3 ? (
+              <>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Search Results</Text>
+                {searchUsersQuery.isLoading ? (
+                  <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
+                ) : searchResults.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No users found</Text>
+                ) : (
+                  searchResults.map((searchUser) => (
+                    <View key={searchUser.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  
+                      <View style={styles.friendHeader}>
+                        <Avatar
+                          name={searchUser.fullName || searchUser.username}
+                          imageUrl={searchUser.avatarUrl}
+                          size={56}
+                        />
+                        <View style={styles.friendInfo}>
+                          <Text style={[styles.friendName, { color: theme.colors.text }]}>{searchUser.username}</Text>
+                          {searchUser.fullName && (
+                            <Text style={[styles.fullName, { color: theme.colors.textSecondary }]}>{searchUser.fullName}</Text>
+                          )}
+                          <View style={styles.statsRow}>
+                            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>Lv {searchUser.level}</Text>
+                            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>💎 {searchUser.totalPoints}</Text>
+                          </View>
+                        </View>
                       </View>
+                      <Pressable
+                        style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                        onPress={() => sendFriendRequestMutation.mutate(searchUser.id)}
+                        disabled={sendFriendRequestMutation.isPending}
+                      >
+                        {sendFriendRequestMutation.isPending ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <UserPlus size={16} color="#FFFFFF" />
+                            <Text style={styles.actionButtonText}>Send Request</Text>
+                          </>
+                        )}
+                      </Pressable>
                     </View>
-                  </View>
-                  <Pressable
-                    style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => sendFriendRequestMutation.mutate(user.id)}
-                    disabled={sendFriendRequestMutation.isPending}
-                  >
-                    {sendFriendRequestMutation.isPending ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <UserPlus size={16} color="#FFFFFF" />
-                        <Text style={styles.actionButtonText}>Send Request</Text>
-                      </>
-                    )}
-                  </Pressable>
+                  ))
+                )}
+              </>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Sparkles size={18} color={theme.colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Recommended for You</Text>
                 </View>
-              ))
+                <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary, marginBottom: 16 }]}>Users with similar levels and active progress</Text>
+                {recommendedUsersQuery.isLoading ? (
+                  <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
+                ) : recommendedUsers.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No recommendations available. Type to search users!</Text>
+                ) : (
+                  recommendedUsers.map((recUser) => (
+                    <View key={recUser.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  
+                      <View style={styles.friendHeader}>
+                        <Avatar
+                          name={recUser.fullName || recUser.username}
+                          imageUrl={recUser.avatarUrl}
+                          size={56}
+                        />
+                        <View style={styles.friendInfo}>
+                          <View style={styles.friendNameRow}>
+                            <Text style={[styles.friendName, { color: theme.colors.text }]}>{recUser.username}</Text>
+                            {Math.abs(recUser.level - (profile?.level ?? 1)) <= 3 && (
+                              <View style={[styles.recommendBadge, { backgroundColor: theme.colors.success + '20' }]}>                          
+                                <Text style={[styles.recommendText, { color: theme.colors.success }]}>Similar Level</Text>
+                              </View>
+                            )}
+                          </View>
+                          {recUser.fullName && (
+                            <Text style={[styles.fullName, { color: theme.colors.textSecondary }]}>{recUser.fullName}</Text>
+                          )}
+                          <View style={styles.statsRow}>
+                            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>Lv {recUser.level}</Text>
+                            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>💎 {recUser.totalPoints}</Text>
+                            {recUser.streak > 0 && (
+                              <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>🔥 {recUser.streak}</Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                      <Pressable
+                        style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                        onPress={() => sendFriendRequestMutation.mutate(recUser.id)}
+                        disabled={sendFriendRequestMutation.isPending}
+                      >
+                        {sendFriendRequestMutation.isPending ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <UserPlus size={16} color="#FFFFFF" />
+                            <Text style={styles.actionButtonText}>Add Friend</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </>
             )}
           </>
         ) : (
@@ -895,6 +977,15 @@ function createStyles(colors: any) {
     },
     rankText: {
       fontSize: 11,
+      fontWeight: '700' as const,
+    },
+    recommendBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    recommendText: {
+      fontSize: 10,
       fontWeight: '700' as const,
     },
     statsRow: {
