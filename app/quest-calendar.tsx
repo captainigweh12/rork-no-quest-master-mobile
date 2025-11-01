@@ -41,6 +41,7 @@ export default function QuestCalendarScreen() {
   const [questDescription, setQuestDescription] = useState('');
   const [questLocation, setQuestLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [showDateQuests, setShowDateQuests] = useState(false);
+  const [requiredNoCount, setRequiredNoCount] = useState(3);
 
   const completedQuestsByDate = useMemo(() => {
     const questMap: Record<string, number> = {};
@@ -188,6 +189,7 @@ export default function QuestCalendarScreen() {
     setQuestTitle('');
     setQuestDescription('');
     setQuestLocation(null);
+    setRequiredNoCount(3);
   };
 
   const handleCreateQuest = (plannedQuest: PlannedQuest) => {
@@ -195,7 +197,7 @@ export default function QuestCalendarScreen() {
       addCustomQuest({
         title: plannedQuest.title,
         description: plannedQuest.description,
-        minNoRequired: 3,
+        minNoRequired: requiredNoCount,
       });
 
       setPlannedQuests(plannedQuests.filter(pq => pq.id !== plannedQuest.id));
@@ -405,6 +407,30 @@ export default function QuestCalendarScreen() {
                 multiline
                 numberOfLines={4}
               />
+
+              <Text style={styles.inputLabel}>Required No&apos;s</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <Pressable
+                  onPress={() => setRequiredNoCount(Math.max(1, requiredNoCount - 1))}
+                  style={({ pressed }) => [
+                    styles.counterButton,
+                    { backgroundColor: theme.colors.backgroundSecondary, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.text }]}>-</Text>
+                </Pressable>
+                <Text style={[styles.counterValue, { color: theme.colors.text }]}>{requiredNoCount}</Text>
+                <Pressable
+                  onPress={() => setRequiredNoCount(requiredNoCount + 1)}
+                  style={({ pressed }) => [
+                    styles.counterButton,
+                    { backgroundColor: theme.colors.backgroundSecondary, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={[styles.counterButtonText, { color: theme.colors.text }]}>+</Text>
+                </Pressable>
+                <Text style={[styles.counterHelperText, { color: theme.colors.textSecondary }]}>How many &ldquo;No&rdquo; responses needed to complete this quest</Text>
+              </View>
 
               <Pressable
                 style={({ pressed }) => [
@@ -884,6 +910,28 @@ function createStyles(theme: Theme) {
       fontSize: 14,
       color: theme.colors.text,
       lineHeight: 20,
+    },
+    counterButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    counterButtonText: {
+      fontSize: 20,
+      fontWeight: '700' as const,
+    },
+    counterValue: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+      minWidth: 40,
+      textAlign: 'center',
+    },
+    counterHelperText: {
+      fontSize: 12,
+      flex: 1,
+      flexWrap: 'wrap',
     },
   });
 }
