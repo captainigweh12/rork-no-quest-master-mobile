@@ -31,8 +31,8 @@ export type UpcomingItem = {
 
 const STORAGE_KEY = 'yt_link_state_v2';
 
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
+const GOOGLE_CLIENT_ID = '971632613679-a4smd8ok9p1ue2jvajhcbvt0510cvb60.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = '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';
 const REDIRECT_URI = AuthSession.makeRedirectUri({ scheme: 'noquest' });
 
 function extractChannelHint(url?: string): { id?: string; handleOrName?: string } {
