@@ -146,18 +146,32 @@ export async function createTeam(name: string, description: string | null): Prom
   
   console.log('[createTeam] Creating team:', { name, description });
   
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData.user?.id) {
+    console.error('[createTeam] Auth error:', JSON.stringify(userError, null, 2));
+    console.error('[createTeam] User data:', userData);
+    throw new Error('User not authenticated');
+  }
+  
   const { data, error } = await supabase
     .from('teams')
     .insert({
       name,
       description,
-      owner_id: (await supabase.auth.getUser()).data.user?.id,
+      owner_id: userData.user.id,
     })
     .select()
     .single();
 
   if (error) {
-    console.error('[createTeam] Error:', error);
+    console.error('[createTeam] Error:', JSON.stringify(error, null, 2));
+    console.error('[createTeam] Error details:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code
+    });
     throw error;
   }
 
