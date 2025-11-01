@@ -1,10 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Animated, Modal, Alert } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, SafeImage } from '@/components/SafeImage';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award, Radio, Link2, LogOut, Calendar, Eye } from 'lucide-react-native';
+import { Settings, Shield, Sparkles, Users as UsersIcon, BookOpenText, Swords, Award, Radio, Link2, LogOut, Calendar, Eye, Video, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useYouTube } from '@/contexts/YouTubeContext';
@@ -71,7 +71,7 @@ export default function ProfileScreen() {
     queryFn: async () => {
       if (!user?.id) return [] as Team[];
       try {
-        const t = await getUserTeams(user.id);
+        const t = await getUserTeams();
         return t;
       } catch (e) {
         console.error('teams load error', e);
@@ -81,7 +81,11 @@ export default function ProfileScreen() {
     staleTime: 60000,
   });
 
-  const { isConnected, state: ytState, connectManually, disconnect, goLive, openChannel, isLoading: ytLoading, live, upcoming, isFetchingLive, refetchLive } = useYouTube();
+  const { isConnected, isOAuthConnected, state: ytState, connectManually, connectViaOAuth, disconnect, goLive, openChannel, isLoading: ytLoading, live, upcoming, isFetchingLive, refetchLive, createLiveStream, isCreatingStream, streamData } = useYouTube();
+
+  const [showLiveStreamModal, setShowLiveStreamModal] = useState(false);
+  const [streamTitle, setStreamTitle] = useState('');
+  const [streamDescription, setStreamDescription] = useState('');
 
   const groups = useMemo<GroupItem[]>(() => {
     const items = (teamsData ?? []).map((t) => ({ id: t.id, name: t.name, avatarUrl: t.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=256&auto=format&fit=crop' }));

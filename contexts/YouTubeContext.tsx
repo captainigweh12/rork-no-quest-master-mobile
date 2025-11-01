@@ -2,13 +2,18 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { getYouTubeApiKey } from '@/lib/env';
+import * as AuthSession from 'expo-auth-session';
 
 export type YouTubeLinkState = {
   channelUrl?: string;
   liveControlUrl?: string;
   lastConnectedAt?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  channelId?: string;
 };
 
 export type LiveInfo = {
@@ -24,7 +29,11 @@ export type UpcomingItem = {
   scheduledStartTime?: string;
 };
 
-const STORAGE_KEY = 'yt_link_state_v1';
+const STORAGE_KEY = 'yt_link_state_v2';
+
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
+const REDIRECT_URI = AuthSession.makeRedirectUri({ scheme: 'noquest' });
 
 function extractChannelHint(url?: string): { id?: string; handleOrName?: string } {
   if (!url) return {};
@@ -197,6 +206,175 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
     }
   }, [state?.liveControlUrl]);
 
+  const connectViaOAuth = useCallback(async () => {
+    try {
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      };
+
+      const authRequest = new AuthSession.AuthRequest({
+        clientId: GOOGLE_CLIENT_ID,
+        scopes: [
+          'https://www.googleapis.com/auth/youtube',
+          'https://www.googleapis.com/auth/youtube.force-ssl',
+          'https://www.googleapis.com/auth/youtube.readonly',
+        ],
+        redirectUri: REDIRECT_URI,
+        responseType: AuthSession.ResponseType.Code,
+      });
+
+      const result = await authRequest.promptAsync(discovery);
+
+      if (result.type === 'success' && result.params.code) {
+        const tokenResponse = await fetch(discovery.tokenEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code: result.params.code,
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            redirect_uri: REDIRECT_URI,
+            grant_type: 'authorization_code',
+          }).toString(),
+        });
+
+        const tokens = await tokenResponse.json();
+
+        if (tokens.access_token) {
+          const channelResponse = await fetch(
+            'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
+            {
+              headers: { Authorization: `Bearer ${tokens.access_token}` },
+            }
+          );
+
+          const channelData = await channelResponse.json();
+          const channelId = channelData?.items?.[0]?.id;
+          const channelUrl = channelId
+            ? `https://www.youtube.com/channel/${channelId}`
+            : undefined;
+
+          const expiresAt = new Date(
+            Date.now() + (tokens.expires_in ?? 3600) * 1000
+          ).toISOString();
+
+          const next: YouTubeLinkState = {
+            channelUrl,
+            channelId,
+            liveControlUrl: 'https://studio.youtube.com',
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt,
+            lastConnectedAt: new Date().toISOString(),
+          };
+
+          setState(next);
+          await persist(next);
+
+          return { success: true };
+        }
+      }
+
+      return { success: false };
+    } catch (error) {
+      console.error('[YouTube] OAuth error', error);
+      Alert.alert('Connection Failed', 'Could not connect to Google. Please try again.');
+      return { success: false };
+    }
+  }, [persist]);
+
+  const createLiveStreamMutation = useMutation({
+    mutationFn: async (params: {
+      title: string;
+      description: string;
+      scheduledStartTime?: string;
+    }) => {
+      if (!state?.accessToken) {
+        throw new Error('Not authenticated');
+      }
+
+      const broadcast = await fetch(
+        'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,status,contentDetails',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            snippet: {
+              title: params.title,
+              description: params.description,
+              scheduledStartTime: params.scheduledStartTime || new Date().toISOString(),
+            },
+            status: {
+              privacyStatus: 'public',
+              selfDeclaredMadeForKids: false,
+            },
+            contentDetails: {
+              enableAutoStart: true,
+              enableAutoStop: true,
+            },
+          }),
+        }
+      );
+
+      const broadcastData = await broadcast.json();
+
+      if (!broadcastData.id) {
+        throw new Error('Failed to create broadcast');
+      }
+
+      const stream = await fetch(
+        'https://www.googleapis.com/youtube/v3/liveStreams?part=snippet,cdn,contentDetails,status',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            snippet: {
+              title: `${params.title} - Stream`,
+            },
+            cdn: {
+              frameRate: 'variable',
+              ingestionType: 'rtmp',
+              resolution: 'variable',
+            },
+          }),
+        }
+      );
+
+      const streamData = await stream.json();
+
+      if (!streamData.id) {
+        throw new Error('Failed to create stream');
+      }
+
+      await fetch(
+        `https://www.googleapis.com/youtube/v3/liveBroadcasts/bind?id=${broadcastData.id}&part=id,snippet,contentDetails,status&streamId=${streamData.id}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+          },
+        }
+      );
+
+      return {
+        broadcastId: broadcastData.id,
+        streamId: streamData.id,
+        streamUrl: streamData.cdn?.ingestionInfo?.streamName,
+        streamKey: streamData.cdn?.ingestionInfo?.ingestionAddress,
+        watchUrl: `https://www.youtube.com/watch?v=${broadcastData.id}`,
+      };
+    },
+  });
+
+  const { mutate: createLiveStream, isPending: isCreatingStream, data: streamData, error: streamError } = createLiveStreamMutation;
+
   const liveQuery = useQuery({
     queryKey: ['yt-live', state?.channelUrl, getYouTubeApiKey()],
     queryFn: async () => fetchLiveAndUpcoming(state?.channelUrl),
@@ -208,14 +386,20 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
   return useMemo(() => ({
     isLoading,
     isConnected: !!state?.channelUrl,
+    isOAuthConnected: !!state?.accessToken,
     state,
     connectManually,
+    connectViaOAuth,
     disconnect,
     openChannel,
     goLive,
+    createLiveStream,
+    isCreatingStream,
+    streamData,
+    streamError,
     live: (liveQuery.data?.live ?? { isLive: false }) as LiveInfo,
     upcoming: (liveQuery.data?.upcoming ?? []) as UpcomingItem[],
     isFetchingLive: liveQuery.isFetching,
     refetchLive: liveQuery.refetch,
-  }), [isLoading, state, connectManually, disconnect, openChannel, goLive, liveQuery.data, liveQuery.isFetching, liveQuery.refetch]);
+  }), [isLoading, state, connectManually, connectViaOAuth, disconnect, openChannel, goLive, createLiveStream, isCreatingStream, streamData, streamError, liveQuery.data, liveQuery.isFetching, liveQuery.refetch]);
 });
