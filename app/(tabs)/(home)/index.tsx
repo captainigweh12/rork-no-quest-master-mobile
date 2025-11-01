@@ -20,13 +20,7 @@ import { getUserTeams, type Team } from '@/services/supabase/teams';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const CATEGORY_ICON_MAP: Record<string, string> = {
-  overwatch: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
-  dota2: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=800&auto=format&fit=crop',
-  lol: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=800&auto=format&fit=crop',
-  apex: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop',
-  valorant: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800&auto=format&fit=crop',
-};
+
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -213,7 +207,6 @@ export default function HomeScreen() {
               testID="categories-horizontal"
             >
               {categoriesHorizontal.map((c: AppCategory) => {
-                const icon = CATEGORY_ICON_MAP[c.id] ?? CATEGORY_ICON_MAP.lol;
                 return (
                   <Pressable
                     key={`hcat-${c.id}`}
@@ -222,7 +215,7 @@ export default function HomeScreen() {
                     testID={`hcat-${c.id}`}
                   >
                     <View style={[styles.gameIconWrap, { borderColor: theme.colors.border }]}> 
-                      <SafeImage uri={icon} style={styles.gameIcon} testID={`hcat-icon-${c.id}`} />
+                      <SafeImage uri={c.image} style={styles.gameIcon} testID={`hcat-icon-${c.id}`} />
                     </View>
                     <Text style={[styles.gameLabel, { color: theme.colors.text }]} numberOfLines={1}>{c.title}</Text>
                   </Pressable>
