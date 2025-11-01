@@ -69,7 +69,7 @@ export default function HomeScreen() {
 
   const styles = createStyles(theme.colors);
   const categoriesHorizontal = useMemo(() => (catsLoading ? [] : selected).slice(0, 12), [catsLoading, selected]);
-  const { isConnected: ytConnected, live: ytLive } = useYouTube();
+  const { isConnected: ytConnected, live: ytLive, goLive } = useYouTube();
   const liveStreams = useMemo(() => {
     if (ytConnected && ytLive?.isLive && ytLive.videoId) {
       return [
@@ -258,7 +258,35 @@ export default function HomeScreen() {
                   </Pressable>
                 ))}
               </ScrollView>
-            ) : null}
+            ) : (
+              <View style={[styles.liveEmptyCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.glass }]} testID="live-empty">
+                <Text style={[styles.liveEmptyTitle, { color: theme.colors.text }]}>No channels are live</Text>
+                <Text style={[styles.liveEmptySubtitle, { color: theme.colors.textSecondary }]}>Start a stream or connect your YouTube to go live</Text>
+                {ytConnected ? (
+                  <Pressable
+                    onPress={() => {
+                      try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+                      goLive();
+                    }}
+                    style={({ pressed }) => [styles.livePrimaryBtn, { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                    testID="btn-start-live"
+                  >
+                    <Text style={styles.livePrimaryBtnText}>Start a Live</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => {
+                      try { Haptics.selectionAsync(); } catch {}
+                      router.push('/profile' as any);
+                    }}
+                    style={({ pressed }) => [styles.liveSecondaryBtn, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundTertiary, opacity: pressed ? 0.9 : 1 }]}
+                    testID="btn-connect-youtube"
+                  >
+                    <Text style={[styles.liveSecondaryBtnText, { color: theme.colors.text }]}>Connect YouTube Channel</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={{ gap: 12, marginTop: 4 }}>
@@ -1179,6 +1207,18 @@ function createStyles(colors: any) {
       borderRadius: 22,
     },
     gameLabel: { fontSize: 11, fontWeight: '800' as const },
+    liveEmptyCard: {
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 16,
+      gap: 10,
+    },
+    liveEmptyTitle: { fontSize: 16, fontWeight: '900' as const },
+    liveEmptySubtitle: { fontSize: 12, fontWeight: '600' as const },
+    livePrimaryBtn: { marginTop: 4, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
+    livePrimaryBtnText: { color: '#fff', fontWeight: '900' as const },
+    liveSecondaryBtn: { marginTop: 4, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 2 },
+    liveSecondaryBtnText: { fontWeight: '800' as const },
     liveCard: {
       width: SCREEN_WIDTH * 0.74,
       borderRadius: 16,
