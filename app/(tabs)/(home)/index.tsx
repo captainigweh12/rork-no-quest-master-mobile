@@ -392,25 +392,6 @@ export default function HomeScreen() {
                 </View>
               </Pressable>
             ))}
-            <Pressable
-              onPress={() => router.push('/manage-categories' as any)}
-              style={({ pressed }) => [
-                styles.categoryCardVertical,
-                {
-                  borderColor: theme.colors.border,
-                  borderWidth: 2,
-                  backgroundColor: 'transparent',
-                  opacity: pressed ? 0.7 : 1,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderStyle: 'dashed',
-                }
-              ]}
-              testID="manage-categories"
-            >
-              <Plus size={24} color={theme.colors.textSecondary} style={{ marginBottom: 8 }} />
-              <Text style={[styles.categoryTitle, { color: theme.colors.textSecondary, fontSize: 14, fontWeight: '700' }]}>Add or remove categories</Text>
-            </Pressable>
           </View>
 
           {startedQuests.length > 0 && (
