@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useTheme, type Theme } from '@/contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
-import { Calendar, ArrowLeft, X, Plus, MapPin } from 'lucide-react-native';
+import { X, Plus, MapPin } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import * as Location from 'expo-location';
 
@@ -32,7 +32,6 @@ export default function QuestCalendarScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { quests, addCustomQuest } = useGame();
-  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [plannedQuests, setPlannedQuests] = useState<PlannedQuest[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -229,6 +228,7 @@ export default function QuestCalendarScreen() {
       <Stack.Screen
         options={{
           title: 'Quest Calendar',
+          headerShown: true,
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
@@ -236,43 +236,28 @@ export default function QuestCalendarScreen() {
           headerTitleStyle: {
             fontWeight: '700' as const,
           },
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              style={({ pressed }) => ([
-                { padding: 8, opacity: pressed ? 0.6 : 1 }
-              ])}
-            >
-              <ArrowLeft size={24} color="#fff" />
-            </Pressable>
-          ),
+          headerBackVisible: true,
         }}
       />
 
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Calendar size={40} color={theme.colors.primary} strokeWidth={2.5} />
-          </View>
-          <Text style={styles.title}>Quest History Calendar</Text>
-          <Text style={styles.subtitle}>Track your conquest journey</Text>
-        </View>
 
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{totalCompletedQuests}</Text>
-            <Text style={styles.statLabel}>Total Quests</Text>
+            <Text style={styles.statLabel}>Total</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{currentMonthQuests}</Text>
-            <Text style={styles.statLabel}>This Month</Text>
+            <Text style={styles.statLabel}>Month</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: theme.colors.success }]}>{currentStreak}</Text>
-            <Text style={styles.statLabel}>Current Streak</Text>
+            <Text style={styles.statLabel}>Streak</Text>
           </View>
         </View>
 
@@ -539,52 +524,28 @@ function createStyles(theme: Theme) {
       flex: 1,
     },
     content: {
-      padding: 20,
+      padding: 16,
     },
-    header: {
-      alignItems: 'center',
-      marginBottom: 24,
-    },
-    iconContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: theme.colors.primary + '15',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 16,
-    },
-    title: {
-      fontSize: 26,
-      fontWeight: '800' as const,
-      color: theme.colors.text,
-      marginBottom: 8,
-      textAlign: 'center',
-    },
-    subtitle: {
-      fontSize: 15,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-    },
+
     statsContainer: {
       flexDirection: 'row',
-      gap: 12,
-      marginBottom: 24,
+      gap: 10,
+      marginBottom: 16,
     },
     statCard: {
       flex: 1,
       backgroundColor: theme.colors.backgroundSecondary,
-      padding: 16,
-      borderRadius: 16,
+      padding: 12,
+      borderRadius: 12,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     statValue: {
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: '800' as const,
       color: theme.colors.primary,
-      marginBottom: 4,
+      marginBottom: 2,
     },
     statLabel: {
       fontSize: 12,
@@ -594,22 +555,22 @@ function createStyles(theme: Theme) {
     },
     calendarCard: {
       backgroundColor: theme.colors.backgroundSecondary,
-      borderRadius: 20,
-      padding: 20,
+      borderRadius: 16,
+      padding: 16,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginBottom: 20,
+      marginBottom: 16,
     },
     calendarHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 20,
+      marginBottom: 16,
     },
     monthButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: theme.colors.background,
       alignItems: 'center',
       justifyContent: 'center',
@@ -620,26 +581,26 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.primary + '20',
     },
     monthButtonText: {
-      fontSize: 20,
+      fontSize: 18,
       color: theme.colors.text,
       fontWeight: '700' as const,
     },
     monthName: {
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '700' as const,
       color: theme.colors.text,
     },
     weekDaysContainer: {
       flexDirection: 'row',
-      marginBottom: 12,
+      marginBottom: 8,
     },
     weekDayCell: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 8,
+      paddingVertical: 6,
     },
     weekDayText: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '700' as const,
       color: theme.colors.textSecondary,
     },
@@ -652,7 +613,7 @@ function createStyles(theme: Theme) {
       aspectRatio: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 4,
+      padding: 2,
       position: 'relative',
     },
     dayCellInactive: {
@@ -670,7 +631,7 @@ function createStyles(theme: Theme) {
       opacity: 0.6,
     },
     dayText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600' as const,
       color: theme.colors.text,
     },
@@ -704,24 +665,24 @@ function createStyles(theme: Theme) {
     legend: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 24,
-      marginTop: 20,
-      paddingTop: 20,
+      gap: 16,
+      marginTop: 16,
+      paddingTop: 16,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
     },
     legendItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
     },
     legendDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
     },
     legendText: {
-      fontSize: 11,
+      fontSize: 10,
       color: theme.colors.textSecondary,
       fontWeight: '600' as const,
     },
@@ -895,21 +856,21 @@ function createStyles(theme: Theme) {
     },
     tipsCard: {
       backgroundColor: theme.colors.primary + '10',
-      borderRadius: 16,
-      padding: 20,
+      borderRadius: 12,
+      padding: 16,
       borderWidth: 1,
       borderColor: theme.colors.primary + '30',
     },
     tipsTitle: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700' as const,
       color: theme.colors.text,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     tipsText: {
-      fontSize: 14,
+      fontSize: 13,
       color: theme.colors.text,
-      lineHeight: 20,
+      lineHeight: 19,
     },
     counterButton: {
       width: 40,
