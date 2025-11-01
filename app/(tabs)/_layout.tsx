@@ -17,7 +17,7 @@ export default function TabLayout() {
 
   const { theme } = themeContext;
 
-  const clampedInset = Math.max(8, Math.min(insets.bottom, 16));
+  const bottomInset = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <View style={{ flex: 1 }}>
@@ -31,9 +31,9 @@ export default function TabLayout() {
               backgroundColor: theme.colors.card,
               borderTopColor: theme.colors.border,
               borderTopWidth: 1,
-              height: 56 + clampedInset,
-              paddingBottom: clampedInset,
-              paddingTop: 6,
+              height: 64 + bottomInset,
+              paddingBottom: bottomInset,
+              paddingTop: 8,
             },
             tabBarActiveTintColor: theme.colors.primary,
             tabBarInactiveTintColor: theme.colors.textSecondary,
