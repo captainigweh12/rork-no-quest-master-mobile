@@ -34,7 +34,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
 
   const unreadCount = (notificationsQuery.data || []).filter(n => !n.read).length;
 
-  const registerForPushNotifications = useCallback(async () => {
+  const registerForPushNotifications = useCallback(async (retryCount = 0) => {
     if (Platform.OS === 'web') {
       console.log('Push notifications not supported on web');
       return;
@@ -59,8 +59,23 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
       const token = (await Notifications.getExpoPushTokenAsync()).data;
       console.log('Expo Push Token:', token);
       setExpoPushToken(token);
-    } catch (error) {
-      console.error('Error registering for push notifications:', error);
+    } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      console.error('Error registering for push notifications:', errorMessage);
+      
+      if (errorMessage.includes('503') || errorMessage.includes('no healthy upstream')) {
+        console.log('Expo push notification service temporarily unavailable');
+        
+        if (retryCount < 3) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+          console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1}/3)...`);
+          setTimeout(() => registerForPushNotifications(retryCount + 1), delay);
+        } else {
+          console.log('Max retries reached. Push notifications will be unavailable.');
+        }
+      } else {
+        console.error('Unexpected error:', error);
+      }
     }
   }, []);
 
