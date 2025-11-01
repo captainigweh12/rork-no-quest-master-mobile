@@ -1,15 +1,17 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QuestLoadingModal } from '@/components/QuestLoadingModal';
-import { X, Sparkles, Heart, Briefcase, Flame, Map } from 'lucide-react-native';
+import { X, Sparkles, Heart, Briefcase, Flame, Map, Send } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { QuestDifficulty } from '@/types';
 import type { CategoryId } from '@/services/questAI';
 import * as Haptics from 'expo-haptics';
+import { useRorkAgent, createRorkTool } from '@rork/toolkit-sdk';
+import { z } from 'zod';
 import React from "react";
 
 export default function CreateQuestScreen() {
@@ -18,10 +20,13 @@ export default function CreateQuestScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [generatingQuest, setGeneratingQuest] = useState(false);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
   const [customTitle, setCustomTitle] = useState('');
   const [customDescription, setCustomDescription] = useState('');
   const [customMinNo, setCustomMinNo] = useState('3');
@@ -36,8 +41,68 @@ export default function CreateQuestScreen() {
     }
     setSelectedCategory(category);
     setShowCategoryModal(false);
-    setShowAIModal(true);
+    setShowChatModal(true);
   }, []);
+
+  const agentResult = useRorkAgent({
+    tools: {
+      createQuest: createRorkTool({
+        description: 'Create a rejection quest for the user based on the conversation',
+        zodSchema: z.object({
+          difficulty: z.enum(['easy', 'medium', 'hard', 'extreme']).describe('The difficulty level'),
+          customRequest: z.string().optional().describe('Any custom requirements from the user'),
+        }),
+        async execute(input) {
+          console.log('[AI] Creating quest with input:', input);
+          setShowChatModal(false);
+          setShowLoadingModal(true);
+          try {
+            await addAIQuest(input.difficulty as QuestDifficulty, false, undefined, selectedCategory || undefined);
+            setSelectedCategory(null);
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.push('/(tabs)/(home)' as any);
+            }
+            return 'Quest created successfully!';
+          } catch (error) {
+            console.error('Failed to generate quest:', error);
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }
+            return `Error: ${error instanceof Error ? error.message : 'Failed to create quest'}`;
+          } finally {
+            setShowLoadingModal(false);
+          }
+        },
+      }),
+    },
+  });
+
+  const messages = agentResult.messages;
+  const sendMessage = agentResult.sendMessage;
+  const isGenerating = agentResult.error ? false : messages.some(m => 
+    m.parts.some(p => p.type === 'tool' && (p.state === 'input-streaming' || p.state === 'input-available'))
+  );
+
+  useEffect(() => {
+    if (showChatModal && messages.length === 0) {
+      const categoryName = selectedCategory || 'general';
+      const initialMessage = `I want to create a ${categoryName} rejection quest. Can you ask me a few questions to understand what kind of challenge I'm looking for?`;
+      sendMessage(initialMessage);
+    }
+  }, [showChatModal, messages.length, selectedCategory, sendMessage]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
 
   const handleGenerateAI = useCallback(
     async (difficulty: QuestDifficulty) => {
@@ -70,6 +135,13 @@ export default function CreateQuestScreen() {
     },
     [addAIQuest, router, selectedCategory]
   );
+
+  const handleSendMessage = useCallback(() => {
+    if (chatInput.trim()) {
+      sendMessage(chatInput);
+      setChatInput('');
+    }
+  }, [chatInput, sendMessage]);
 
   const handleCreateCustom = useCallback(() => {
     if (!customTitle.trim()) {
@@ -298,6 +370,100 @@ export default function CreateQuestScreen() {
                 color="#10B981"
                 onPress={() => handleSelectCategory('adventure')}
               />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showChatModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowChatModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.chatModalContent, { backgroundColor: theme.colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Create Quest with Ben</Text>
+              <Pressable onPress={() => {
+                setShowChatModal(false);
+                setShowCategoryModal(true);
+              }}>
+                <X size={24} color={theme.colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.chatMessages}
+              contentContainerStyle={styles.chatMessagesContent}
+            >
+              {messages.map((message, index) => (
+                <View key={index} style={styles.messageContainer}>
+                  {message.parts.map((part, partIndex) => {
+                    if (part.type === 'text') {
+                      return (
+                        <View
+                          key={`${index}-${partIndex}`}
+                          style={[
+                            styles.messageBubble,
+                            message.role === 'user' 
+                              ? { backgroundColor: theme.colors.primary, alignSelf: 'flex-end' }
+                              : { backgroundColor: theme.colors.backgroundSecondary, alignSelf: 'flex-start' }
+                          ]}
+                        >
+                          <Text style={[
+                            styles.messageText,
+                            { color: message.role === 'user' ? '#FFFFFF' : theme.colors.text }
+                          ]}>
+                            {part.text}
+                          </Text>
+                        </View>
+                      );
+                    } else if (part.type === 'tool') {
+                      if (part.state === 'input-streaming' || part.state === 'input-available') {
+                        return (
+                          <View key={`${index}-${partIndex}`} style={styles.toolMessage}>
+                            <ActivityIndicator size="small" color={theme.colors.primary} />
+                            <Text style={[styles.toolText, { color: theme.colors.textSecondary }]}>
+                              Creating your quest...
+                            </Text>
+                          </View>
+                        );
+                      }
+                    }
+                    return null;
+                  })}
+                </View>
+              ))}
+              {isGenerating && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={[styles.chatInputContainer, { backgroundColor: theme.colors.backgroundSecondary }]}>
+              <TextInput
+                style={[styles.chatInput, { color: theme.colors.text }]}
+                placeholder="Type your message..."
+                placeholderTextColor={theme.colors.textSecondary}
+                value={chatInput}
+                onChangeText={setChatInput}
+                onSubmitEditing={handleSendMessage}
+                editable={!isGenerating}
+              />
+              <Pressable 
+                onPress={handleSendMessage}
+                disabled={!chatInput.trim() || isGenerating}
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: theme.colors.primary },
+                  (!chatInput.trim() || isGenerating) && { opacity: 0.5 }
+                ]}
+              >
+                <Send size={20} color="#FFFFFF" />
+              </Pressable>
             </View>
           </View>
         </View>
@@ -649,6 +815,69 @@ function createStyles(colors: any) {
     durationButtonText: {
       fontSize: 14,
       fontWeight: '600' as const,
+    },
+    chatModalContent: {
+      borderRadius: 24,
+      width: '100%',
+      maxWidth: 500,
+      height: '80%',
+      overflow: 'hidden',
+    },
+    chatMessages: {
+      flex: 1,
+    },
+    chatMessagesContent: {
+      padding: 16,
+      gap: 12,
+    },
+    messageContainer: {
+      width: '100%',
+    },
+    messageBubble: {
+      maxWidth: '80%',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 16,
+      marginVertical: 4,
+    },
+    messageText: {
+      fontSize: 15,
+      lineHeight: 20,
+    },
+    toolMessage: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      paddingVertical: 8,
+    },
+    toolText: {
+      fontSize: 14,
+      fontStyle: 'italic' as const,
+    },
+    loadingContainer: {
+      alignItems: 'center' as const,
+      paddingVertical: 12,
+    },
+    chatInputContainer: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: 12,
+      gap: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    chatInput: {
+      flex: 1,
+      fontSize: 15,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    sendButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
     },
   });
 }
