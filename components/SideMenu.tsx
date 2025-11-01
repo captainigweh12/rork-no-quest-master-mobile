@@ -7,7 +7,6 @@ import {
   TrendingUp, 
   Users, 
   Compass,
-  Medal,
   Trophy,
   ListPlus,
   Shield,
@@ -36,7 +35,6 @@ type MenuItem = {
 
 const MENU_ITEMS: MenuItem[] = [
   { id: 'profile', label: 'Profile & Settings', icon: User, route: '/profile', section: 'profile' },
-  { id: 'skill', label: 'Skill Level', icon: Medal, route: '/profile', section: 'profile' },
   { id: 'help', label: 'Help & Support', icon: HelpCircle, route: '/disclaimer', section: 'profile' },
   { id: 'refer', label: 'Invite Warriors', icon: UserPlus, route: '/profile', section: 'profile', divider: true },
   
