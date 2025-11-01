@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/supabase';
 
+/** =========================
+ * Types (unchanged)
+ * ========================= */
 export interface Team {
   id: string;
   name: string;
@@ -73,261 +76,208 @@ export interface TeamInvite {
   expires_at: string;
 }
 
-export async function getUserTeams(userId: string): Promise<Team[]> {
-
-  
-  console.log('[getUserTeams] Fetching teams for user:', userId);
-  
-  const { data: teamMembers, error: memberError } = await supabase
-    .from('team_members')
-    .select('team_id')
-    .eq('user_id', userId);
-
-  if (memberError) {
-    console.error('[getUserTeams] Error fetching team memberships:', JSON.stringify(memberError, null, 2));
-    console.error('[getUserTeams] Error details:', {
-      message: memberError.message,
-      details: memberError.details,
-      hint: memberError.hint,
-      code: memberError.code
-    });
-    return [];
+/** =========================
+ * Internal helpers
+ * ========================= */
+async function requireUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user?.id) {
+    console.error('[auth] requireUserId error:', error, data);
+    throw new Error('User not authenticated');
   }
+  return data.user.id;
+}
 
-  if (!teamMembers || teamMembers.length === 0) {
-    console.log('[getUserTeams] User is not a member of any teams');
-    return [];
+function logAndThrow(label: string, err: any): never {
+  try {
+    console.error(`[${label}] Error:`, JSON.stringify(err, null, 2));
+  } catch {
+    console.error(`[${label}] Error:`, err);
   }
+  throw err instanceof Error ? err : new Error(err?.message ?? String(err));
+}
 
-  const teamIds = teamMembers.map((tm: { team_id: string }) => tm.team_id);
+/** =========================
+ * Teams
+ * ========================= */
 
-  const { data: teams, error: teamsError } = await supabase
+/**
+ * Get all teams visible to the current user via RLS.
+ * NOTE: We do NOT pre-query team_members; RLS already filters teams.
+ */
+export async function getUserTeams(): Promise<Team[]> {
+  console.log('[getUserTeams] Fetching teams (RLS-scoped)');
+  const { data, error } = await supabase
     .from('teams')
     .select('*')
-    .in('id', teamIds)
     .order('created_at', { ascending: false });
 
-  if (teamsError) {
-    console.error('[getUserTeams] Error fetching teams:', JSON.stringify(teamsError, null, 2));
-    console.error('[getUserTeams] Error details:', {
-      message: teamsError.message,
-      details: teamsError.details,
-      hint: teamsError.hint,
-      code: teamsError.code
-    });
-    return [];
+  if (error) {
+    logAndThrow('getUserTeams', error);
   }
-
-  console.log('[getUserTeams] Found teams:', teams?.length || 0);
-  return teams || [];
+  console.log('[getUserTeams] Found teams:', data?.length ?? 0);
+  return data ?? [];
 }
 
 export async function getTeamById(teamId: string): Promise<Team | null> {
-
-  
   console.log('[getTeamById] Fetching team:', teamId);
-  
   const { data, error } = await supabase
     .from('teams')
     .select('*')
     .eq('id', teamId)
     .single();
 
-  if (error) {
-    console.error('[getTeamById] Error:', error);
-    throw error;
-  }
-
+  if (error) logAndThrow('getTeamById', error);
   return data;
 }
 
+/**
+ * Create a team using SECURITY DEFINER RPC that also inserts the owner membership.
+ * Requires the SQL function: public.rpc_create_team(p_name text, p_description text)
+ */
 export async function createTeam(name: string, description: string | null): Promise<Team> {
+  console.log('[createTeam] Creating via RPC:', { name, description });
+  await requireUserId(); // ensure we have a session/JWT
 
-  
-  console.log('[createTeam] Creating team:', { name, description });
-  
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  
-  if (userError || !userData.user?.id) {
-    console.error('[createTeam] Auth error:', JSON.stringify(userError, null, 2));
-    console.error('[createTeam] User data:', userData);
-    throw new Error('User not authenticated');
-  }
-  
-  const { data, error } = await supabase
-    .rpc('rpc_create_team', {
-      p_name: name,
-      p_description: description,
-    });
+  const { data, error } = await supabase.rpc('rpc_create_team', {
+    p_name: name,
+    p_description: description,
+  });
 
-  if (error) {
-    console.error('[createTeam] Error:', JSON.stringify(error, null, 2));
-    console.error('[createTeam] Error details:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code
-    });
-    throw error;
-  }
-
-  console.log('[createTeam] Team created:', data.id);
+  if (error) logAndThrow('createTeam', error);
+  console.log('[createTeam] Team created:', data?.id);
   return data as Team;
 }
 
-export async function updateTeam(teamId: string, updates: Partial<Pick<Team, 'name' | 'description' | 'avatar_url'>>): Promise<Team> {
-
-  
+export async function updateTeam(
+  teamId: string,
+  updates: Partial<Pick<Team, 'name' | 'description' | 'avatar_url'>>
+): Promise<Team> {
   console.log('[updateTeam] Updating team:', teamId, updates);
-  
+
   const { data, error } = await supabase
     .from('teams')
     .update(updates)
     .eq('id', teamId)
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[updateTeam] Error:', error);
-    throw error;
-  }
-
-  return data;
+  if (error) logAndThrow('updateTeam', error);
+  return data as Team;
 }
 
 export async function deleteTeam(teamId: string): Promise<void> {
-
-  
   console.log('[deleteTeam] Deleting team:', teamId);
-  
-  const { error } = await supabase
-    .from('teams')
-    .delete()
-    .eq('id', teamId);
 
-  if (error) {
-    console.error('[deleteTeam] Error:', error);
-    throw error;
-  }
+  const { error } = await supabase.from('teams').delete().eq('id', teamId);
+  if (error) logAndThrow('deleteTeam', error);
 
   console.log('[deleteTeam] Team deleted');
 }
 
-export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
+/** =========================
+ * Team Members
+ * ========================= */
 
-  
+export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
   console.log('[getTeamMembers] Fetching members for team:', teamId);
-  
+
+  // Keep your FK alias names; adjust if your constraint names differ
   const { data, error } = await supabase
     .from('team_members')
-    .select(`
-      *,
+    .select(
+      `
+      id, team_id, user_id, role, joined_at,
       user_profile:user_profiles!team_members_user_id_fkey (
         username,
         avatar_url,
         full_name
       )
-    `)
+    `
+    )
     .eq('team_id', teamId)
     .order('joined_at', { ascending: true });
 
-  if (error) {
-    console.error('[getTeamMembers] Error:', error);
-    throw error;
-  }
-
-  console.log('[getTeamMembers] Found members:', data?.length || 0);
-  return data || [];
+  if (error) logAndThrow('getTeamMembers', error);
+  console.log('[getTeamMembers] Found members:', data?.length ?? 0);
+  return (data ?? []) as TeamMember[];
 }
 
-export async function addTeamMember(teamId: string, userId: string, role: 'manager' | 'member' = 'member'): Promise<TeamMember> {
-
-  
+export async function addTeamMember(
+  teamId: string,
+  userId: string,
+  role: 'manager' | 'member' = 'member'
+): Promise<TeamMember> {
   console.log('[addTeamMember] Adding member:', { teamId, userId, role });
-  
+  await requireUserId();
+
   const { data, error } = await supabase
     .from('team_members')
-    .insert({
-      team_id: teamId,
-      user_id: userId,
-      role,
-    })
-    .select()
+    .insert({ team_id: teamId, user_id: userId, role })
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[addTeamMember] Error:', error);
-    throw error;
-  }
-
+  if (error) logAndThrow('addTeamMember', error);
   console.log('[addTeamMember] Member added');
-  return data;
+  return data as TeamMember;
 }
 
-export async function updateTeamMemberRole(teamId: string, userId: string, role: 'manager' | 'member'): Promise<TeamMember> {
-
-  
+export async function updateTeamMemberRole(
+  teamId: string,
+  userId: string,
+  role: 'manager' | 'member'
+): Promise<TeamMember> {
   console.log('[updateTeamMemberRole] Updating role:', { teamId, userId, role });
-  
+
   const { data, error } = await supabase
     .from('team_members')
     .update({ role })
     .eq('team_id', teamId)
     .eq('user_id', userId)
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[updateTeamMemberRole] Error:', error);
-    throw error;
-  }
-
-  return data;
+  if (error) logAndThrow('updateTeamMemberRole', error);
+  return data as TeamMember;
 }
 
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
-
-  
   console.log('[removeTeamMember] Removing member:', { teamId, userId });
-  
+
   const { error } = await supabase
     .from('team_members')
     .delete()
     .eq('team_id', teamId)
     .eq('user_id', userId);
 
-  if (error) {
-    console.error('[removeTeamMember] Error:', error);
-    throw error;
-  }
-
+  if (error) logAndThrow('removeTeamMember', error);
   console.log('[removeTeamMember] Member removed');
 }
 
-export async function getTeamTasks(teamId: string): Promise<TeamTask[]> {
+/** =========================
+ * Team Tasks
+ * ========================= */
 
-  
+export async function getTeamTasks(teamId: string): Promise<TeamTask[]> {
   console.log('[getTeamTasks] Fetching tasks for team:', teamId);
-  
+
   const { data, error } = await supabase
     .from('team_tasks')
-    .select(`
-      *,
+    .select(
+      `
+      id, team_id, created_by, title, description, difficulty, category,
+      points, xp, min_no_required, duration_minutes, is_active, created_at, updated_at,
       created_by_profile:user_profiles!team_tasks_created_by_fkey (
-        username,
-        avatar_url
+        username, avatar_url
       )
-    `)
+    `
+    )
     .eq('team_id', teamId)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('[getTeamTasks] Error:', error);
-    throw error;
-  }
-
-  console.log('[getTeamTasks] Found tasks:', data?.length || 0);
-  return data || [];
+  if (error) logAndThrow('getTeamTasks', error);
+  console.log('[getTeamTasks] Found tasks:', data?.length ?? 0);
+  return (data ?? []) as TeamTask[];
 }
 
 export async function createTeamTask(
@@ -343,82 +293,78 @@ export async function createTeamTask(
     duration_minutes?: number | null;
   }
 ): Promise<TeamTask> {
-
-  
   console.log('[createTeamTask] Creating task:', { teamId, task });
-  
+  const userId = await requireUserId();
+
   const { data, error } = await supabase
     .from('team_tasks')
     .insert({
       team_id: teamId,
-      created_by: (await supabase.auth.getUser()).data.user?.id,
+      created_by: userId,
       title: task.title,
       description: task.description,
       difficulty: task.difficulty,
-      category: task.category || null,
-      points: task.points || 10,
-      xp: task.xp || 10,
-      min_no_required: task.min_no_required || 3,
-      duration_minutes: task.duration_minutes || null,
+      category: task.category ?? null,
+      points: task.points ?? 10,
+      xp: task.xp ?? 10,
+      min_no_required: task.min_no_required ?? 3,
+      duration_minutes: task.duration_minutes ?? null,
     })
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[createTeamTask] Error:', error);
-    throw error;
-  }
-
-  console.log('[createTeamTask] Task created:', data.id);
-  return data;
+  if (error) logAndThrow('createTeamTask', error);
+  console.log('[createTeamTask] Task created:', (data as any)?.id);
+  return data as TeamTask;
 }
 
 export async function updateTeamTask(
   taskId: string,
-  updates: Partial<Pick<TeamTask, 'title' | 'description' | 'difficulty' | 'category' | 'points' | 'xp' | 'min_no_required' | 'duration_minutes' | 'is_active'>>
+  updates: Partial<
+    Pick<
+      TeamTask,
+      | 'title'
+      | 'description'
+      | 'difficulty'
+      | 'category'
+      | 'points'
+      | 'xp'
+      | 'min_no_required'
+      | 'duration_minutes'
+      | 'is_active'
+    >
+  >
 ): Promise<TeamTask> {
-
-  
   console.log('[updateTeamTask] Updating task:', taskId, updates);
-  
+
   const { data, error } = await supabase
     .from('team_tasks')
     .update(updates)
     .eq('id', taskId)
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[updateTeamTask] Error:', error);
-    throw error;
-  }
-
-  return data;
+  if (error) logAndThrow('updateTeamTask', error);
+  return data as TeamTask;
 }
 
 export async function deleteTeamTask(taskId: string): Promise<void> {
-
-  
   console.log('[deleteTeamTask] Deleting task:', taskId);
-  
-  const { error } = await supabase
-    .from('team_tasks')
-    .delete()
-    .eq('id', taskId);
 
-  if (error) {
-    console.error('[deleteTeamTask] Error:', error);
-    throw error;
-  }
+  const { error } = await supabase.from('team_tasks').delete().eq('id', taskId);
+  if (error) logAndThrow('deleteTeamTask', error);
 
   console.log('[deleteTeamTask] Task deleted');
 }
 
-export async function assignTaskToMember(taskId: string, userId: string): Promise<TeamTaskAssignment> {
+/** =========================
+ * Task Assignments
+ * ========================= */
 
-  
+export async function assignTaskToMember(taskId: string, userId: string): Promise<TeamTaskAssignment> {
   console.log('[assignTaskToMember] Assigning task:', { taskId, userId });
-  
+  await requireUserId();
+
   const { data, error } = await supabase
     .from('team_task_assignments')
     .insert({
@@ -426,102 +372,86 @@ export async function assignTaskToMember(taskId: string, userId: string): Promis
       user_id: userId,
       status: 'assigned',
     })
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[assignTaskToMember] Error:', error);
-    throw error;
-  }
-
+  if (error) logAndThrow('assignTaskToMember', error);
   console.log('[assignTaskToMember] Task assigned');
-  return data;
+  return data as TeamTaskAssignment;
 }
 
 export async function getUserTeamTaskAssignments(userId: string): Promise<TeamTaskAssignment[]> {
-
-  
   console.log('[getUserTeamTaskAssignments] Fetching assignments for user:', userId);
-  
+
   const { data, error } = await supabase
     .from('team_task_assignments')
-    .select(`
-      *,
+    .select(
+      `
+      id, team_task_id, user_id, status, no_count, yes_count,
+      started_at, completed_at, created_at,
       team_task:team_tasks!team_task_assignments_team_task_id_fkey (
-        *,
+        id, team_id, created_by, title, description, difficulty, category,
+        points, xp, min_no_required, duration_minutes, is_active, created_at, updated_at,
         created_by_profile:user_profiles!team_tasks_created_by_fkey (
-          username,
-          avatar_url
+          username, avatar_url
         )
       )
-    `)
+    `
+    )
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('[getUserTeamTaskAssignments] Error:', error);
-    throw error;
-  }
-
-  console.log('[getUserTeamTaskAssignments] Found assignments:', data?.length || 0);
-  return data || [];
+  if (error) logAndThrow('getUserTeamTaskAssignments', error);
+  console.log('[getUserTeamTaskAssignments] Found assignments:', data?.length ?? 0);
+  return (data ?? []) as TeamTaskAssignment[];
 }
 
 export async function updateTeamTaskAssignment(
   assignmentId: string,
   updates: Partial<Pick<TeamTaskAssignment, 'status' | 'no_count' | 'yes_count' | 'started_at' | 'completed_at'>>
 ): Promise<TeamTaskAssignment> {
-
-  
   console.log('[updateTeamTaskAssignment] Updating assignment:', assignmentId, updates);
-  
+
   const { data, error } = await supabase
     .from('team_task_assignments')
     .update(updates)
     .eq('id', assignmentId)
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[updateTeamTaskAssignment] Error:', error);
-    throw error;
-  }
-
-  return data;
+  if (error) logAndThrow('updateTeamTaskAssignment', error);
+  return data as TeamTaskAssignment;
 }
 
-export async function createTeamInvite(teamId: string, inviteeEmail?: string): Promise<TeamInvite> {
+/** =========================
+ * Invites
+ * ========================= */
 
-  
+export async function createTeamInvite(teamId: string, inviteeEmail?: string): Promise<TeamInvite> {
+  const inviterId = await requireUserId();
   const inviteCode = `TEAM-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-  
   console.log('[createTeamInvite] Creating invite:', { teamId, inviteCode, inviteeEmail });
-  
+
   const { data, error } = await supabase
     .from('team_invites')
     .insert({
       team_id: teamId,
-      inviter_id: (await supabase.auth.getUser()).data.user?.id,
-      invitee_email: inviteeEmail || null,
+      inviter_id: inviterId,
+      invitee_email: inviteeEmail ?? null,
       invite_code: inviteCode,
     })
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('[createTeamInvite] Error:', error);
-    throw error;
-  }
-
-  console.log('[createTeamInvite] Invite created:', data.id);
-  return data;
+  if (error) logAndThrow('createTeamInvite', error);
+  console.log('[createTeamInvite] Invite created:', (data as any)?.id);
+  return data as TeamInvite;
 }
 
 export async function acceptTeamInvite(inviteCode: string): Promise<TeamMember> {
-
-  
   console.log('[acceptTeamInvite] Accepting invite:', inviteCode);
-  
+  const userId = await requireUserId();
+
   const { data: invite, error: inviteError } = await supabase
     .from('team_invites')
     .select('*')
@@ -534,17 +464,13 @@ export async function acceptTeamInvite(inviteCode: string): Promise<TeamMember> 
     throw new Error('Invalid or expired invite code');
   }
 
-  const now = new Date();
-  const expiresAt = new Date(invite.expires_at);
-  if (expiresAt < now) {
+  const now = Date.now();
+  const exp = new Date(invite.expires_at).getTime();
+  if (Number.isFinite(exp) && exp < now) {
     throw new Error('This invite has expired');
   }
 
-  const userId = (await supabase.auth.getUser()).data.user?.id;
-  if (!userId) {
-    throw new Error('User not authenticated');
-  }
-
+  // Add membership
   const { data: member, error: memberError } = await supabase
     .from('team_members')
     .insert({
@@ -552,66 +478,54 @@ export async function acceptTeamInvite(inviteCode: string): Promise<TeamMember> 
       user_id: userId,
       role: 'member',
     })
-    .select()
+    .select('*')
     .single();
 
-  if (memberError) {
-    console.error('[acceptTeamInvite] Error adding member:', memberError);
-    throw memberError;
-  }
+  if (memberError) logAndThrow('acceptTeamInvite.addMember', memberError);
 
-  await supabase
+  // Mark accepted
+  const { error: updError } = await supabase
     .from('team_invites')
     .update({ status: 'accepted', invitee_id: userId })
     .eq('id', invite.id);
 
+  if (updError) logAndThrow('acceptTeamInvite.updateInvite', updError);
+
   console.log('[acceptTeamInvite] Invite accepted');
-  return member;
+  return member as TeamMember;
 }
 
 export async function getTeamAssignments(teamId: string): Promise<TeamTaskAssignment[]> {
-
-  
   console.log('[getTeamAssignments] Fetching assignments for team:', teamId);
-  
+
   const { data: tasks, error: tasksError } = await supabase
     .from('team_tasks')
     .select('id')
     .eq('team_id', teamId);
 
-  if (tasksError) {
-    console.error('[getTeamAssignments] Error fetching tasks:', tasksError);
-    throw tasksError;
-  }
+  if (tasksError) logAndThrow('getTeamAssignments.fetchTasks', tasksError);
+  if (!tasks || tasks.length === 0) return [];
 
-  if (!tasks || tasks.length === 0) {
-    return [];
-  }
-
-  const taskIds = tasks.map((t: { id: string }) => t.id);
+  const taskIds = tasks.map((t) => t.id);
 
   const { data, error } = await supabase
     .from('team_task_assignments')
-    .select(`
-      *,
+    .select(
+      `
+      id, team_task_id, user_id, status, no_count, yes_count,
+      started_at, completed_at, created_at,
       user_profile:user_profiles!team_task_assignments_user_id_fkey (
-        username,
-        avatar_url
+        username, avatar_url
       ),
       team_task:team_tasks!team_task_assignments_team_task_id_fkey (
-        title,
-        description,
-        difficulty
+        title, description, difficulty
       )
-    `)
+    `
+    )
     .in('team_task_id', taskIds)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('[getTeamAssignments] Error:', error);
-    throw error;
-  }
-
-  console.log('[getTeamAssignments] Found assignments:', data?.length || 0);
-  return data || [];
+  if (error) logAndThrow('getTeamAssignments', error);
+  console.log('[getTeamAssignments] Found assignments:', data?.length ?? 0);
+  return (data ?? []) as TeamTaskAssignment[];
 }
