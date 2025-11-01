@@ -32,8 +32,8 @@ I've added Google Livestream API integration to your app. Users can now:
 Open `contexts/YouTubeContext.tsx` and update lines 34-35 with your credentials:
 
 ```typescript
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
+const GOOGLE_CLIENT_ID = '971632613679-a4smd8ok9p1ue2jvajhcbvt0510cvb60.apps.googleusercontent.com.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = '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';
 ```
 
 ### 3. Install Required Package
