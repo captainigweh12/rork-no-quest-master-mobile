@@ -8,13 +8,11 @@
     "scheme": "noquest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.rork.noquestmastermobile",
@@ -22,13 +20,15 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "UIBackgroundModes": ["location", "remote-notification"],
+        "UIBackgroundModes": [
+          "location",
+          "remote-notification"
+        ],
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos.",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone."
       }
     },
-
     "android": {
       "package": "app.rork.noquestmastermobile",
       "adaptiveIcon": {
@@ -46,14 +46,20 @@
         "SCHEDULE_EXACT_ALARM",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
-          "category": ["BROWSABLE", "DEFAULT"],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
           "data": [
             {
               "scheme": "noquest",
@@ -64,11 +70,9 @@
         }
       ]
     },
-
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       [
         "expo-router",
@@ -91,7 +95,9 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
-          "sounds": ["./assets/sounds/notification_sound.wav"],
+          "sounds": [
+            "./assets/sounds/notification_sound.wav"
+          ],
           "enableBackgroundRemoteNotifications": true
         }
       ],
@@ -102,11 +108,9 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true
     },
-
     "extra": {
       "SUPABASE_URL": "https://hotbmbscjxgayivmyenb.supabase.co",
       "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvdGJtYnNjanhnYXlpdm15ZW5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjgyMDgsImV4cCI6MjA3NzAwNDIwOH0.8pU3MXu8ylwSORBzXMQqbQ6ZBKXh9tXWALiJo1A8E8M",
@@ -116,11 +120,9 @@
         "projectId": "c23bcbuqrsjmkdoaxiu6y"
       }
     },
-
     "updates": {
       "url": "https://u.expo.dev/c23bcbuqrsjmkdoaxiu6y"
     },
-
     "runtimeVersion": {
       "policy": "sdkVersion"
     }
