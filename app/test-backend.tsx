@@ -1,10 +1,19 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, TextInput } from 'react-native';
+import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
+import { getBaseUrl, loadBaseUrlOverride, setBaseUrlOverride } from '@/lib/baseUrl';
 
 function DevTestBackendScreen() {
   const [logs, setLogs] = useState<string[]>([]);
+  const [baseInput, setBaseInput] = useState<string>(getBaseUrl());
+  const [saving, setSaving] = useState<boolean>(false);
+
+  useEffect(() => {
+    loadBaseUrlOverride().then((val) => {
+      if (val) setBaseInput(val);
+    });
+  }, []);
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -195,35 +204,78 @@ function DevTestBackendScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Environment</Text>
           <Text style={styles.info}>Platform: {Platform.OS}</Text>
-          <Text style={styles.info}>Base URL: {process.env.EXPO_PUBLIC_RORK_API_BASE_URL}</Text>
+          <Text style={styles.info}>Env Base URL: {process.env.EXPO_PUBLIC_RORK_API_BASE_URL}</Text>
+          <Text style={styles.info}>Effective Base URL: {getBaseUrl()}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Set/Override Base URL</Text>
+          <TextInput
+            testID="base-url-input"
+            placeholder="https://your-tunnel-url"
+            value={baseInput}
+            onChangeText={setBaseInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.input}
+          />
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <TouchableOpacity
+              testID="save-base-url"
+              style={[styles.button, saving && { opacity: 0.6 }]}
+              disabled={saving}
+              onPress={async () => {
+                try {
+                  setSaving(true);
+                  await setBaseUrlOverride(baseInput);
+                  addLog(`✅ Base URL override set to: ${getBaseUrl()}`);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              <Text style={styles.buttonText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="clear-base-url"
+              style={[styles.button, styles.clearButton]}
+              onPress={async () => {
+                await setBaseUrlOverride(undefined);
+                setBaseInput(getBaseUrl());
+                addLog('🧹 Cleared base URL override');
+              }}
+            >
+              <Text style={styles.buttonText}>Clear Override</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.buttonGrid}>
-          <TouchableOpacity style={styles.button} onPress={testHealthEndpoint}>
+          <TouchableOpacity testID="btn-health" style={styles.button} onPress={testHealthEndpoint}>
             <Text style={styles.buttonText}>Test /api/health</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={testRootEndpoint}>
+          <TouchableOpacity testID="btn-root" style={styles.button} onPress={testRootEndpoint}>
             <Text style={styles.buttonText}>Test / (root)</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={testTRPCEndpoint}>
+          <TouchableOpacity testID="btn-trpc" style={styles.button} onPress={testTRPCEndpoint}>
             <Text style={styles.buttonText}>Test tRPC</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={testDNS}>
+          <TouchableOpacity testID="btn-dns" style={styles.button} onPress={testDNS}>
             <Text style={styles.buttonText}>Test DNS</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={testAgoraEnv}>
+          <TouchableOpacity testID="btn-agora-env" style={styles.button} onPress={testAgoraEnv}>
             <Text style={styles.buttonText}>Test Agora Env</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={testAgoraRtcMint}>
+          <TouchableOpacity testID="btn-agora-mint" style={styles.button} onPress={testAgoraRtcMint}>
             <Text style={styles.buttonText}>Test Agora RTC Mint</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.button, styles.clearButton]} onPress={clearLogs}>
+          <TouchableOpacity testID="btn-clear-logs" style={[styles.button, styles.clearButton]} onPress={clearLogs}>
             <Text style={styles.buttonText}>Clear Logs</Text>
           </TouchableOpacity>
         </View>
@@ -294,6 +346,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 4,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  input: {
+    backgroundColor: '#f2f2f2',
+    padding: 12,
+    borderRadius: 10,
+    fontSize: 14,
   },
   buttonGrid: {
     gap: 12,
