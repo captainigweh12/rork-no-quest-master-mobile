@@ -115,6 +115,76 @@ function DevTestBackendScreen() {
     }
   };
 
+  const testAgoraEnv = async () => {
+    addLog('🎥 Testing Agora env endpoint...');
+    try {
+      const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+      const url = `${baseUrl}/api/trpc/agora.env`;
+      addLog(`Fetching: ${url}`);
+      
+      const response = await fetch(url);
+      addLog(`Status: ${response.status}`);
+      
+      const contentType = response.headers.get('content-type');
+      addLog(`Content-Type: ${contentType}`);
+      
+      const text = await response.text();
+      addLog(`Response (first 500 chars): ${text.substring(0, 500)}`);
+      
+      if (contentType?.includes('application/json')) {
+        try {
+          const data = JSON.parse(text);
+          addLog(`✅ JSON parsed: ${JSON.stringify(data, null, 2)}`);
+        } catch {
+          addLog(`❌ Failed to parse as JSON`);
+        }
+      }
+    } catch (error: any) {
+      addLog(`❌ Error: ${error.message}`);
+    }
+  };
+
+  const testAgoraRtcMint = async () => {
+    addLog('🎫 Testing Agora RTC token mint...');
+    try {
+      const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+      const url = `${baseUrl}/api/trpc/agora.rtcMint`;
+      addLog(`Fetching: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-AGORA-MINT-KEY': '071808291210',
+        },
+        body: JSON.stringify({
+          channelName: 'test-channel',
+          uid: 'test-user-123',
+          role: 'publisher',
+          expireSeconds: 3600,
+        }),
+      });
+      
+      addLog(`Status: ${response.status}`);
+      const contentType = response.headers.get('content-type');
+      addLog(`Content-Type: ${contentType}`);
+      
+      const text = await response.text();
+      addLog(`Response (first 500 chars): ${text.substring(0, 500)}`);
+      
+      if (contentType?.includes('application/json')) {
+        try {
+          const data = JSON.parse(text);
+          addLog(`✅ JSON parsed: ${JSON.stringify(data, null, 2)}`);
+        } catch {
+          addLog(`❌ Failed to parse as JSON`);
+        }
+      }
+    } catch (error: any) {
+      addLog(`❌ Error: ${error.message}`);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ title: 'Backend Connection Test' }} />
@@ -143,6 +213,14 @@ function DevTestBackendScreen() {
 
           <TouchableOpacity style={styles.button} onPress={testDNS}>
             <Text style={styles.buttonText}>Test DNS</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.button} onPress={testAgoraEnv}>
+            <Text style={styles.buttonText}>Test Agora Env</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.button} onPress={testAgoraRtcMint}>
+            <Text style={styles.buttonText}>Test Agora RTC Mint</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.button, styles.clearButton]} onPress={clearLogs}>
