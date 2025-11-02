@@ -10,9 +10,17 @@ export async function createStream(data: {
 }): Promise<LiveStream> {
   console.log('[STREAMS] Creating new stream:', data);
   
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    console.error('[STREAMS] User not authenticated');
+    throw new Error('User must be authenticated to create a stream');
+  }
+  
   const { data: stream, error } = await supabase
     .from('live_streams')
     .insert({
+      streamer_id: user.id,
       title: data.title,
       description: data.description,
       quest_id: data.questId,
@@ -106,7 +114,7 @@ export async function getLiveStreams(): Promise<LiveStream[]> {
     .order('started_at', { ascending: false });
 
   if (error) {
-    console.error('[STREAMS] Error fetching streams:', error);
+    console.error('[STREAMS] Error fetching streams:', JSON.stringify(error, null, 2));
     throw new Error(`Failed to fetch streams: ${error.message}`);
   }
 
@@ -182,18 +190,25 @@ export async function getStream(streamId: string): Promise<LiveStream | null> {
 export async function joinStream(streamId: string): Promise<void> {
   console.log('[STREAMS] Joining stream:', streamId);
   
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    console.error('[STREAMS] User not authenticated');
+    throw new Error('User must be authenticated to join a stream');
+  }
+  
   const { error } = await supabase
     .from('stream_viewers')
     .upsert({
       stream_id: streamId,
-      user_id: (await supabase.auth.getUser()).data.user?.id,
+      user_id: user.id,
       left_at: null,
     }, {
       onConflict: 'stream_id,user_id'
     });
 
   if (error) {
-    console.error('[STREAMS] Error joining stream:', error);
+    console.error('[STREAMS] Error joining stream:', JSON.stringify(error, null, 2));
     throw new Error(`Failed to join stream: ${error.message}`);
   }
 
@@ -222,15 +237,23 @@ export async function leaveStream(streamId: string): Promise<void> {
 export async function sendStreamMessage(streamId: string, message: string): Promise<void> {
   console.log('[STREAMS] Sending message to stream:', streamId);
   
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    console.error('[STREAMS] User not authenticated');
+    throw new Error('User must be authenticated to send messages');
+  }
+  
   const { error } = await supabase
     .from('stream_messages')
     .insert({
       stream_id: streamId,
+      user_id: user.id,
       message,
     });
 
   if (error) {
-    console.error('[STREAMS] Error sending message:', error);
+    console.error('[STREAMS] Error sending message:', JSON.stringify(error, null, 2));
     throw new Error(`Failed to send message: ${error.message}`);
   }
 
