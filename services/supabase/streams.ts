@@ -89,8 +89,8 @@ export async function endStream(streamId: string): Promise<void> {
 
 export async function getLiveStreams(): Promise<LiveStream[]> {
   console.log('[STREAMS] Fetching live streams');
-  
-  const { data: streams, error } = await supabase
+
+  const attemptJoin = await supabase
     .from('live_streams')
     .select(`
       id,
@@ -113,35 +113,97 @@ export async function getLiveStreams(): Promise<LiveStream[]> {
     .eq('is_live', true)
     .order('started_at', { ascending: false });
 
-  if (error) {
-    console.error('[STREAMS] Error fetching streams:', JSON.stringify(error, null, 2));
-    throw new Error(`Failed to fetch streams: ${error.message}`);
+  if (!attemptJoin.error) {
+    const streams = attemptJoin.data ?? [];
+    console.log(`[STREAMS] Found ${streams.length} live streams (joined)`);
+    return streams.map((stream: any) => ({
+      id: stream.id,
+      streamerId: stream.streamer_id,
+      streamerName: stream.user_profiles?.username ?? 'Unknown',
+      streamerAvatar: stream.user_profiles?.avatar_url,
+      title: stream.title,
+      description: stream.description,
+      questId: stream.quest_id,
+      questTitle: stream.quest_title,
+      thumbnailUrl: stream.thumbnail_url,
+      viewerCount: stream.viewer_count,
+      isLive: stream.is_live,
+      startedAt: new Date(stream.started_at),
+      endedAt: stream.ended_at ? new Date(stream.ended_at) : undefined,
+      category: stream.category,
+    }));
   }
 
-  console.log(`[STREAMS] Found ${streams?.length ?? 0} live streams`);
+  const err = attemptJoin.error as any;
+  const errCode: string | undefined = err?.code;
+  const errMsg: string = JSON.stringify(err ?? {}, null, 2);
+  console.warn('[STREAMS] Join failed, falling back without relationship:', errMsg);
 
-  return (streams ?? []).map((stream: any) => ({
-    id: stream.id,
-    streamerId: stream.streamer_id,
-    streamerName: stream.user_profiles?.username ?? 'Unknown',
-    streamerAvatar: stream.user_profiles?.avatar_url,
-    title: stream.title,
-    description: stream.description,
-    questId: stream.quest_id,
-    questTitle: stream.quest_title,
-    thumbnailUrl: stream.thumbnail_url,
-    viewerCount: stream.viewer_count,
-    isLive: stream.is_live,
-    startedAt: new Date(stream.started_at),
-    endedAt: stream.ended_at ? new Date(stream.ended_at) : undefined,
-    category: stream.category,
-  }));
+  if (errCode && errCode !== 'PGRST200') {
+    throw new Error(`Failed to fetch streams: ${err?.message ?? 'Unknown error'}`);
+  }
+
+  const { data: bareStreams, error: bareError } = await supabase
+    .from('live_streams')
+    .select(
+      `id, streamer_id, title, description, quest_id, quest_title, thumbnail_url, viewer_count, is_live, started_at, ended_at, category`
+    )
+    .eq('is_live', true)
+    .order('started_at', { ascending: false });
+
+  if (bareError) {
+    console.error('[STREAMS] Error fetching streams (bare):', JSON.stringify(bareError, null, 2));
+    throw new Error(`Failed to fetch streams: ${bareError.message}`);
+  }
+
+  const streamerIds = (bareStreams ?? []).map((s: any) => s.streamer_id).filter(Boolean);
+  const uniqueStreamerIds = Array.from(new Set<string>(streamerIds));
+
+  let profilesById: Record<string, { username?: string; avatar_url?: string }> = {};
+  if (uniqueStreamerIds.length > 0) {
+    const { data: profiles, error: profErr } = await supabase
+      .from('user_profiles')
+      .select('id, username, avatar_url')
+      .in('id', uniqueStreamerIds);
+    if (profErr) {
+      console.warn('[STREAMS] Failed to fetch profiles for streams:', JSON.stringify(profErr, null, 2));
+    } else {
+      profilesById = (profiles ?? []).reduce(
+        (acc: Record<string, { username?: string; avatar_url?: string }>, p: any) => {
+          acc[p.id] = { username: p.username, avatar_url: p.avatar_url };
+          return acc;
+        },
+        {}
+      );
+    }
+  }
+
+  console.log(`[STREAMS] Found ${bareStreams?.length ?? 0} live streams (fallback)`);
+  return (bareStreams ?? []).map((stream: any) => {
+    const prof = profilesById[stream.streamer_id] ?? {};
+    return {
+      id: stream.id,
+      streamerId: stream.streamer_id,
+      streamerName: prof.username ?? 'Unknown',
+      streamerAvatar: prof.avatar_url,
+      title: stream.title,
+      description: stream.description,
+      questId: stream.quest_id,
+      questTitle: stream.quest_title,
+      thumbnailUrl: stream.thumbnail_url,
+      viewerCount: stream.viewer_count,
+      isLive: stream.is_live,
+      startedAt: new Date(stream.started_at),
+      endedAt: stream.ended_at ? new Date(stream.ended_at) : undefined,
+      category: stream.category,
+    } as LiveStream;
+  });
 }
 
 export async function getStream(streamId: string): Promise<LiveStream | null> {
   console.log('[STREAMS] Fetching stream:', streamId);
-  
-  const { data: stream, error } = await supabase
+
+  const attemptJoin = await supabase
     .from('live_streams')
     .select(`
       id,
@@ -164,27 +226,75 @@ export async function getStream(streamId: string): Promise<LiveStream | null> {
     .eq('id', streamId)
     .single();
 
-  if (error) {
-    console.error('[STREAMS] Error fetching stream:', error);
+  if (!attemptJoin.error && attemptJoin.data) {
+    const stream = attemptJoin.data as any;
+    return {
+      id: stream.id,
+      streamerId: stream.streamer_id,
+      streamerName: (stream.user_profiles as any)?.username ?? 'Unknown',
+      streamerAvatar: (stream.user_profiles as any)?.avatar_url,
+      title: stream.title,
+      description: stream.description,
+      questId: stream.quest_id,
+      questTitle: stream.quest_title,
+      thumbnailUrl: stream.thumbnail_url,
+      viewerCount: stream.viewer_count,
+      isLive: stream.is_live,
+      startedAt: new Date(stream.started_at),
+      endedAt: stream.ended_at ? new Date(stream.ended_at) : undefined,
+      category: stream.category,
+    } as LiveStream;
+  }
+
+  const err = attemptJoin.error as any;
+  if (err && err.code && err.code !== 'PGRST200') {
+    console.error('[STREAMS] Error fetching stream:', JSON.stringify(err, null, 2));
     return null;
   }
 
+  const { data: bare, error: bareErr } = await supabase
+    .from('live_streams')
+    .select(
+      `id, streamer_id, title, description, quest_id, quest_title, thumbnail_url, viewer_count, is_live, started_at, ended_at, category`
+    )
+    .eq('id', streamId)
+    .single();
+
+  if (bareErr || !bare) {
+    console.error('[STREAMS] Error fetching stream (bare):', JSON.stringify(bareErr, null, 2));
+    return null;
+  }
+
+  let username: string | undefined;
+  let avatar_url: string | undefined;
+  const { data: prof, error: profErr } = await supabase
+    .from('user_profiles')
+    .select('username, avatar_url')
+    .eq('id', (bare as any).streamer_id)
+    .single();
+  if (profErr) {
+    console.warn('[STREAMS] Failed to fetch streamer profile:', JSON.stringify(profErr, null, 2));
+  } else {
+    username = prof?.username ?? undefined;
+    avatar_url = prof?.avatar_url ?? undefined;
+  }
+
   return {
-    id: stream.id,
-    streamerId: stream.streamer_id,
-    streamerName: (stream.user_profiles as any)?.username ?? 'Unknown',
-    streamerAvatar: (stream.user_profiles as any)?.avatar_url,
-    title: stream.title,
-    description: stream.description,
-    questId: stream.quest_id,
-    questTitle: stream.quest_title,
-    thumbnailUrl: stream.thumbnail_url,
-    viewerCount: stream.viewer_count,
-    isLive: stream.is_live,
-    startedAt: new Date(stream.started_at),
-    endedAt: stream.ended_at ? new Date(stream.ended_at) : undefined,
-    category: stream.category,
-  };
+    id: (bare as any).id,
+    streamerId: (bare as any).streamer_id,
+    streamerName: username ?? 'Unknown',
+    streamerAvatar: avatar_url,
+    title: (bare as any).title,
+    description: (bare as any).description,
+    questId: (bare as any).quest_id,
+    questTitle: (bare as any).quest_title,
+    thumbnailUrl: (bare as any).thumbnail_url,
+    viewerCount: (bare as any).viewer_count,
+    isLive: (bare as any).is_live,
+    startedAt: new Date((bare as any).started_at),
+    endedAt: (bare as any).ended_at ? new Date((bare as any).ended_at) : undefined,
+    category: (bare as any).category,
+  } as LiveStream;
 }
 
 export async function joinStream(streamId: string): Promise<void> {
