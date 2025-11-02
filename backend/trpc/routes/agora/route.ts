@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createTRPCRouter, publicProcedure } from '../../create-context';
 import { createResource, startRecording, stopRecording, queryRecording, envSummary } from '../../../services/agora';
+import { buildRtc007Token } from '../../../services/agora-token2';
 
 const createResourceInput = z.object({
   cname: z.string().min(1),
@@ -77,14 +78,16 @@ const agoraRouter = createTRPCRouter({
       throw new Error('Server misconfigured: missing AGORA_APP_ID or AGORA_APP_CERTIFICATE');
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const expireAt = now + input.expireSeconds;
+    const { token, expireAt } = buildRtc007Token({
+      appId,
+      appCertificate,
+      channelName: input.channelName,
+      uid: input.uid,
+      role: input.role,
+      expireSeconds: input.expireSeconds,
+    });
 
-    // TODO: Implement AccessToken2 (007) minting correctly.
-    // For now, we throw to avoid issuing invalid credentials.
-    throw new Error('AccessToken2 minting not yet implemented');
-
-    // return { token, expireAt };
+    return { token, expireAt };
   }),
 });
 
