@@ -1,19 +1,39 @@
 import { serve } from '@hono/node-server';
+import { networkInterfaces } from 'os';
 import app from './hono';
+
+function getLanIP(): string | null {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    const iface = nets[name];
+    if (!iface) continue;
+    for (const net of iface) {
+      if (net.family === 'IPv4' && !net.internal) return net.address;
+    }
+  }
+  return null;
+}
 
 async function startServer() {
   const startPort = Number(process.env.PORT ?? 8081);
+  const hostname = '0.0.0.0' as const;
   const maxAttempts = 10;
 
   for (let i = 0; i < maxAttempts; i += 1) {
     const port = startPort + i;
     try {
-      const server = serve({ fetch: app.fetch, port });
+      const server = serve({ fetch: app.fetch, port, hostname });
+      const lan = getLanIP();
       console.log(`[Hono] listening on http://localhost:${port}`);
+      if (lan) console.log(`[Hono] LAN address     http://${lan}:${port}`);
       return server;
     } catch (err: unknown) {
       const e = err as Error & { code?: string };
-      if (e?.message?.includes('address already in use') || e?.message?.includes('Failed to start server') || e?.code === 'EADDRINUSE') {
+      if (
+        e?.message?.includes('address already in use') ||
+        e?.message?.includes('Failed to start server') ||
+        e?.code === 'EADDRINUSE'
+      ) {
         console.error(`[Hono] Port ${port} in use, trying ${port + 1}...`);
         continue;
       }
