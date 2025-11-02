@@ -17,8 +17,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useStream } from '@/contexts/StreamContext';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Users, Send, Video, VideoOff } from 'lucide-react-native';
+import { X, Users, Send, Video, VideoOff, Server } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { trpc } from '@/lib/trpc';
 
 export default function StreamScreen() {
   const { theme } = useTheme();
@@ -42,7 +43,10 @@ export default function StreamScreen() {
   const { quests } = useGame();
   const [permission, requestPermission] = useCameraPermissions();
   const [messageText, setMessageText] = useState('');
-  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState<boolean>(true);
+  const [channelName, setChannelName] = useState<string>('quest-live');
+  const [resourceId, setResourceId] = useState<string>('');
+  const [sid, setSid] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
   const styles = createStyles(theme.colors);
 
@@ -140,6 +144,21 @@ export default function StreamScreen() {
       Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
+
+  const agoraEnvQuery = trpc.agora.env.useQuery(undefined, { staleTime: 60_000 });
+  const acquireMutation = trpc.agora.acquire.useMutation();
+
+  async function handleAcquireResource() {
+    try {
+      const uid = 'host';
+      const res = await acquireMutation.mutateAsync({ cname: channelName, uid });
+      console.log('[AGORA] acquire response', res);
+      setResourceId(res.resourceId);
+    } catch (e: any) {
+      console.error('[AGORA] acquire failed', e);
+      Alert.alert('Agora Error', e?.message ?? 'Failed to acquire resource');
+    }
+  }
 
   if (isBroadcaster && !isStreaming && !isStarting) {
     return (
@@ -290,6 +309,37 @@ export default function StreamScreen() {
                   <Send size={20} color="#fff" />
                 </Pressable>
               </View>
+
+              {__DEV__ && (
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 12 }} testID="agora-dev-panel">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Server size={16} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '800' as const }}>Agora REST Debug</Text>
+                  </View>
+                  <Text style={{ color: '#9CA3AF', marginTop: 4 }}>
+                    env: appId {agoraEnvQuery.data?.appIdPresent ? '✅' : '❌'} · customer {agoraEnvQuery.data?.customerIdPresent ? '✅' : '❌'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <TextInput
+                      style={[styles.messageInput, { flex: 1 }]}
+                      value={channelName}
+                      onChangeText={setChannelName}
+                      placeholder="Channel name"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <Pressable
+                      style={[styles.sendButton, { backgroundColor: '#10B981', width: undefined, paddingHorizontal: 12 }]}
+                      onPress={handleAcquireResource}
+                      testID="agora-acquire"
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '800' as const }}>Acquire</Text>
+                    </Pressable>
+                  </View>
+                  {resourceId ? (
+                    <Text style={{ color: '#22D3EE', marginTop: 6 }}>resourceId: {resourceId}</Text>
+                  ) : null}
+                </View>
+              )}
             </View>
           </View>
         </View>
