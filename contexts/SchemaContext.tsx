@@ -1,7 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Platform } from 'react-native';
 
 export type SchemaHealth = {
   hasSubscriptionTier: boolean;
@@ -53,10 +52,9 @@ export const [SchemaProvider, useSchema] = createContextHook<SchemaHealth>(() =>
   }, [isChecking]);
 
   useEffect(() => {
-    setTimeout(() => {
-      check();
-    }, Platform.OS === 'web' ? 0 : 0);
-  }, [check]);
+    check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return useMemo(() => ({
     hasSubscriptionTier,

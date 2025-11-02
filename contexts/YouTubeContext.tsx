@@ -133,17 +133,20 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    const loadState = async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         const parsed: YouTubeLinkState | null = raw ? JSON.parse(raw) : null;
-        if (mounted) setState(parsed);
+        if (mounted) {
+          setState(parsed);
+          setIsLoading(false);
+        }
       } catch (e) {
         console.error('[YouTube] Failed to load state', e);
-      } finally {
         if (mounted) setIsLoading(false);
       }
-    })();
+    };
+    loadState();
     return () => {
       mounted = false;
     };

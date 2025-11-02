@@ -35,14 +35,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     const initializeAuth = async () => {
       try {
-        const timeoutPromise = new Promise<{ session: null }>((_, reject) => {
-          setTimeout(() => reject(new Error('Auth initialization timeout')), 2000);
-        });
-
-        const sessionPromise = supabase.auth.getSession();
-        
-        const result = await Promise.race([sessionPromise, timeoutPromise]);
-        const session = 'data' in result ? result.data.session : null;
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
         
         console.log('📦 Initial session:', session ? 'Found' : 'None');
         setSession(session);
@@ -50,13 +44,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           loadUserProfile(session.user);
         }
       } catch (error) {
-        console.log('❌ Auth initialization timeout, continuing without session:', error instanceof Error ? error.message : 'unknown error');
+        console.log('❌ Auth initialization error:', error instanceof Error ? error.message : 'unknown error');
+        setSession(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    setTimeout(initializeAuth, 0);
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('🔄 Auth state changed:', _event, session ? 'Session active' : 'No session');
