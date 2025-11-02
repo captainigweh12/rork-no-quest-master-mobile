@@ -28,6 +28,7 @@ app.use(
 );
 
 app.get("/", (c) => {
+  console.log('🏠 [ROOT] Root endpoint accessed');
   return c.json({
     status: "ok",
     message: "API is running",
@@ -36,6 +37,15 @@ app.get("/", (c) => {
       resend_configured: !!process.env.RESEND_API_KEY,
       node_env: process.env.NODE_ENV || 'development',
     }
+  });
+});
+
+app.get("/api", (c) => {
+  console.log('📡 [API] API root accessed');
+  return c.json({
+    status: "ok",
+    message: "tRPC API is available at /api/trpc",
+    timestamp: new Date().toISOString(),
   });
 });
 
