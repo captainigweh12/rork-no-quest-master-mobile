@@ -18,6 +18,7 @@ import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { SchemaProvider } from '@/contexts/SchemaContext';
 import MigrationBanner from '@/components/MigrationBanner';
 import { YouTubeProvider } from '@/contexts/YouTubeContext';
+import { StreamProvider } from '@/contexts/StreamContext';
 import { ChevronLeft } from 'lucide-react-native';
 
 
@@ -194,6 +195,10 @@ function RootLayoutNav() {
           ),
         })} 
       />
+      <Stack.Screen 
+        name="stream" 
+        options={{ headerShown: false }} 
+      />
     </Stack>
   );
 }
@@ -223,7 +228,9 @@ export default function RootLayout() {
                             <GestureHandlerRootView style={{ flex: 1 }}>
                               <MigrationBanner />
                               <YouTubeProvider>
-                                <RootLayoutNav />
+                                <StreamProvider>
+                                  <RootLayoutNav />
+                                </StreamProvider>
                               </YouTubeProvider>
                             </GestureHandlerRootView>
                           </CategoriesProvider>

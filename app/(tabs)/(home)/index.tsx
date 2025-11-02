@@ -15,6 +15,7 @@ import { SafeImage } from '@/components/SafeImage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useYouTube } from '@/contexts/YouTubeContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useStream } from '@/contexts/StreamContext';
 import { useQuery } from '@tanstack/react-query';
 import { getUserTeams, type Team } from '@/services/supabase/teams';
 
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const { selected, isLoading: catsLoading } = useCategories();
   const { user } = useAuth();
   const { hasFeature } = useSubscription();
+  const { liveStreams } = useStream();
   const [search, setSearch] = useState<string>('');
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [showStreakModal, setShowStreakModal] = useState<boolean>(false);
@@ -67,19 +69,32 @@ export default function HomeScreen() {
   const styles = createStyles(theme.colors);
   const categoriesHorizontal = useMemo(() => (catsLoading ? [] : selected).slice(0, 12), [catsLoading, selected]);
   const { isConnected: ytConnected, live: ytLive, goLive } = useYouTube();
-  const liveStreams = useMemo(() => {
+  
+  const allLiveStreams = useMemo(() => {
+    const streams = liveStreams.map((stream) => ({
+      id: stream.id,
+      title: stream.title,
+      streamerName: stream.streamerName,
+      viewers: stream.viewerCount,
+      thumbnail: stream.thumbnailUrl ?? 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop',
+      questTitle: stream.questTitle,
+      isWebRTC: true,
+    }));
+
     if (ytConnected && ytLive?.isLive && ytLive.videoId) {
-      return [
-        {
-          id: ytLive.videoId,
-          title: ytLive.liveTitle ?? 'Live Now',
-          viewers: typeof ytLive.concurrentViewers === 'number' ? ytLive.concurrentViewers : 0,
-          thumbnail: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop',
-        },
-      ];
+      streams.push({
+        id: ytLive.videoId,
+        title: ytLive.liveTitle ?? 'Live Now',
+        streamerName: 'You',
+        viewers: typeof ytLive.concurrentViewers === 'number' ? ytLive.concurrentViewers : 0,
+        thumbnail: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop',
+        questTitle: undefined,
+        isWebRTC: false,
+      });
     }
-    return [] as { id: string; title: string; viewers: number; thumbnail: string }[];
-  }, [ytConnected, ytLive]);
+
+    return streams;
+  }, [liveStreams, ytConnected, ytLive]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -282,17 +297,23 @@ export default function HomeScreen() {
               })}
             </ScrollView>
 
-            {liveStreams.length > 0 ? (
+            {allLiveStreams.length > 0 ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 12 }}
                 testID="live-now-scroll"
               >
-                {liveStreams.map((s: { id: string; title: string; viewers: number; thumbnail: string }) => (
+                {allLiveStreams.map((s) => (
                   <Pressable
                     key={s.id}
-                    onPress={() => Linking.openURL(`https://www.youtube.com/watch?v=${s.id}`)}
+                    onPress={() => {
+                      if (s.isWebRTC) {
+                        router.push(`/stream?streamId=${s.id}&mode=viewer` as any);
+                      } else {
+                        Linking.openURL(`https://www.youtube.com/watch?v=${s.id}`);
+                      }
+                    }}
                     style={({ pressed }) => [styles.liveCard, { backgroundColor: theme.colors.glass, borderColor: theme.colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
                     testID={`live-${s.id}`}
                   >
@@ -306,7 +327,13 @@ export default function HomeScreen() {
                         <Text style={styles.viewerText}>{Intl.NumberFormat().format(s.viewers)}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.liveTitle, { color: theme.colors.text }]} numberOfLines={1}>{s.title}</Text>
+                    <View>
+                      <Text style={[styles.liveTitle, { color: theme.colors.text }]} numberOfLines={1}>{s.title}</Text>
+                      <Text style={[{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 }]} numberOfLines={1}>{s.streamerName}</Text>
+                      {s.questTitle && (
+                        <Text style={[{ color: theme.colors.primary, fontSize: 11, fontWeight: '700', marginTop: 2 }]} numberOfLines={1}>Quest: {s.questTitle}</Text>
+                      )}
+                    </View>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -314,27 +341,26 @@ export default function HomeScreen() {
               <View style={[styles.liveEmptyCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.glass }]} testID="live-empty">
                 <Text style={[styles.liveEmptyTitle, { color: theme.colors.text }]}>No channels are live</Text>
                 <Text style={[styles.liveEmptySubtitle, { color: theme.colors.textSecondary }]}>Start a stream or connect your YouTube to go live</Text>
-                {ytConnected ? (
+                <Pressable
+                  onPress={() => {
+                    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+                    router.push('/stream?mode=broadcaster' as any);
+                  }}
+                  style={({ pressed }) => [styles.livePrimaryBtn, { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                  testID="btn-start-live"
+                >
+                  <Text style={styles.livePrimaryBtnText}>Go Live</Text>
+                </Pressable>
+                {ytConnected && (
                   <Pressable
                     onPress={() => {
                       try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
                       goLive();
                     }}
-                    style={({ pressed }) => [styles.livePrimaryBtn, { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 }]}
-                    testID="btn-start-live"
-                  >
-                    <Text style={styles.livePrimaryBtnText}>Start a Live</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    onPress={() => {
-                      try { Haptics.selectionAsync(); } catch {}
-                      router.push('/profile' as any);
-                    }}
                     style={({ pressed }) => [styles.liveSecondaryBtn, { borderColor: theme.colors.border, backgroundColor: theme.colors.backgroundTertiary, opacity: pressed ? 0.9 : 1 }]}
-                    testID="btn-connect-youtube"
+                    testID="btn-start-youtube-live"
                   >
-                    <Text style={[styles.liveSecondaryBtnText, { color: theme.colors.text }]}>Connect YouTube Channel</Text>
+                    <Text style={[styles.liveSecondaryBtnText, { color: theme.colors.text }]}>Start YouTube Live</Text>
                   </Pressable>
                 )}
               </View>

@@ -174,3 +174,55 @@ export interface CommunityPost {
 }
 
 export type ThemeMode = 'light' | 'dark';
+
+export interface LiveStream {
+  id: string;
+  streamerId: string;
+  streamerName: string;
+  streamerAvatar?: string;
+  title: string;
+  description?: string;
+  questId?: string;
+  questTitle?: string;
+  thumbnailUrl?: string;
+  viewerCount: number;
+  isLive: boolean;
+  startedAt: Date;
+  endedAt?: Date;
+  category?: string;
+}
+
+export interface StreamViewer {
+  id: string;
+  streamId: string;
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  joinedAt: Date;
+}
+
+export interface StreamMessage {
+  id: string;
+  streamId: string;
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  message: string;
+  createdAt: Date;
+}
+
+export type WebRTCIceCandidate = {
+  candidate: string;
+  sdpMLineIndex: number | null;
+  sdpMid: string | null;
+};
+
+export type WebRTCOffer = {
+  type: 'offer';
+  sdp: string;
+};
+
+export type WebRTCAnswer = {
+  type: 'answer';
+  sdp: string;
+};
