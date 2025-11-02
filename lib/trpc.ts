@@ -19,7 +19,8 @@ function buildUrlPreservingPath(originalUrl: string): string {
 }
 
 console.log('[trpc] Base URL (dynamic):', getBaseUrl());
-console.log('[trpc] tRPC endpoint (dynamic):', `${getBaseUrl()}/api/trpc`);
+console.log('[trpc] Full tRPC endpoint:', `${getBaseUrl()}/api/trpc`);
+console.log('[trpc] Environment EXPO_PUBLIC_RORK_API_BASE_URL:', process.env.EXPO_PUBLIC_RORK_API_BASE_URL);
 
 export const trpcClient = trpc.createClient({
   links: [
@@ -29,10 +30,19 @@ export const trpcClient = trpc.createClient({
       fetch: async (url, options) => {
         const finalUrl = buildUrlPreservingPath(typeof url === 'string' ? url : url.toString());
         console.log('[trpc] Fetching:', finalUrl);
-        console.log('[trpc] Options:', JSON.stringify(options, null, 2));
+        
+        const headers = new Headers(options?.headers);
+        headers.set('bypass-tunnel-reminder', 'true');
+        
+        const modifiedOptions = {
+          ...options,
+          headers,
+        };
+        
+        console.log('[trpc] Request headers:', JSON.stringify(Object.fromEntries(headers.entries()), null, 2));
         
         try {
-          const response = await fetch(finalUrl, options);
+          const response = await fetch(finalUrl, modifiedOptions);
           console.log('[trpc] Response status:', response.status);
           console.log('[trpc] Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
           
@@ -41,10 +51,15 @@ export const trpcClient = trpc.createClient({
           
           if (!response.ok) {
             const text = await response.text();
+            console.error('[trpc] Error response status:', response.status);
             console.error('[trpc] Error response body (first 500 chars):', text.substring(0, 500));
+            console.error('[trpc] Expected URL format: ${baseUrl}/api/trpc');
+            console.error('[trpc] Current base URL:', getBaseUrl());
             
             if (contentType?.includes('text/html')) {
-              throw new Error(`Backend returned HTML instead of JSON. Status: ${response.status}. Backend might not be running or URL is incorrect. Check: ${getBaseUrl()}`);
+              throw new Error(`Backend returned HTML (${response.status}). URL might be incorrect. Trying to reach: ${finalUrl}. Expected base: ${getBaseUrl()}`);
+            } else {
+              throw new Error(`Request failed with status ${response.status}. URL: ${finalUrl}. Response: ${text.substring(0, 200)}`);
             }
           }
           

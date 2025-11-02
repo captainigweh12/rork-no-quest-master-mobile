@@ -12,7 +12,12 @@ console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 
 const app = new Hono();
 
-app.use("*", cors());
+app.use("*", cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder'],
+  credentials: true,
+}));
 
 app.use(
   "/api/trpc/*",
