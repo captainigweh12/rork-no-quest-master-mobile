@@ -1,4 +1,4 @@
-import { serve } from '@hono/node-server';
+import { serve } from 'hono/serve';
 import app from './hono';
 
 const port = Number(process.env.PORT ?? 8081);
