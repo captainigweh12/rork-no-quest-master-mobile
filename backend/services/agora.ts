@@ -83,7 +83,8 @@ function getAgoraEnv() {
   const customerId = process.env.AGORA_CUSTOMER_ID ?? '';
   const customerSecret = process.env.AGORA_CUSTOMER_SECRET ?? '';
   const appCertificate = process.env.AGORA_APP_CERTIFICATE ?? '';
-  return { appId, customerId, customerSecret, appCertificate } as const;
+  const tempCertificate = process.env.AGORA_APP_TEMP_CERTIFICATE ?? '';
+  return { appId, customerId, customerSecret, appCertificate, tempCertificate } as const;
 }
 
 function requireValue(value: string, name: string): string {
@@ -212,5 +213,6 @@ export function envSummary() {
     customerIdPresent: !!process.env.AGORA_CUSTOMER_ID,
     customerSecretPresent: !!process.env.AGORA_CUSTOMER_SECRET,
     appCertPresent: !!process.env.AGORA_APP_CERTIFICATE,
+    tempCertPresent: !!process.env.AGORA_APP_TEMP_CERTIFICATE,
   } as const;
 }
