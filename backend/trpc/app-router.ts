@@ -6,9 +6,7 @@ export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
     hi: hiRoute,
   }),
-  agora: createTRPCRouter({
-    ...agoraRoute._def.record, // expose nested routes as flat procedures
-  }),
+  agora: agoraRoute,
 });
 
 export type AppRouter = typeof appRouter;
