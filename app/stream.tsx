@@ -253,7 +253,7 @@ export default function StreamScreen() {
     );
   }
 
-  if ((isBroadcaster || isViewer) && (isStreaming || isJoining)) {
+  if (isStreaming || isJoining || (isViewer && activeStream)) {
     return (
       <KeyboardAvoidingView
         style={styles.container}
