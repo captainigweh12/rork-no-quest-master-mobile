@@ -145,7 +145,11 @@ export default function StreamScreen() {
     }
   };
 
-  const agoraEnvQuery = trpc.agora.env.useQuery(undefined, { staleTime: 60_000 });
+  const agoraEnvQuery = trpc.agora.env.useQuery(undefined, { 
+    staleTime: 60_000,
+    retry: false,
+    enabled: __DEV__,
+  });
   const acquireMutation = trpc.agora.acquire.useMutation();
 
   async function handleAcquireResource() {
