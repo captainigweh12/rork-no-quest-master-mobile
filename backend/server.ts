@@ -1,13 +1,16 @@
-import { config } from "dotenv";
-import { resolve } from "path";
-
-// Load root .env then backend/.env (second call merges/overrides)
-config({ path: resolve(process.cwd(), ".env") });
-config({ path: resolve(process.cwd(), "backend/.env") });
+// backend/server.ts  — load env first, then import app
 
 import { serve } from '@hono/node-server';
 import { networkInterfaces } from 'os';
-import app from './hono';
+import { resolve } from 'path';
+import { config } from 'dotenv';
+
+// 1) Load env from project root and backend/.env (backend overrides root)
+config({ path: resolve(process.cwd(), '.env') });
+config({ path: resolve(process.cwd(), 'backend/.env') });
+
+// 2) Import Hono app AFTER env is loaded
+const { default: app } = await import('./hono');
 
 function getLanIP(): string | null {
   const nets = networkInterfaces();
@@ -33,9 +36,14 @@ async function startServer() {
       const lan = getLanIP();
       console.log(`[Hono] listening on http://localhost:${port}`);
       if (lan) console.log(`[Hono] LAN address     http://${lan}:${port}`);
+      // Helpful preview so you can see env presence immediately
+      console.log('[ENV] AGORA_APP_ID present:', !!process.env.AGORA_APP_ID);
+      console.log('[ENV] AGORA_APP_CERTIFICATE present:', !!process.env.AGORA_APP_CERTIFICATE);
+      console.log('[ENV] AGORA_CUSTOMER_ID present:', !!process.env.AGORA_CUSTOMER_ID);
+      console.log('[ENV] AGORA_CUSTOMER_SECRET present:', !!process.env.AGORA_CUSTOMER_SECRET);
+      console.log('[ENV] MINT_RTC_TOKEN_SECRET present:', !!process.env.MINT_RTC_TOKEN_SECRET);
       return server;
-    } catch (err: unknown) {
-      const e = err as Error & { code?: string };
+    } catch (e: any) {
       if (
         e?.message?.includes('address already in use') ||
         e?.message?.includes('Failed to start server') ||
