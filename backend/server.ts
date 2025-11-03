@@ -5,8 +5,8 @@ import { config } from 'dotenv';
 
 // 🧩 Load environment variables BEFORE importing the app
 // Load both the root .env and backend/.env (backend/.env takes priority)
-config({ path: resolve(process.cwd(), '.env') });
-config({ path: resolve(process.cwd(), 'backend/.env') });
+config({ path: resolve(process.cwd(), '.env'), override: true });
+config({ path: resolve(process.cwd(), 'backend/.env'), override: true });
 
 // ✅ Import Hono app AFTER envs are loaded
 const { default: app } = await import('./hono');
