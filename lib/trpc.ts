@@ -6,68 +6,70 @@ import { getBaseUrl } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-function buildUrlPreservingPath(originalUrl: string): string {
-  try {
-    const base = getBaseUrl();
-    const parsed = new URL(originalUrl, "http://placeholder");
-    const pathAndSearch = `${parsed.pathname}${parsed.search}`;
-    return `${base}${pathAndSearch}`;
-  } catch (e) {
-    console.warn('[trpc] Failed to parse url, falling back to original', originalUrl, e);
-    return originalUrl;
-  }
+/**
+ * Build the absolute tRPC base on every request so changing the tunnel/override
+ * doesn’t require recreating the client.
+ */
+function buildAbsoluteTrpcBase(): string {
+  const base = getBaseUrl().replace(/\/+$/, ""); // strip trailing slash
+  return `${base}/api/trpc`; // server also mounted /trpc, but we standardize on /api/trpc
 }
 
-console.log('[trpc] Base URL (dynamic):', getBaseUrl());
-console.log('[trpc] Full tRPC endpoint:', `${getBaseUrl()}/api/trpc`);
-console.log('[trpc] Environment EXPO_PUBLIC_RORK_API_BASE_URL:', process.env.EXPO_PUBLIC_RORK_API_BASE_URL);
-
+/**
+ * tRPC client
+ * - transformer belongs here (not inside httpLink)
+ * - httpLink url can be anything; we’ll rewrite to absolute inside fetch
+ */
 export const trpcClient = trpc.createClient({
+  transformer: superjson,
   links: [
     httpLink({
-      url: `/api/trpc`,
-      transformer: superjson,
+      // This is a placeholder; we'll rewrite to absolute in fetch() below.
+      url: "/api/trpc",
       fetch: async (url, options) => {
-        const finalUrl = buildUrlPreservingPath(typeof url === 'string' ? url : url.toString());
-        console.log('[trpc] Fetching:', finalUrl);
-        
+        const absoluteBase = buildAbsoluteTrpcBase();
+
+        // httpLink gives us something like "/api/trpc/example.hi?batch=1"
+        // Ensure we only append the path+query to our absolute base once.
+        const pathAndSearch = (() => {
+          const u = typeof url === "string" ? url : url.toString();
+          // Remove any leading host the link might have (we’ll force our own base)
+          const parsed = new URL(u, "http://placeholder");
+          return `${parsed.pathname}${parsed.search}`;
+        })();
+
+        // Final absolute URL
+        const finalUrl = `${absoluteBase}${pathAndSearch}`.replace(/([^:]\/)\/+/g, "$1");
+
+        // Add tunnel reminder bypass + keep any provided headers
         const headers = new Headers(options?.headers);
-        headers.set('bypass-tunnel-reminder', 'true');
-        
-        const modifiedOptions = {
-          ...options,
-          headers,
-        };
-        
-        console.log('[trpc] Request headers:', JSON.stringify(Object.fromEntries(headers.entries()), null, 2));
-        
-        try {
-          const response = await fetch(finalUrl, modifiedOptions);
-          console.log('[trpc] Response status:', response.status);
-          console.log('[trpc] Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
-          
-          const contentType = response.headers.get('content-type');
-          console.log('[trpc] Content-Type:', contentType);
-          
-          if (!response.ok) {
-            const text = await response.text();
-            console.error('[trpc] Error response status:', response.status);
-            console.error('[trpc] Error response body (first 500 chars):', text.substring(0, 500));
-            console.error('[trpc] Expected URL format: ${baseUrl}/api/trpc');
-            console.error('[trpc] Current base URL:', getBaseUrl());
-            
-            if (contentType?.includes('text/html')) {
-              throw new Error(`Backend returned HTML (${response.status}). URL might be incorrect. Trying to reach: ${finalUrl}. Expected base: ${getBaseUrl()}`);
-            } else {
-              throw new Error(`Request failed with status ${response.status}. URL: ${finalUrl}. Response: ${text.substring(0, 200)}`);
-            }
+        headers.set("bypass-tunnel-reminder", "true");
+
+        // Minimal diagnostics
+        // (Comment out if too chatty)
+        console.log("[trpc] →", finalUrl);
+        // console.log("[trpc] headers:", Object.fromEntries(headers.entries()));
+
+        const res = await fetch(finalUrl, { ...options, headers });
+
+        // Optional: quick visibility on failures
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          const body = await res.text();
+          console.error("[trpc] ✖", res.status, finalUrl);
+          console.error("[trpc] body(first 500):", body.slice(0, 500));
+
+          if (ct.includes("text/html")) {
+            throw new Error(
+              `Backend returned HTML (${res.status}). URL likely wrong. Tried: ${finalUrl}`
+            );
           }
-          
-          return response;
-        } catch (error: any) {
-          console.error('[trpc] Fetch error:', error);
-          throw error;
+          throw new Error(
+            `tRPC request failed ${res.status}. URL: ${finalUrl}. Body: ${body.slice(0, 200)}`
+          );
         }
+
+        return res;
       },
     }),
   ],
