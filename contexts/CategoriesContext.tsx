@@ -46,7 +46,13 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
   useEffect(() => {
     const load = async () => {
       try {
-        const raw = await AsyncStorage.getItem('categories:selected');
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          setTimeout(() => reject(new Error('Categories load timeout')), 500);
+        });
+
+        const dataPromise = AsyncStorage.getItem('categories:selected');
+
+        const raw = await Promise.race([dataPromise, timeoutPromise]);
         if (raw) {
           const parsed = JSON.parse(raw) as string[];
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -54,12 +60,12 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
           }
         }
       } catch (e) {
-        console.log('Failed to load categories, using defaults');
+        console.log('Failed to load categories, using defaults:', e instanceof Error ? e.message : 'unknown');
       } finally {
         setIsLoading(false);
       }
     };
-    setTimeout(load, 0);
+    load();
   }, []);
 
   const persist = useCallback(async (ids: string[]) => {

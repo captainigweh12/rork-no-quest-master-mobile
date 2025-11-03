@@ -1,5 +1,5 @@
 import { View, Text, type ImageStyle, type StyleProp } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { Image as ExpoImage } from 'expo-image';
 
 interface SafeImageProps {
@@ -10,10 +10,13 @@ interface SafeImageProps {
 }
 
 export function SafeImage({ uri, style, fallback, testID }: SafeImageProps) {
+  const [loadError, setLoadError] = useState(false);
   const clean = uri?.trim();
-  if (!clean) {
+  
+  if (!clean || loadError) {
     return (fallback ?? null) as any;
   }
+  
   return (
     <ExpoImage
       testID={testID}
@@ -22,6 +25,11 @@ export function SafeImage({ uri, style, fallback, testID }: SafeImageProps) {
       contentFit="cover"
       cachePolicy="memory-disk"
       transition={200}
+      onError={() => {
+        console.log('[SafeImage] Failed to load:', clean);
+        setLoadError(true);
+      }}
+      placeholder={{ blurhash: 'L6PZfSjE.AyE_3t7t7R**0o#DgR4' }}
     />
   );
 }
