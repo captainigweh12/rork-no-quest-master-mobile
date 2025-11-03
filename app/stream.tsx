@@ -44,11 +44,12 @@ export default function StreamScreen() {
   } = useStream();
   const { quests } = useGame();
   const [permission, requestPermission] = useCameraPermissions();
-  const [messageText, setMessageText] = useState('');
+  const [messageText, setMessageText] = useState<string>('');
   const [isCameraOn, setIsCameraOn] = useState<boolean>(true);
   const [channelName, setChannelName] = useState<string>('quest-live');
   const [resourceId, setResourceId] = useState<string>('');
   const [sid, setSid] = useState<string>('');
+  const [joinHint, setJoinHint] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const styles = createStyles(theme.colors);
 
@@ -87,6 +88,19 @@ export default function StreamScreen() {
       });
     }
   }, [paramsStreamId, paramsMode, isViewer, isStreaming, joinStreamById, user, authLoading, router]);
+
+  useEffect(() => {
+    if (!isViewer) return;
+    if (!paramsStreamId) return;
+
+    const t = setTimeout(() => {
+      if (!activeStream && !isJoining) {
+        console.warn('[STREAM] Still no active stream after timeout');
+        setJoinHint('Having trouble joining this stream. It may have ended or is not accessible.');
+      }
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [isViewer, paramsStreamId, activeStream, isJoining]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -237,7 +251,7 @@ export default function StreamScreen() {
 
   if (authLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]} testID="stream-loading-auth">
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={[{ color: theme.colors.textSecondary, marginTop: 16, fontSize: 14, fontWeight: '600' as const }]}>Loading...</Text>
       </View>
@@ -394,8 +408,35 @@ export default function StreamScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, alignItems: 'center', gap: 12 }]} testID="stream-loading-viewer">
       <ActivityIndicator size="large" color={theme.colors.primary} />
+      {joinHint ? (
+        <View style={{ paddingHorizontal: 16 }}>
+          <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', fontSize: 13, fontWeight: '700' as const }}>{joinHint}</Text>
+          <View style={{ height: 8 }} />
+          <Pressable
+            onPress={() => {
+              if (!paramsStreamId) return;
+              console.log('[STREAM] Retry join pressed');
+              setJoinHint(null);
+              joinStreamById(paramsStreamId).catch((e) => {
+                console.error('[STREAM] Retry join failed', e);
+                setJoinHint('Could not join. The stream may have ended.');
+              });
+            }}
+            style={({ pressed }) => [{
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 12,
+              backgroundColor: theme.colors.primary,
+              opacity: pressed ? 0.85 : 1,
+            }]}
+            testID="retry-join"
+          >
+            <Text style={{ color: '#fff', fontWeight: '900' as const }}>Try Again</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
