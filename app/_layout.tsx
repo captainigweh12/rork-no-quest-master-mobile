@@ -22,8 +22,7 @@ import { StreamProvider } from '@/contexts/StreamContext';
 import { ChevronLeft } from 'lucide-react-native';
 
 // NEW: ensure base URL override loads before first network call
-import { loadBaseUrlOverride } from "@/lib/baseUrl";
-import { getBaseUrl } from "@/lib/baseUrl";
+import { loadBaseUrlOverride, getBaseUrl } from "@/lib/baseUrl";
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -72,8 +71,14 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    if (!isHydrated) return;
-    if (isLoading || onboardingLoading) return;
+    if (!isHydrated) {
+      console.log('[APP] Waiting for hydration');
+      return;
+    }
+    if (isLoading || onboardingLoading) {
+      console.log('[APP] Waiting for loading to complete:', { isLoading, onboardingLoading });
+      return;
+    }
 
     const inAuthGroup = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
@@ -89,6 +94,7 @@ function RootLayoutNav() {
     }
 
     if (targetRoute && navigationRef.current.lastRoute !== targetRoute) {
+      console.log('[APP] Navigating to:', targetRoute);
       navigationRef.current.lastRoute = targetRoute;
       router.replace(targetRoute as any);
     }
@@ -99,6 +105,14 @@ function RootLayoutNav() {
       SplashScreen.hideAsync();
     }
   }, [isLoading, onboardingLoading, isHydrated]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      console.warn('[APP] Force hiding splash screen after 10s timeout');
+      SplashScreen.hideAsync().catch(() => {});
+    }, 10000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   return (
     <>

@@ -26,14 +26,25 @@ export const [SchemaProvider, useSchema] = createContextHook<SchemaHealth>(() =>
       setLastCheckedAt(now);
 
       const probe = async (column: string) => {
-        const { error } = await supabase
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Schema check timeout')), 3000);
+        });
+        
+        const queryPromise = supabase
           .from('user_profiles')
           .select(column)
           .limit(1);
-        if (error && (error as any).code === '42703') {
-          return false;
+        
+        try {
+          const { error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+          if (error && (error as any).code === '42703') {
+            return false;
+          }
+          return true;
+        } catch {
+          console.warn('[SCHEMA] Probe timeout for column:', column);
+          return true;
         }
-        return true;
       };
 
       const [tierOk, levelOk] = await Promise.all([
@@ -45,7 +56,10 @@ export const [SchemaProvider, useSchema] = createContextHook<SchemaHealth>(() =>
       setErrorCode(undefined);
     } catch (e: any) {
       const code = e?.code || e?.message || 'unknown';
+      console.warn('[SCHEMA] Check failed:', code);
       setErrorCode(String(code));
+      setHasSubscriptionTier(true);
+      setHasLevel(true);
     } finally {
       setIsChecking(false);
     }

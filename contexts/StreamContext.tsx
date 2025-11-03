@@ -27,12 +27,16 @@ export const [StreamProvider, useStream] = createContextHook(() => {
     queryKey: ['live-streams'],
     queryFn: getLiveStreams,
     refetchInterval: 30000,
+    enabled: !!user,
+    retry: 1,
+    staleTime: 30000,
   });
 
   const activeStreamQuery = useQuery({
     queryKey: ['stream', activeStreamId],
     queryFn: () => (activeStreamId ? getStream(activeStreamId) : null),
-    enabled: !!activeStreamId,
+    enabled: !!activeStreamId && !!user,
+    retry: 1,
   });
 
   const createStreamMutation = useMutation({
@@ -128,8 +132,9 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       category?: string;
     }) => {
       if (!user) {
+        const error = new Error('User not authenticated');
         console.error('[STREAM_CONTEXT] User not authenticated');
-        throw new Error('User not authenticated');
+        throw error;
       }
 
       console.log('[STREAM_CONTEXT] Starting stream:', data);
@@ -155,8 +160,9 @@ export const [StreamProvider, useStream] = createContextHook(() => {
   const joinStreamById = useCallback(
     async (streamId: string) => {
       if (!user) {
+        const error = new Error('User not authenticated');
         console.error('[STREAM_CONTEXT] User not authenticated');
-        throw new Error('User not authenticated');
+        throw error;
       }
 
       console.log('[STREAM_CONTEXT] Joining stream:', streamId);
