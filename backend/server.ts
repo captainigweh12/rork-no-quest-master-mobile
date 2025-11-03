@@ -1,3 +1,10 @@
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// Load root .env then backend/.env (second call merges/overrides)
+config({ path: resolve(process.cwd(), ".env") });
+config({ path: resolve(process.cwd(), "backend/.env") });
+
 import { serve } from '@hono/node-server';
 import { networkInterfaces } from 'os';
 import app from './hono';
