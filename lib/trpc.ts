@@ -6,26 +6,25 @@ import { getBaseUrl } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-/**
- * Build the absolute tRPC base on every request so changing the tunnel/override
- * doesn't require recreating the client.
- */
 function buildAbsoluteTrpcBase(): string {
   const base = getBaseUrl().replace(/\/+$/, "");
   return `${base}/api/trpc`;
 }
 
-/**
- * tRPC client
- */
-export const trpcClient = trpc.createClient({
-  links: [
-    httpLink({
-      transformer: superjson,
-      url: buildAbsoluteTrpcBase(),
-      headers: () => ({
-        "bypass-tunnel-reminder": "true",
+export function createTrpcClient() {
+  return trpc.createClient({
+    links: [
+      httpLink({
+        transformer: superjson,
+        url: buildAbsoluteTrpcBase(),
+        headers: () => ({
+          "bypass-tunnel-reminder": "true",
+        }),
       }),
-    }),
-  ],
-});
+    ],
+  });
+}
+
+// Backward compatibility: a default client created at import time.
+// Prefer calling createTrpcClient() at runtime after base URL bootstrap.
+export const trpcClient = createTrpcClient();

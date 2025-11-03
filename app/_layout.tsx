@@ -8,7 +8,7 @@ import { LogBox, Pressable, View, Text } from "react-native";
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { trpc, trpcClient } from "@/lib/trpc";
+import { trpc, createTrpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
@@ -249,9 +249,11 @@ export default function RootLayout() {
     },
   }));
 
+  const [client] = useState(() => createTrpcClient());
+
   return (
     <BaseUrlBootstrap>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <trpc.Provider client={client} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <SchemaProvider>
