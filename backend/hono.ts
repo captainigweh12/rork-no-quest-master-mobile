@@ -1,3 +1,4 @@
+// backend/hono.ts
 import { Hono } from "hono";
 import { trpcServer } from "@hono/trpc-server";
 import { cors } from "hono/cors";
@@ -7,41 +8,42 @@ import { Resend } from "resend";
 
 console.log("🚀 Backend starting up...");
 console.log("📧 RESEND_API_KEY present:", !!process.env.RESEND_API_KEY);
-console.log("📧 RESEND_API_KEY preview:", (process.env.RESEND_API_KEY ?? "").substring(0, 10) + "...");
+console.log(
+  "📧 RESEND_API_KEY preview:",
+  process.env.RESEND_API_KEY?.substring(0, 10) + "..."
+);
 console.log("🌍 Environment:", process.env.NODE_ENV || "development");
 
 const app = new Hono();
 
-// --- CORS (include custom headers you use from the app) ---
+// CORS
 app.use(
   "*",
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    // include your custom header(s) so the client can send them
     allowHeaders: [
       "Content-Type",
       "Authorization",
       "bypass-tunnel-reminder",
-      // add any custom headers used by the app/backend:
       "X-AGORA-MINT-KEY",
-      "x-supabase-signature",
-      "webhook-signature",
     ],
     credentials: true,
   })
 );
 
-// --- tRPC mount (IMPORTANT: set endpoint so routing strips /api/trpc correctly) ---
+// IMPORTANT: tell the adapter the exact endpoint it is mounted on
 app.use(
   "/api/trpc/*",
   trpcServer({
     router: appRouter,
     createContext,
-    endpoint: "/api/trpc",
+    endpoint: "/api/trpc", // <- this strips "/api/trpc" so the path is "example.hi"
   })
 );
 
-// --- Basic probes / helpers ---
+// Root
 app.get("/", (c) => {
   console.log("🏠 [ROOT] Root endpoint accessed");
   return c.json({
@@ -55,6 +57,7 @@ app.get("/", (c) => {
   });
 });
 
+// API info
 app.get("/api", (c) => {
   console.log("📡 [API] API root accessed");
   return c.json({
@@ -64,6 +67,7 @@ app.get("/api", (c) => {
   });
 });
 
+// Health
 app.get("/api/health", (c) => {
   console.log("\n🏥 [HEALTH] Health check requested");
   return c.json({
@@ -72,12 +76,13 @@ app.get("/api/health", (c) => {
     backend: "running",
     env: {
       resend_configured: !!process.env.RESEND_API_KEY,
-      resend_api_key_preview: (process.env.RESEND_API_KEY ?? "").substring(0, 10) + "...",
+      resend_api_key_preview:
+        (process.env.RESEND_API_KEY ?? "").substring(0, 10) + "...",
     },
   });
 });
 
-// --- Supabase Auth Hook endpoint for email verification ---
+// ---------- Supabase Auth Hook (email verification / password recovery) ----------
 app.post("/api/auth/hook", async (c) => {
   console.log("\n🪝 [AUTH-HOOK] Supabase auth hook triggered");
   console.log("   Headers:", Object.fromEntries(c.req.raw.headers.entries()));
@@ -95,14 +100,19 @@ app.post("/api/auth/hook", async (c) => {
 
     if (webhookSecret && signature) {
       console.log("   ✅ Webhook signature verification enabled");
-      // NOTE: Add verification if you enable signed webhooks.
+      // TODO: verify signature if you want strict verification
     } else {
-      console.log("   ⚠️ Webhook signature verification skipped (missing secret or signature)");
+      console.log(
+        "   ⚠️ Webhook signature verification skipped (missing secret or signature)"
+      );
     }
 
     const payload = JSON.parse(rawBody);
     console.log("   Event type:", payload.type);
-    console.log("   User email:", payload.record?.email || payload.user?.email);
+    console.log(
+      "   User email:",
+      payload.record?.email || payload.user?.email
+    );
 
     switch (payload.type) {
       case "user.created":
@@ -126,7 +136,6 @@ app.post("/api/auth/hook", async (c) => {
   }
 });
 
-// --- Handlers ---
 async function handleEmailVerification(c: any, payload: any) {
   const { user } = payload;
   const email = user?.email;
@@ -143,7 +152,10 @@ async function handleEmailVerification(c: any, payload: any) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.error("   ❌ RESEND_API_KEY not configured");
-    return c.json({ success: false, error: "Email service not configured" }, 500);
+    return c.json(
+      { success: false, error: "Email service not configured" },
+      500
+    );
   }
 
   const resend = new Resend(apiKey);
@@ -153,43 +165,10 @@ async function handleEmailVerification(c: any, payload: any) {
       from: "Rejection Hero <onboarding@resend.dev>",
       to: [email],
       subject: "🦸 Verify Your Email - Rejection Hero",
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-              .container { max-width: 600px; margin: 0 auto; background: white; }
-              .header { background: linear-gradient(135deg, #FF6B2C 0%, #FF8F5C 100%); color: white; padding: 40px 30px; text-align: center; }
-              .content { padding: 40px 30px; }
-              .button { display: inline-block; background: linear-gradient(135deg, #FF6B2C 0%, #FF8F5C 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-              .footer { text-align: center; padding: 30px; color: #999; font-size: 12px; border-top: 1px solid #eee; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header"><h1>🦸 Welcome to Rejection Hero!</h1></div>
-              <div class="content">
-                <p style="font-size: 18px; margin-bottom: 20px;">Hi there! 👋</p>
-                <p>Thanks for joining Rejection Hero! Click the button below to verify your email and start your journey:</p>
-                <div style="text-align: center;">
-                  <a href="${confirmationUrl}" class="button">✅ Verify My Email</a>
-                </div>
-                <p style="color: #666; font-size: 14px; margin-top: 30px;">
-                  Or copy and paste this link into your browser:<br>
-                  <a href="${confirmationUrl}" style="color: #FF6B2C;">${confirmationUrl}</a>
-                </p>
-                <p style="margin-top: 30px;">Ready to build confidence through rejection? Let's go! 💪</p>
-              </div>
-              <div class="footer">
-                <p>© ${new Date().getFullYear()} Rejection Hero</p>
-                <p>Build confidence, one rejection at a time.</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+        <p>Welcome! Click the button below to verify:</p>
+        <p><a href="${confirmationUrl}">Verify my email</a></p>
+      </body></html>`,
     });
 
     if (error) {
@@ -197,7 +176,7 @@ async function handleEmailVerification(c: any, payload: any) {
       return c.json({ success: false, error: error.message }, 500);
     }
 
-    console.log("   ✅ Verification email sent! Message ID:", data?.id);
+    console.log("   ✅ Verification email sent!", data?.id);
     return c.json({ success: true, messageId: data?.id });
   } catch (err: any) {
     console.error("   💥 Exception sending email:", err);
@@ -214,11 +193,12 @@ async function handlePasswordRecovery(c: any, payload: any) {
     return c.json({ success: false, error: "Missing email or reset URL" }, 400);
   }
 
-  console.log("   🔑 Sending password recovery email to:", email);
-
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    return c.json({ success: false, error: "Email service not configured" }, 500);
+    return c.json(
+      { success: false, error: "Email service not configured" },
+      500
+    );
   }
 
   const resend = new Resend(apiKey);
@@ -228,45 +208,18 @@ async function handlePasswordRecovery(c: any, payload: any) {
       from: "Rejection Hero <onboarding@resend.dev>",
       to: [email],
       subject: "🔐 Reset Your Password - Rejection Hero",
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-              .container { max-width: 600px; margin: 0 auto; background: white; }
-              .header { background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%); color: white; padding: 40px 30px; text-align: center; }
-              .content { padding: 40px 30px; }
-              .button { display: inline-block; background: linear-gradient(135deg, #FF6B2C 0%, #FF8F5C 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-              .footer { text-align: center; padding: 30px; color: #999; font-size: 12px; border-top: 1px solid #eee; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header"><h1>🔐 Reset Your Password</h1></div>
-              <div class="content">
-                <p style="font-size: 18px; margin-bottom: 20px;">Password Reset Request</p>
-                <p>We received a request to reset your password. Click the button below to set a new password:</p>
-                <div style="text-align: center;">
-                  <a href="${resetUrl}" class="button">🔑 Reset Password</a>
-                </div>
-                <p style="color: #666; font-size: 14px; margin-top: 30px;">Or copy and paste this link:<br><a href="${resetUrl}" style="color: #FF6B2C;">${resetUrl}</a></p>
-                <p style="color: #999; font-size: 12px; margin-top: 30px;">⏱️ This link expires in 1 hour<br>If you didn't request this, you can safely ignore this email.</p>
-              </div>
-              <div class="footer"><p>© ${new Date().getFullYear()} Rejection Hero</p></div>
-            </div>
-          </body>
-        </html>
-      `,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+        <p>Reset your password:</p>
+        <p><a href="${resetUrl}">Reset Password</a></p>
+      </body></html>`,
     });
 
     if (error) {
-      console.error("   ❌ Resend error:", error);
+      console.error("   ❌ Resend API error:", error);
       return c.json({ success: false, error: error.message }, 500);
     }
 
-    console.log("   ✅ Password reset email sent!");
+    console.log("   ✅ Password reset email sent!", data?.id);
     return c.json({ success: true, messageId: data?.id });
   } catch (err: any) {
     console.error("   💥 Exception sending email:", err);
@@ -274,25 +227,21 @@ async function handlePasswordRecovery(c: any, payload: any) {
   }
 }
 
-// --- Test email endpoint ---
+// Simple test endpoint for Resend wiring
 app.get("/api/test-email", async (c) => {
   console.log("\n🧪 [TEST-EMAIL] Request received");
   try {
     const to = c.req.query("to");
     const subject = c.req.query("subject") ?? "Quest App – Test Email";
-    const text = c.req.query("text") ?? "This is a test email from Quest App backend.";
-
-    console.log("   To:", to);
-    console.log("   Subject:", subject);
+    const text =
+      c.req.query("text") ?? "This is a test email from Quest App backend.";
 
     if (!to) {
-      console.log('   ❌ Missing "to" parameter');
       return c.json({ success: false, error: "Missing 'to' query param" }, 400);
     }
 
     const apiKey = process.env.RESEND_API_KEY ?? "";
     if (!apiKey) {
-      console.error("   ❌ RESEND_API_KEY is not set in environment");
       return c.json(
         {
           success: false,
@@ -312,35 +261,35 @@ app.get("/api/test-email", async (c) => {
     });
 
     if (error) {
-      console.error("   ❌ Resend API error:", error);
-      return c.json(
-        {
-          success: false,
-          error: (error as any)?.message || JSON.stringify(error),
-          errorDetails: error,
-        },
-        500
-      );
+      return c.json({ success: false, error: error.message }, 500);
     }
 
-    console.log("   ✅ Email sent successfully!", data?.id);
     return c.json({
       success: true,
       messageId: data?.id,
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
-    console.error("   💥 Exception in /api/test-email:", err);
     return c.json(
       {
         success: false,
         error: err?.message ?? "Unknown error",
-        errorType: err?.constructor?.name,
-        stack: err?.stack,
       },
       500
     );
   }
+});
+
+// Optional: JSON 404 for non-matched routes (helps during tunnel debugging)
+app.notFound((c) => {
+  return c.json(
+    {
+      error: "Not Found",
+      path: c.req.path,
+      hint: "If you expected tRPC, ensure you called /api/trpc/<router>.<procedure>",
+    },
+    404
+  );
 });
 
 export default app;
