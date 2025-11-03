@@ -388,12 +388,28 @@ export default function StreamScreen() {
                       placeholderTextColor="#9CA3AF"
                     />
                     <Pressable
-                      style={[styles.sendButton, { backgroundColor: '#10B981', width: undefined, paddingHorizontal: 12 }]}
+                      style={[
+                        styles.sendButton,
+                        {
+                          backgroundColor: (agoraEnvQuery.data?.appIdPresent && agoraEnvQuery.data?.customerIdPresent && agoraEnvQuery.data?.customerSecretPresent)
+                            ? '#10B981'
+                            : '#6B7280',
+                          width: undefined,
+                          paddingHorizontal: 12,
+                          opacity: (agoraEnvQuery.data?.appIdPresent && agoraEnvQuery.data?.customerIdPresent && agoraEnvQuery.data?.customerSecretPresent) ? 1 : 0.6,
+                        },
+                      ]}
                       onPress={handleAcquireResource}
+                      disabled={!(agoraEnvQuery.data?.appIdPresent && agoraEnvQuery.data?.customerIdPresent && agoraEnvQuery.data?.customerSecretPresent)}
                       testID="agora-acquire"
                     >
                       <Text style={{ color: '#fff', fontWeight: '800' as const }}>Acquire</Text>
                     </Pressable>
+                    {!(agoraEnvQuery.data?.appIdPresent && agoraEnvQuery.data?.customerIdPresent && agoraEnvQuery.data?.customerSecretPresent) ? (
+                      <Text style={{ color: '#FCA5A5', marginTop: 6 }}>
+                        Missing Agora envs. Set AGORA_APP_ID, AGORA_CUSTOMER_ID, AGORA_CUSTOMER_SECRET.
+                      </Text>
+                    ) : null}
                   </View>
                   {resourceId ? (
                     <Text style={{ color: '#22D3EE', marginTop: 6 }}>resourceId: {resourceId}</Text>
