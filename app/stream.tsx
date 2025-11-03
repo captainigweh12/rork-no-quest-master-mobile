@@ -16,6 +16,7 @@ import { CameraView, useCameraPermissions, CameraType } from 'expo-camera';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useStream } from '@/contexts/StreamContext';
 import { useGame } from '@/contexts/GameContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Users, Send, Video, VideoOff, Server } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +26,7 @@ export default function StreamScreen() {
   const { theme } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user, isLoading: authLoading } = useAuth();
   const params = useLocalSearchParams<{ streamId?: string; mode?: 'broadcaster' | 'viewer' }>();
   const {
     activeStream,
@@ -58,11 +60,27 @@ export default function StreamScreen() {
   useEffect(() => {
     console.log('[STREAM] Screen opened with params:', { streamId: paramsStreamId, mode: paramsMode });
     
+    if (authLoading) {
+      console.log('[STREAM] Waiting for auth to complete...');
+      return;
+    }
+
+    if (!user) {
+      console.error('[STREAM] User not authenticated, redirecting...');
+      Alert.alert('Authentication Required', 'You must be logged in to view streams.');
+      router.back();
+      return;
+    }
+    
     if (isViewer && paramsStreamId && !isStreaming) {
       console.log('[STREAM] Joining stream as viewer:', paramsStreamId);
-      joinStreamById(paramsStreamId);
+      joinStreamById(paramsStreamId).catch((error) => {
+        console.error('[STREAM] Failed to join stream:', error);
+        Alert.alert('Error', 'Failed to join stream. Please try again.');
+        router.back();
+      });
     }
-  }, [paramsStreamId, paramsMode, isViewer, isStreaming, joinStreamById]);
+  }, [paramsStreamId, paramsMode, isViewer, isStreaming, joinStreamById, user, authLoading, router]);
 
   useEffect(() => {
     if (messages.length > 0) {
