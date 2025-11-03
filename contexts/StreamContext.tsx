@@ -128,9 +128,8 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       category?: string;
     }) => {
       if (!user) {
-        const error = new Error('User not authenticated');
         console.error('[STREAM_CONTEXT] User not authenticated');
-        throw error;
+        throw new Error('User not authenticated');
       }
 
       console.log('[STREAM_CONTEXT] Starting stream:', data);
@@ -156,9 +155,8 @@ export const [StreamProvider, useStream] = createContextHook(() => {
   const joinStreamById = useCallback(
     async (streamId: string) => {
       if (!user) {
-        const error = new Error('User not authenticated');
         console.error('[STREAM_CONTEXT] User not authenticated');
-        throw error;
+        throw new Error('User not authenticated');
       }
 
       console.log('[STREAM_CONTEXT] Joining stream:', streamId);

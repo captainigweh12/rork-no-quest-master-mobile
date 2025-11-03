@@ -67,8 +67,11 @@ export default function StreamScreen() {
 
     if (!user) {
       console.error('[STREAM] User not authenticated, redirecting...');
-      Alert.alert('Authentication Required', 'You must be logged in to view streams.');
-      router.back();
+      setTimeout(() => {
+        Alert.alert('Authentication Required', 'You must be logged in to view streams.', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      }, 100);
       return;
     }
     
@@ -76,8 +79,11 @@ export default function StreamScreen() {
       console.log('[STREAM] Joining stream as viewer:', paramsStreamId);
       joinStreamById(paramsStreamId).catch((error) => {
         console.error('[STREAM] Failed to join stream:', error);
-        Alert.alert('Error', 'Failed to join stream. Please try again.');
-        router.back();
+        setTimeout(() => {
+          Alert.alert('Error', 'Failed to join stream. Please try again.', [
+            { text: 'OK', onPress: () => router.back() }
+          ]);
+        }, 100);
       });
     }
   }, [paramsStreamId, paramsMode, isViewer, isStreaming, joinStreamById, user, authLoading, router]);
@@ -225,6 +231,24 @@ export default function StreamScreen() {
             )}
           </Pressable>
         </View>
+      </View>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[{ color: theme.colors.textSecondary, marginTop: 16, fontSize: 14, fontWeight: '600' as const }]}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={[{ color: theme.colors.text, fontSize: 16, fontWeight: '700' as const }]}>Authentication Required</Text>
+        <Text style={[{ color: theme.colors.textSecondary, marginTop: 8, fontSize: 14, fontWeight: '600' as const }]}>Please log in to continue</Text>
       </View>
     );
   }
