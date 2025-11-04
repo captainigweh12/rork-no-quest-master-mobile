@@ -3,7 +3,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 EXPO_PUBLIC_TOOLKIT_URL=https://toolkit.rork.com
 EXPO_PUBLIC_APP_BASE_URL=https://rejectionhero.com
 EXPO_PUBLIC_EMAIL_REDIRECT=noquest://verify-email
-EXPO_PUBLIC_RORK_API_BASE_URL=https://api.rejectionhero.com
+EXPO_PUBLIC_RORK_API_BASE_URL=https://rork-no-quest-master-mobile.onrender.com
 
 # AI providers
 # Set both to enable fallback. Order is controlled by EXPO_PUBLIC_AI_PROVIDER_ORDER
