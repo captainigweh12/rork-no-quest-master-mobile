@@ -67,12 +67,15 @@ async function validateVideoSDKMeeting(token: string, meetingId: string): Promis
 // === tRPC Router ===
 export default createTRPCRouter({
   // Generate a VideoSDK token
-  getToken: publicProcedure.query(() => {
+  getToken: publicProcedure.query(async () => {
     try {
+      console.log("[VideoSDK tRPC] Generating token...");
       const token = generateVideoSDKToken({});
+      console.log("[VideoSDK tRPC] Token generated successfully");
       return { token };
     } catch (error) {
-      throw new Error("Failed to generate VideoSDK token");
+      console.error("[VideoSDK tRPC] Error generating token:", error);
+      throw new Error("Failed to generate VideoSDK token: " + (error instanceof Error ? error.message : String(error)));
     }
   }),
 
@@ -81,10 +84,13 @@ export default createTRPCRouter({
     .input(z.object({ token: z.string() }))
     .mutation(async ({ input }) => {
       try {
+        console.log("[VideoSDK tRPC] Creating meeting...");
         const meetingId = await createVideoSDKMeeting(input.token);
+        console.log("[VideoSDK tRPC] Meeting created:", meetingId);
         return { meetingId };
       } catch (error) {
-        throw new Error("Failed to create meeting");
+        console.error("[VideoSDK tRPC] Error creating meeting:", error);
+        throw new Error("Failed to create meeting: " + (error instanceof Error ? error.message : String(error)));
       }
     }),
 
@@ -101,9 +107,12 @@ export default createTRPCRouter({
     }),
 
   // Check environment configuration
-  checkConfig: publicProcedure.query(() => {
+  checkConfig: publicProcedure.query(async () => {
+    console.log("[VideoSDK tRPC] Checking configuration...");
     const apiKeyPresent = !!process.env.VIDEOSDK_API_KEY;
     const secretKeyPresent = !!process.env.VIDEOSDK_SECRET_KEY;
+
+    console.log("[VideoSDK tRPC] Config check:", { apiKeyPresent, secretKeyPresent });
 
     return {
       apiKeyPresent,

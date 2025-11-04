@@ -44,6 +44,8 @@ async function startServer() {
       console.log('AGORA_CUSTOMER_ID present:', !!process.env.AGORA_CUSTOMER_ID);
       console.log('AGORA_CUSTOMER_SECRET present:', !!process.env.AGORA_CUSTOMER_SECRET);
       console.log('MINT_RTC_TOKEN_SECRET present:', !!process.env.MINT_RTC_TOKEN_SECRET);
+      console.log('VIDEOSDK_API_KEY present:', !!process.env.VIDEOSDK_API_KEY);
+      console.log('VIDEOSDK_SECRET_KEY present:', !!process.env.VIDEOSDK_SECRET_KEY);
       console.log('RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
       console.log('SUPABASE_WEBHOOK_SECRET present:', !!process.env.SUPABASE_WEBHOOK_SECRET);
 

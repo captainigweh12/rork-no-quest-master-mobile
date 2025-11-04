@@ -22,13 +22,22 @@ export const [VideoSDKContextProvider, useVideoSDK] =
     const tokenQuery = useQuery({
       queryKey: ["videosdk-token"],
       queryFn: async () => {
-        console.log("[VideoSDK Context] Fetching token");
-        const result = await trpcClient.videosdk.getToken.query();
-        console.log("[VideoSDK Context] Token fetched successfully");
-        return result;
+        try {
+          console.log("[VideoSDK Context] Fetching token");
+          const result = await trpcClient.videosdk.getToken.query();
+          console.log("[VideoSDK Context] Token fetched successfully:", result);
+          return result;
+        } catch (error) {
+          console.error("[VideoSDK Context] Token fetch error:", error);
+          if (error instanceof Error) {
+            console.error("[VideoSDK Context] Error message:", error.message);
+            console.error("[VideoSDK Context] Error stack:", error.stack);
+          }
+          throw error;
+        }
       },
       staleTime: 1000 * 60 * 60,
-      retry: 3,
+      retry: 1,
     });
 
     const createMeetingMutation = useMutation({
