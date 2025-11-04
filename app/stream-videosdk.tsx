@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, CheckCircle2, XCircle } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
+import { trpc } from "@/lib/trpc";
+import { getBaseUrl } from "@/lib/baseUrl";
 
 const WebCameraPreview = () => {
   return (
@@ -109,6 +111,32 @@ const CameraPreview = ({
     />
   );
 };
+
+const DiagnosticsBanner = React.memo(function DiagnosticsBanner() {
+  const { data, error, isLoading, refetch, isRefetching } = trpc.videosdk.checkConfig.useQuery(undefined, { staleTime: 1000 * 30 });
+  const base = useMemo(() => `${getBaseUrl()}/api/trpc`, []);
+
+  const ok = !!data?.configured && !error;
+  return (
+    <View style={[styles.diagContainer, ok ? styles.diagOk : styles.diagFail]} testID="videosdk-diag-banner">
+      <View style={styles.diagRow}>
+        {ok ? <CheckCircle2 size={16} color="#065F46" /> : <XCircle size={16} color="#991B1B" />}
+        <Text style={[styles.diagText, ok ? styles.diagTextOk : styles.diagTextFail]} testID="videosdk-diag-status">
+          {isLoading || isRefetching ? "Checking tRPC..." : ok ? "tRPC OK" : "tRPC Fail"}
+        </Text>
+        <TouchableOpacity onPress={() => refetch()} style={styles.diagRefresh} testID="videosdk-diag-refresh">
+          <Text style={styles.diagRefreshText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.diagSub} numberOfLines={1} testID="videosdk-diag-base-url">{base}</Text>
+      {!isLoading && (
+        <Text style={styles.diagSub} testID="videosdk-diag-detail">
+          {error ? String((error as any)?.message ?? error) : `API Key: ${data?.apiKeyPresent ? 'present' : 'missing'} • Secret: ${data?.secretKeyPresent ? 'present' : 'missing'}`}
+        </Text>
+      )}
+    </View>
+  );
+});
 
 const StreamView = () => {
   const router = useRouter();
@@ -311,6 +339,7 @@ export default function StreamVideoSDKScreen() {
           headerShown: true,
         }}
       />
+      <DiagnosticsBanner />
       <StreamView />
     </SafeAreaView>
   );
@@ -476,6 +505,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600" as const,
   },
+  diagContainer: {
+    margin: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  diagOk: {
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  diagFail: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  diagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  diagText: {
+    fontSize: 13,
+    fontWeight: "700" as const,
+  },
+  diagTextOk: { color: "#065F46" },
+  diagTextFail: { color: "#991B1B" },
+  diagSub: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#374151",
+  },
+  diagRefresh: {
+    marginLeft: "auto",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "#111827",
+    borderRadius: 6,
+  },
+  diagRefreshText: { color: "#fff", fontSize: 12, fontWeight: "600" as const },
   controls: {
     flexDirection: "row",
     justifyContent: "center",
