@@ -5,10 +5,7 @@ import { appRouter } from "./trpc/app-router";
 import { createContext } from "./trpc/create-context";
 import { Resend } from "resend";
 
-console.log("🚀 Backend starting up...");
-console.log("📧 RESEND_API_KEY present:", !!process.env.RESEND_API_KEY);
-console.log("📧 RESEND_API_KEY preview:", process.env.RESEND_API_KEY?.substring(0, 10) + "...");
-console.log("🌍 Environment:", process.env.NODE_ENV || "development");
+
 
 const app = new Hono();
 
