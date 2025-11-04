@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { setBaseUrlOverride, getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient } from '@/lib/trpc';
+import { trpcClient, createTrpcClient } from '@/lib/trpc';
 import { useRouter } from 'expo-router';
 
 export default function ClearStorageScreen() {
@@ -19,7 +19,8 @@ export default function ClearStorageScreen() {
     setTestResult(null);
     try {
       console.log('[Clear Storage] Testing connection to:', getBaseUrl());
-      const result = await trpcClient.videosdk.checkConfig.query();
+      const freshClient = createTrpcClient();
+      const result = await freshClient.videosdk.checkConfig.query();
       console.log('[Clear Storage] Test result:', result);
       setTestResult(`✅ Success! Connected to ${getBaseUrl()}\n\nAPI is working correctly.`);
     } catch (error) {
@@ -67,6 +68,7 @@ export default function ClearStorageScreen() {
       </View>
 
       <TouchableOpacity 
+        testID="test-connection-button"
         style={[styles.button, styles.testButton]} 
         onPress={handleTestConnection}
         disabled={isTesting}
@@ -79,7 +81,7 @@ export default function ClearStorageScreen() {
       </TouchableOpacity>
 
       {testResult && (
-        <View style={[styles.section, testResult.includes('✅') ? styles.success : styles.error]}>
+        <View testID="test-result" style={[styles.section, testResult.includes('✅') ? styles.success : styles.error]}>
           <Text style={styles.resultText}>{testResult}</Text>
         </View>
       )}
@@ -91,8 +93,25 @@ export default function ClearStorageScreen() {
         This will remove ALL cached data including any old API URLs. Only use this if you&apos;re experiencing connection issues.
       </Text>
 
-      <TouchableOpacity style={[styles.button, styles.dangerButton]} onPress={handleClearOverride}>
-        <Text style={styles.buttonText}>Clear All Storage & Restart</Text>
+      <TouchableOpacity testID="clear-storage-button" style={[styles.button, styles.dangerButton]} onPress={handleClearOverride}>
+        <Text style={styles.buttonText}>Clear All Storage & Override</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        testID="set-render-override-button"
+        style={[styles.button, styles.setRenderButton]}
+        onPress={async () => {
+          try {
+            const url = 'https://rork-no-quest-master-mobile.onrender.com';
+            await setBaseUrlOverride(url);
+            setCurrentBase(getBaseUrl());
+            Alert.alert('Override Set', `Base URL set to:\n${url}\n\nPlease restart the app to apply everywhere.`);
+          } catch (e) {
+            Alert.alert('Error', String(e));
+          }
+        }}
+      >
+        <Text style={styles.buttonText}>Use Render URL</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -138,6 +157,9 @@ const styles = StyleSheet.create({
   },
   dangerButton: {
     backgroundColor: '#dc3545',
+  },
+  setRenderButton: {
+    backgroundColor: '#28a745',
   },
   buttonText: {
     color: '#fff',
