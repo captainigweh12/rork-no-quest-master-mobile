@@ -1,5 +1,5 @@
 import { createTRPCReact } from "@trpc/react-query";
-import { httpLink } from "@trpc/client";
+import { httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
 import { getBaseUrl } from "@/lib/baseUrl";
@@ -15,7 +15,7 @@ export function createTrpcClient() {
   
   return trpc.createClient({
     links: [
-      httpLink({
+      httpBatchLink({
         url: TRPC_URL,
         transformer: superjson,
         fetch: async (url, options) => {
