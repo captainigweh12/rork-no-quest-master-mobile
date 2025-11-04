@@ -68,13 +68,10 @@ async function validateVideoSDKMeeting(token: string, meetingId: string): Promis
 export default createTRPCRouter({
   // Generate a VideoSDK token
   getToken: publicProcedure.query(() => {
-    console.log("[VideoSDK] Generating token...");
     try {
       const token = generateVideoSDKToken({});
-      console.log("[VideoSDK] Token generated successfully");
       return { token };
     } catch (error) {
-      console.error("[VideoSDK] Token generation error:", error);
       throw new Error("Failed to generate VideoSDK token");
     }
   }),
@@ -83,13 +80,10 @@ export default createTRPCRouter({
   createMeeting: publicProcedure
     .input(z.object({ token: z.string() }))
     .mutation(async ({ input }) => {
-      console.log("[VideoSDK] Creating meeting...");
       try {
         const meetingId = await createVideoSDKMeeting(input.token);
-        console.log("[VideoSDK] Meeting created successfully:", meetingId);
         return { meetingId };
       } catch (error) {
-        console.error("[VideoSDK] Error creating meeting:", error);
         throw new Error("Failed to create meeting");
       }
     }),
@@ -98,13 +92,10 @@ export default createTRPCRouter({
   validateMeeting: publicProcedure
     .input(z.object({ token: z.string(), meetingId: z.string() }))
     .query(async ({ input }) => {
-      console.log("[VideoSDK] Validating meeting:", input.meetingId);
       try {
         const isValid = await validateVideoSDKMeeting(input.token, input.meetingId);
-        console.log("[VideoSDK] Validation result:", isValid);
         return { isValid };
       } catch (error) {
-        console.error("[VideoSDK] Error validating meeting:", error);
         return { isValid: false };
       }
     }),
@@ -113,10 +104,6 @@ export default createTRPCRouter({
   checkConfig: publicProcedure.query(() => {
     const apiKeyPresent = !!process.env.VIDEOSDK_API_KEY;
     const secretKeyPresent = !!process.env.VIDEOSDK_SECRET_KEY;
-
-    console.log("[VideoSDK] Config Check:");
-    console.log("  API Key present:", apiKeyPresent);
-    console.log("  Secret Key present:", secretKeyPresent);
 
     return {
       apiKeyPresent,
