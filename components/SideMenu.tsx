@@ -13,7 +13,8 @@ import {
   Scroll,
   Calendar,
   LogOut,
-  Server
+  Server,
+  Trash2
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEffect, useRef } from 'react';
@@ -52,6 +53,7 @@ const MENU_ITEMS: MenuItem[] = [
 const ADMIN_MENU_ITEMS: MenuItem[] = [
   { id: 'admin', label: 'Admin Dashboard', icon: Shield, route: '/admin', section: 'top' },
   { id: 'backend-config', label: 'Backend Config', icon: Server, route: '/backend-config', section: 'top' },
+  { id: 'clear-storage', label: 'Clear Storage', icon: Trash2, route: '/clear-storage', section: 'top' },
 ];
 
 export default function SideMenu({ visible, onClose, theme }: SideMenuProps) {
