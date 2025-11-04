@@ -45,6 +45,11 @@ export default function ClearStorageScreen() {
       const allKeys = await AsyncStorage.getAllKeys();
       console.log('[Clear Storage] Remaining keys after clear:', allKeys);
       
+      const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
+      console.log('[Clear Storage] Setting Render URL as new base:', renderUrl);
+      await setBaseUrlOverride(renderUrl);
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
+      
       const newUrl = getBaseUrl();
       setCurrentBase(newUrl);
       setTestResult(null);
@@ -52,7 +57,7 @@ export default function ClearStorageScreen() {
       
       Alert.alert(
         'Success', 
-        `Cleared all storage!\n\nOld URL removed\nNew URL: ${newUrl}\n\n✅ Please fully CLOSE and RESTART the app now!`,
+        `Cleared all storage!\n\nOld URL removed\nNew URL: ${renderUrl}\n\n✅ Please fully CLOSE and RESTART the app now!`,
         [
           { text: 'OK' }
         ]
