@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { loadBaseUrlOverride, setBaseUrlOverride } from '@/lib/baseUrl';
 
 export default function EmergencyClearScreen() {
   const insets = useSafeAreaInsets();
@@ -11,31 +12,54 @@ export default function EmergencyClearScreen() {
 
   useEffect(() => {
     console.log('[Emergency Clear] Screen loaded');
+    (async () => {
+      try {
+        const override = await loadBaseUrlOverride();
+        if (override) {
+          setCleared(false);
+          setCurrentOverride(override);
+        } else {
+          const g = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
+          setCurrentOverride(g);
+        }
+      } catch (e) {
+        console.warn('[Emergency Clear] Could not read override:', e);
+      }
+    })();
   }, []);
+
+  const [currentOverride, setCurrentOverride] = useState<string | undefined>(undefined);
 
   async function handleEmergencyClear() {
     try {
       console.log('[Emergency Clear] Starting emergency clear...');
       
-      const allKeys = await AsyncStorage.getAllKeys();
+      const allKeys = (AsyncStorage && typeof (AsyncStorage as any).getAllKeys === 'function')
+        ? await (AsyncStorage as any).getAllKeys()
+        : [];
       console.log('[Emergency Clear] All keys before clear:', allKeys);
-      
-      await AsyncStorage.clear();
-      console.log('[Emergency Clear] AsyncStorage cleared');
-      
-      (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
-      console.log('[Emergency Clear] Global override cleared');
-      
+
+      if (AsyncStorage && typeof (AsyncStorage as any).clear === 'function') {
+        await (AsyncStorage as any).clear();
+        console.log('[Emergency Clear] AsyncStorage cleared');
+      }
+
+      // Clear in-memory override and persisted override via helper
+      await setBaseUrlOverride(undefined);
+      console.log('[Emergency Clear] Override cleared');
+
       const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
-      await AsyncStorage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', renderUrl);
-      (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
-      console.log('[Emergency Clear] New URL set:', renderUrl);
-      
-      const verifyKeys = await AsyncStorage.getAllKeys();
+      await setBaseUrlOverride(renderUrl);
+      console.log('[Emergency Clear] New URL set via helper:', renderUrl);
+
+      const verifyKeys = (AsyncStorage && typeof (AsyncStorage as any).getAllKeys === 'function')
+        ? await (AsyncStorage as any).getAllKeys()
+        : [];
       console.log('[Emergency Clear] Keys after clear:', verifyKeys);
-      
-      const verifyUrl = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+
+      const verifyUrl = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
       console.log('[Emergency Clear] Verified URL:', verifyUrl);
+      setCurrentOverride(verifyUrl);
       
       setCleared(true);
       
@@ -56,6 +80,27 @@ export default function EmergencyClearScreen() {
       console.error('[Emergency Clear] Failed:', error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       Alert.alert('Emergency Clear Failed', errorMsg);
+    }
+  }
+
+  async function handleClearOverride() {
+    try {
+      await setBaseUrlOverride(undefined);
+      setCurrentOverride(undefined);
+      Alert.alert('Override cleared', 'Base URL override removed. Restart the app.');
+    } catch (e) {
+      Alert.alert('Failed to clear override', String(e));
+    }
+  }
+
+  async function handleSetRenderUrl() {
+    try {
+      const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
+      await setBaseUrlOverride(renderUrl);
+      setCurrentOverride(renderUrl);
+      Alert.alert('Override set', `Set base URL to ${renderUrl}. Restart the app.`);
+    } catch (e) {
+      Alert.alert('Failed to set override', String(e));
     }
   }
 
@@ -80,6 +125,25 @@ export default function EmergencyClearScreen() {
             <Text style={styles.successSubtext}>Close and restart the app now.</Text>
           </View>
         )}
+
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ fontSize: 14, color: '#333', marginBottom: 8 }}>Current override:</Text>
+          <Text style={{ fontSize: 14, color: '#111', fontWeight: '700', textAlign: 'center' }}>{currentOverride ?? 'none'}</Text>
+        </View>
+
+        <TouchableOpacity 
+          style={[styles.secondaryButton, { marginTop: 16 }]} 
+          onPress={handleClearOverride}
+        >
+          <Text style={styles.secondaryButtonText}>Clear Override</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.secondaryButton, { marginTop: 8 }]} 
+          onPress={handleSetRenderUrl}
+        >
+          <Text style={styles.secondaryButtonText}>Set Render URL Override</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.button, cleared && styles.buttonDisabled]} 
