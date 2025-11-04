@@ -1,9 +1,52 @@
-// template
+// types for expo-router are declared in app/expo-router.d.ts
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { trpc } from "@/lib/trpc";
+import { httpBatchLink } from "@trpc/client";
+import { useEffect, useState, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LogBox, Pressable, View, Text } from "react-native";
+import { transformer } from "@/lib/transformer";
+import { ChevronLeft } from "lucide-react-native";
+
+if (!process.env.EXPO_PUBLIC_API_URL) {
+  process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000';
+}
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+export const trpcClient = trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: `${process.env.EXPO_PUBLIC_API_URL}/trpc`,
+      async headers() {
+        return {};
+      },
+      transformer
+    })
+  ]
+});
+
+export const client = trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: getBaseUrl(),
+      async headers() {
+        return {
+          // Include any headers needed
+        };
+      },
+      transformer
+    })
+  ]
+});
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -18,12 +61,10 @@ import MigrationBanner from '@/components/MigrationBanner';
 import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
-import { ChevronLeft } from 'lucide-react-native';
 import TrpcProvider from "@/providers/TrpcProvider";
 
 // NEW: ensure base URL override loads before first network call
 import { loadBaseUrlOverride, getBaseUrl, setBaseUrlOverride } from "@/lib/baseUrl";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -48,22 +89,29 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         console.log("[baseUrl] Loading URL override from storage...");
-        
-        const currentOverride = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-        console.log("[baseUrl] Current cached override:", currentOverride);
-        
+        const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
+
+        // Load any existing override using the safe helper (handles missing AsyncStorage)
+        const currentOverride = await loadBaseUrlOverride();
+        console.log("[baseUrl] Current cached override:", currentOverride || "none");
+
+        // If it contains rorktest.dev, clear it immediately and set the correct Render URL
         if (currentOverride?.includes('rorktest.dev')) {
           console.log('[baseUrl] ⚠️ Detected old rorktest.dev URL, clearing and setting Render URL...');
-          await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-          (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
-          
-          const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
           await setBaseUrlOverride(RENDER_URL);
-          console.log('[baseUrl] ✅ Set new URL:', RENDER_URL);
+          console.log('[baseUrl] ✅ Cleared old URL and set new URL:', RENDER_URL);
         }
-        
-        const override = await loadBaseUrlOverride();
+
+        const override = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
         console.log("[baseUrl] Override loaded:", override || "none");
+
+        // If no override is present, proactively set the Render URL so the app uses the deployed backend
+        if (!override) {
+          console.log('[baseUrl] No override found; proactively setting Render URL override...');
+          await setBaseUrlOverride(RENDER_URL);
+          console.log('[baseUrl] ✅ Set proactive override to:', RENDER_URL);
+        }
+
         console.log("[baseUrl] Final base URL:", getBaseUrl());
         console.log('[BaseUrlBootstrap] ✅ Initialization complete');
       } catch (e) {
@@ -98,11 +146,11 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const navigationRef = useRef<{ lastRoute: string | null }>({ lastRoute: null });
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isHydrated, setIsHydited] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsHydrated(true);
+      setIsHydited(true);
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -315,38 +363,40 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <BaseUrlBootstrap>
-      <TrpcProvider>
-        <AuthProvider>
-          <SchemaProvider>
-            <SubscriptionProvider>
-              <LocalizationProvider>
-                <ThemeProvider>
-                  <OnboardingProvider>
-                    <NotificationsProvider>
-                      <GameProvider>
-                        <JournalsProvider>
-                          <CategoriesProvider>
-                            <GestureHandlerRootView style={{ flex: 1 }}>
-                              <MigrationBanner />
-                              <YouTubeProvider>
-                                <StreamProvider>
-                                  <VideoSDKContextProvider>
-                                    <RootLayoutNav />
-                                  </VideoSDKContextProvider>
-                                </StreamProvider>
-                              </YouTubeProvider>
-                            </GestureHandlerRootView>
-                          </CategoriesProvider>
-                        </JournalsProvider>
-                      </GameProvider>
-                    </NotificationsProvider>
-                  </OnboardingProvider>
-                </ThemeProvider>
-              </LocalizationProvider>
-            </SubscriptionProvider>
-          </SchemaProvider>
-        </AuthProvider>
-      </TrpcProvider>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SchemaProvider>
+              <SubscriptionProvider>
+                <LocalizationProvider>
+                  <ThemeProvider>
+                    <OnboardingProvider>
+                      <NotificationsProvider>
+                        <GameProvider>
+                          <JournalsProvider>
+                            <CategoriesProvider>
+                              <GestureHandlerRootView style={{ flex: 1 }}>
+                                <MigrationBanner />
+                                <YouTubeProvider>
+                                  <StreamProvider>
+                                    <VideoSDKContextProvider>
+                                      <RootLayoutNav />
+                                    </VideoSDKContextProvider>
+                                  </StreamProvider>
+                                </YouTubeProvider>
+                              </GestureHandlerRootView>
+                            </CategoriesProvider>
+                          </JournalsProvider>
+                        </GameProvider>
+                      </NotificationsProvider>
+                    </OnboardingProvider>
+                  </ThemeProvider>
+                </LocalizationProvider>
+              </SubscriptionProvider>
+            </SchemaProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
     </BaseUrlBootstrap>
   );
 }
