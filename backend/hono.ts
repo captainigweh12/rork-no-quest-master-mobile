@@ -76,6 +76,39 @@ app.get("/api/health", (c) => {
   });
 });
 
+app.get("/api/trpc-routes", (c) => {
+  console.log("\n🔍 [ROUTES] tRPC routes diagnostic requested");
+  return c.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    routes: {
+      example: {
+        hi: "query",
+      },
+      agora: {
+        env: "query",
+        token: "query",
+      },
+      videosdk: {
+        getToken: "query",
+        createMeeting: "mutation",
+        validateMeeting: "query",
+        checkConfig: "query",
+      },
+    },
+    endpoints: {
+      health: "/api/health",
+      trpc: "/api/trpc",
+      checkConfig: "/api/trpc/videosdk.checkConfig",
+      getToken: "/api/trpc/videosdk.getToken",
+    },
+    env_check: {
+      videosdk_api_key: !!process.env.VIDEOSDK_API_KEY,
+      videosdk_secret_key: !!process.env.VIDEOSDK_SECRET_KEY,
+    },
+  });
+});
+
 // ---------------- Email Hook handlers (unchanged) ----------------
 
 app.post("/api/auth/hook", async (c) => {
