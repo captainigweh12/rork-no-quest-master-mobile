@@ -16,11 +16,11 @@ function normalizeBase(value: string): string {
   const trimmed = value.trim();
   if (trimmed.startsWith('exp://')) {
     const host = trimmed.replace('exp://', '').replace(/\/$/, '');
-    const isSecure = host.includes('.app') || host.includes('.ngrok-free.app') || host.includes('.ngrok.io') || host.includes('.lhr.life');
+    const isSecure = host.includes('.app') || host.includes('.ngrok-free.app') || host.includes('.ngrok.io') || host.includes('.lhr.life') || host.includes('.onrender.com');
     return `${isSecure ? 'https' : 'http'}://${host}`;
   }
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return stripTrailingSlash(trimmed);
-  const isSecure = trimmed.includes('.app') || trimmed.includes('.ngrok-free.app') || trimmed.includes('.ngrok.io') || trimmed.includes('.lhr.life');
+  const isSecure = trimmed.includes('.app') || trimmed.includes('.ngrok-free.app') || trimmed.includes('.ngrok.io') || trimmed.includes('.lhr.life') || trimmed.includes('.onrender.com');
   return `${isSecure ? 'https' : 'http'}://${stripTrailingSlash(trimmed)}`;
 }
 
