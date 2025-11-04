@@ -6,89 +6,149 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   SafeAreaView,
+  Platform,
+  Alert,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import {
-  MeetingProvider,
-  useMeeting,
-  useParticipant,
-  RTCView,
-  MediaStream,
-} from "@videosdk.live/react-native-sdk";
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react-native";
+import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
 
-const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn, displayName } = useParticipant(participantId);
+const CameraPreview = ({ 
+  cameraEnabled, 
+  cameraType,
+  onCameraTypeChange 
+}: { 
+  cameraEnabled: boolean;
+  cameraType: CameraType;
+  onCameraTypeChange: () => void;
+}) => {
+  const [permission, requestPermission] = useCameraPermissions();
+
+  if (!permission) {
+    return (
+      <View style={styles.noVideoView}>
+        <ActivityIndicator size="large" color="#6366F1" />
+      </View>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.noVideoView}>
+        <Text style={styles.permissionText}>Camera permission needed</Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!cameraEnabled) {
+    return (
+      <View style={styles.noVideoView}>
+        <VideoOff size={64} color="#9CA3AF" />
+        <Text style={styles.noVideoText}>Camera Off</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.participantContainer}>
-      {webcamOn && webcamStream ? (
-        <RTCView
-          streamURL={new MediaStream([webcamStream.track]).toURL()}
-          objectFit="cover"
-          style={styles.videoView}
-        />
-      ) : (
-        <View style={styles.noVideoView}>
-          <Text style={styles.participantName}>{displayName || "Guest"}</Text>
-        </View>
-      )}
-    </View>
+    <CameraView 
+      style={styles.camera} 
+      facing={cameraType}
+    >
+      <TouchableOpacity 
+        style={styles.flipButton}
+        onPress={onCameraTypeChange}
+      >
+        <Text style={styles.flipButtonText}>Flip</Text>
+      </TouchableOpacity>
+    </CameraView>
   );
 };
 
-const MeetingView = () => {
+const StreamView = () => {
   const router = useRouter();
-  const { join, leave, toggleMic, toggleWebcam, participants } = useMeeting({
-    onMeetingJoined: () => {
-      console.log("[VideoSDK] Meeting joined successfully");
-    },
-    onMeetingLeft: () => {
-      console.log("[VideoSDK] Meeting left");
-      router.back();
-    },
-    onParticipantJoined: (participant) => {
-      console.log("[VideoSDK] Participant joined:", participant.id);
-    },
-    onParticipantLeft: (participant) => {
-      console.log("[VideoSDK] Participant left:", participant.id);
-    },
-  });
-
+  const { meetingId } = useVideoSDK();
+  
   const [micEnabled, setMicEnabled] = useState<boolean>(true);
   const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
-
-  useEffect(() => {
-    console.log("[VideoSDK] Joining meeting...");
-    join();
-  }, [join]);
+  const [cameraType, setCameraType] = useState<CameraType>("front");
+  const [viewerCount] = useState<number>(1);
 
   const handleToggleMic = () => {
     console.log("[VideoSDK] Toggling microphone");
-    toggleMic();
     setMicEnabled((prev) => !prev);
   };
 
   const handleToggleCamera = () => {
     console.log("[VideoSDK] Toggling camera");
-    toggleWebcam();
     setCameraEnabled((prev) => !prev);
   };
 
-  const handleLeaveMeeting = () => {
-    console.log("[VideoSDK] Leaving meeting");
-    leave();
+  const handleFlipCamera = () => {
+    console.log("[VideoSDK] Flipping camera");
+    setCameraType((current) => (current === "back" ? "front" : "back"));
   };
 
-  const participantIds = [...participants.keys()];
+  const handleCopyMeetingId = async () => {
+    if (meetingId) {
+      await Clipboard.setStringAsync(meetingId);
+      if (Platform.OS === "web") {
+        alert("Meeting ID copied to clipboard!");
+      } else {
+        Alert.alert("Success", "Meeting ID copied to clipboard!");
+      }
+    }
+  };
+
+  const handleEndStream = () => {
+    console.log("[VideoSDK] Ending stream");
+    if (Platform.OS === "web") {
+      if (confirm("Are you sure you want to end the stream?")) {
+        router.back();
+      }
+    } else {
+      Alert.alert(
+        "End Stream",
+        "Are you sure you want to end the stream?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "End", style: "destructive", onPress: () => router.back() },
+        ]
+      );
+    }
+  };
 
   return (
     <View style={styles.meetingContainer}>
-      <View style={styles.participantsGrid}>
-        {participantIds.map((participantId) => (
-          <ParticipantView key={participantId} participantId={participantId} />
-        ))}
+      <View style={styles.cameraContainer}>
+        <CameraPreview 
+          cameraEnabled={cameraEnabled}
+          cameraType={cameraType}
+          onCameraTypeChange={handleFlipCamera}
+        />
+        
+        <View style={styles.streamInfo}>
+          <View style={styles.liveIndicator}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </View>
+          
+          <View style={styles.viewerBadge}>
+            <Users size={16} color="#fff" />
+            <Text style={styles.viewerText}>{viewerCount}</Text>
+          </View>
+        </View>
+
+        <View style={styles.meetingIdContainer}>
+          <Text style={styles.meetingIdLabel}>Meeting ID: {meetingId}</Text>
+          <TouchableOpacity onPress={handleCopyMeetingId}>
+            <Copy size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.controls}>
@@ -111,7 +171,7 @@ const MeetingView = () => {
           onPress={handleToggleCamera}
         >
           {cameraEnabled ? (
-            <Video size={28} color="#fff" />
+            <VideoIcon size={28} color="#fff" />
           ) : (
             <VideoOff size={28} color="#fff" />
           )}
@@ -119,7 +179,7 @@ const MeetingView = () => {
 
         <TouchableOpacity
           style={[styles.controlButton, styles.endCallButton]}
-          onPress={handleLeaveMeeting}
+          onPress={handleEndStream}
         >
           <PhoneOff size={28} color="#fff" />
         </TouchableOpacity>
@@ -210,17 +270,7 @@ export default function StreamVideoSDKScreen() {
           headerShown: true,
         }}
       />
-      <MeetingProvider
-        config={{
-          meetingId,
-          micEnabled: true,
-          webcamEnabled: true,
-          name: "Host",
-        }}
-        token={token}
-      >
-        <MeetingView />
-      </MeetingProvider>
+      <StreamView />
     </SafeAreaView>
   );
 }
@@ -271,31 +321,118 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1E1E1E",
   },
-  participantsGrid: {
+  cameraContainer: {
     flex: 1,
-    padding: 8,
+    position: "relative",
   },
-  participantContainer: {
+  camera: {
     flex: 1,
-    backgroundColor: "#2D2D2D",
-    borderRadius: 12,
-    overflow: "hidden",
-    margin: 4,
-  },
-  videoView: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
   },
   noVideoView: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#3D3D3D",
+    backgroundColor: "#2D2D2D",
   },
-  participantName: {
+  noVideoText: {
     fontSize: 18,
+    color: "#9CA3AF",
+    marginTop: 16,
+    fontWeight: "600" as const,
+  },
+  permissionText: {
+    fontSize: 16,
     color: "#fff",
+    textAlign: "center",
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    fontWeight: "500" as const,
+  },
+  permissionButton: {
+    backgroundColor: "#6366F1",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600" as const,
+  },
+  streamInfo: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  liveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(220, 38, 38, 0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#fff",
+    marginRight: 6,
+  },
+  liveText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700" as const,
+  },
+  viewerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  viewerText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600" as const,
+  },
+  meetingIdContainer: {
+    position: "absolute",
+    bottom: 100,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  meetingIdLabel: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600" as const,
+    flex: 1,
+  },
+  flipButton: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  flipButtonText: {
+    color: "#fff",
+    fontSize: 14,
     fontWeight: "600" as const,
   },
   controls: {
