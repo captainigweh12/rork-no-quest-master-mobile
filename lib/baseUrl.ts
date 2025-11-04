@@ -1,29 +1,107 @@
-import { Platform } from 'react-native';
+/// <reference lib="es2015" />
+// @ts-ignore: runtime dependency; types may not be present in this analysis environment
+import Constants from 'expo-constants';
+// @ts-ignore: runtime dependency; types may not be present in this analysis environment
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL_OVERRIDE_KEY = 'EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE';
-
 function stripTrailingSlash(url: string): string {
-  return url.endsWith('/') ? url.slice(0, -1) : url;
+  // Avoid depending on newer lib definitions in environments where lib DOM/ES may be missing.
+  if (!url) return url;
+  return url.charAt(url.length - 1) === '/' ? url.slice(0, -1) : url;
 }
 
-function getRenderDefault(): string {
-  const envUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
-  if (envUrl && envUrl.trim().length > 0) return stripTrailingSlash(envUrl.trim());
-  return 'https://rork-no-quest-master-mobile.onrender.com';
+
+function isAndroid(): boolean {
+  // Require react-native at runtime to avoid TypeScript errors in environments
+  // that do not have react-native type declarations available.
+  try {
+    // Attempt to access a runtime require without using the `require` identifier directly
+    // to avoid compilation errors in environments where `require` is not declared.
+    const requireFn = (globalThis as any)['require'] as ((id: string) => any) | undefined;
+    const rn: any = requireFn ? requireFn('react-native') : (globalThis as any).ReactNative;
+    return rn?.Platform?.OS === 'android';
+  } catch {
+    // If react-native isn't available, assume non-Android (e.g. web or node).
+    return false;
+  }
 }
 
-function getEmulatorFallback(): string {
-  if (Platform.OS === 'android') return 'http://10.0.2.2:8081';
+export function getDefaultBaseUrl(): string {
+  // Access process via globalThis to avoid "process is not defined" errors in some environments
+  const explicit = (globalThis as any)?.process?.env?.EXPO_PUBLIC_RORK_API_BASE_URL;
+  if (explicit && explicit.trim().length > 0) {
+    return stripTrailingSlash(explicit);
+  }
+
+  const hostUri = Constants?.expoConfig?.hostUri ?? (Constants as any)?.manifest2?.extra?.expoClient?.hostUri;
+  if (hostUri) {
+    if (hostUri.includes(':')) {
+      return `http://${hostUri}`;
+    } else {
+      return `https://${hostUri}`;
+    }
+  }
+
+  if (isAndroid()) {
+    return 'http://10.0.2.2:8081';
+  }
   return 'http://127.0.0.1:8081';
 }
 
-function computeDefaultBaseUrl(): string {
-  // Prefer explicit Render/base URL
-  const render = getRenderDefault();
-  if (render) return render;
-  // Fallbacks for local dev (kept for completeness)
-  return getEmulatorFallback();
+const OVERRIDE_KEY = 'EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE';
+
+/**
+ * Load any persisted override from AsyncStorage into global state and return it.
+ */
+export async function loadBaseUrlOverride(): Promise<string | undefined> {
+  try {
+    // Guard access to AsyncStorage — in some runtimes the module may be missing or not initialized.
+    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).getItem === 'function';
+    if (hasStorage) {
+      const val = await (AsyncStorage as any).getItem(OVERRIDE_KEY);
+      if (val && val.trim().length > 0) {
+        (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripTrailingSlash(val.trim());
+        return (globalThis as any).__RORK_BASE_URL_OVERRIDE;
+      }
+    } else {
+      // Fall back to any in-memory global override if AsyncStorage isn't available.
+      const g = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
+      if (g && g.trim().length > 0) return stripTrailingSlash(g);
+    }
+  } catch (e) {
+    // ignore and fallthrough
+  }
+  (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+  return undefined;
+}
+
+/**
+ * Persist (or clear) a base URL override. Pass `undefined` to remove the override.
+ */
+export async function setBaseUrlOverride(url?: string | undefined): Promise<void> {
+  try {
+    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).setItem === 'function';
+    if (!url) {
+      if (hasStorage) {
+        await (AsyncStorage as any).removeItem(OVERRIDE_KEY);
+      }
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+      return;
+    }
+    const stripped = stripTrailingSlash(url.trim());
+    if (hasStorage) {
+      await (AsyncStorage as any).setItem(OVERRIDE_KEY, stripped);
+    }
+    (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripped;
+  } catch (e) {
+    // ignore storage errors
+  }
+}
+
+export function getBaseUrl(): string {
+  const override = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
+  if (override && override.trim().length > 0) return override;
+  return getDefaultBaseUrl();
 }
 
 // Globals for cached override + one-time log guard
@@ -34,49 +112,17 @@ declare global {
   var __RORK_BASE_URL_LOGGED: boolean | undefined;
 }
 
-export async function loadBaseUrlOverride(): Promise<string | null> {
+export async function clearBaseUrlOverride(): Promise<void> {
   try {
-    const value = await AsyncStorage.getItem(BASE_URL_OVERRIDE_KEY);
-    if (value && value.trim().length > 0) {
-      globalThis.__RORK_BASE_URL_OVERRIDE = stripTrailingSlash(value.trim());
-      if (!globalThis.__RORK_BASE_URL_LOGGED) {
-        console.log(`📡 Using AsyncStorage override Base URL: ${globalThis.__RORK_BASE_URL_OVERRIDE}`);
-        globalThis.__RORK_BASE_URL_LOGGED = true;
-      }
-      return globalThis.__RORK_BASE_URL_OVERRIDE;
+    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).removeItem === 'function';
+    if (hasStorage) {
+      await (AsyncStorage as any).removeItem(OVERRIDE_KEY);
     }
-    if (!globalThis.__RORK_BASE_URL_LOGGED) {
-      console.log(`🌐 Using default Base URL: ${computeDefaultBaseUrl()}`);
-      globalThis.__RORK_BASE_URL_LOGGED = true;
-    }
-    return null;
+    (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+    console.log(`🌐 Using default Base URL: ${getDefaultBaseUrl()}`);
   } catch (e) {
-    console.error('[baseUrl] Override load failed:', e);
-    if (!globalThis.__RORK_BASE_URL_LOGGED) {
-      console.log(`🌐 Using default Base URL: ${computeDefaultBaseUrl()}`);
-      globalThis.__RORK_BASE_URL_LOGGED = true;
-    }
-    return null;
+    // ignore storage errors
   }
 }
 
-export async function setBaseUrlOverride(url: string): Promise<void> {
-  const clean = stripTrailingSlash(url.trim());
-  await AsyncStorage.setItem(BASE_URL_OVERRIDE_KEY, clean);
-  globalThis.__RORK_BASE_URL_OVERRIDE = clean;
-  console.log(`📡 Using AsyncStorage override Base URL: ${clean}`);
-}
-
-export async function clearBaseUrlOverride(): Promise<void> {
-  await AsyncStorage.removeItem(BASE_URL_OVERRIDE_KEY);
-  globalThis.__RORK_BASE_URL_OVERRIDE = undefined;
-  console.log(`🌐 Using default Base URL: ${computeDefaultBaseUrl()}`);
-}
-
-export function getBaseUrl(): string {
-  const override = globalThis.__RORK_BASE_URL_OVERRIDE;
-  if (override && override.trim().length > 0) return stripTrailingSlash(override);
-  return stripTrailingSlash(computeDefaultBaseUrl());
-}
-
-export { BASE_URL_OVERRIDE_KEY };
+export { OVERRIDE_KEY as BASE_URL_OVERRIDE_KEY };
