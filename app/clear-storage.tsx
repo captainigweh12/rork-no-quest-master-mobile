@@ -4,11 +4,9 @@ import { useState } from 'react';
 import { setBaseUrlOverride, getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrpcClient } from '@/lib/trpc';
-import { useRouter } from 'expo-router';
 
 export default function ClearStorageScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const [currentBase, setCurrentBase] = useState(getBaseUrl());
   const [defaultBase] = useState(getDefaultBaseUrl());
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -35,18 +33,28 @@ export default function ClearStorageScreen() {
   async function handleClearOverride() {
     try {
       console.log('[Clear Storage] Clearing all storage and override...');
-      await setBaseUrlOverride(undefined);
+      
+      await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+      
       await AsyncStorage.clear();
+      
+      await setBaseUrlOverride(undefined);
+      
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+      
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log('[Clear Storage] Remaining keys after clear:', allKeys);
+      
       const newUrl = getBaseUrl();
       setCurrentBase(newUrl);
       setTestResult(null);
       console.log('[Clear Storage] Cleared! New base URL:', newUrl);
+      
       Alert.alert(
         'Success', 
-        `Cleared all storage!\n\nNew URL: ${newUrl}\n\nPlease close and restart the app completely.`,
+        `Cleared all storage!\n\nOld URL removed\nNew URL: ${newUrl}\n\n✅ Please fully CLOSE and RESTART the app now!`,
         [
-          { text: 'OK', onPress: () => router.replace('/(tabs)/(home)') }
+          { text: 'OK' }
         ]
       );
     } catch (error) {
