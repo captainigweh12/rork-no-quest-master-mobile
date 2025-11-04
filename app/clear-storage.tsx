@@ -1,9 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { setBaseUrlOverride, getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrpcClient } from '@/lib/trpc';
+
+const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
 
 export default function ClearStorageScreen() {
   const insets = useSafeAreaInsets();
@@ -11,44 +13,46 @@ export default function ClearStorageScreen() {
   const [defaultBase] = useState(getDefaultBaseUrl());
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
-  const [autoCleared, setAutoCleared] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  useEffect(() => {
-    async function autoClear() {
-      if (autoCleared) return;
-      
-      try {
-        console.log('[Clear Storage] Auto-clearing on mount...');
-        
-        const allKeys = await AsyncStorage.getAllKeys();
-        console.log('[Clear Storage] All AsyncStorage keys:', allKeys);
-        
-        await AsyncStorage.clear();
-        console.log('[Clear Storage] AsyncStorage cleared');
-        
-        (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
-        console.log('[Clear Storage] Global override cleared');
-        
-        const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
-        await setBaseUrlOverride(renderUrl);
-        (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
-        
-        const verifyStored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-        console.log('[Clear Storage] Stored URL after set:', verifyStored);
-        
-        const newUrl = getBaseUrl();
-        console.log('[Clear Storage] New base URL:', newUrl);
-        setCurrentBase(newUrl);
-        setAutoCleared(true);
-        setTestResult(`✅ Auto-cleared! Using: ${newUrl}`);
-      } catch (error) {
-        console.error('[Clear Storage] Auto-clear failed:', error);
-        setTestResult(`❌ Auto-clear failed: ${error}`);
-      }
-    }
+  const handleClearAndReset = useCallback(async () => {
+    setIsClearing(true);
+    setTestResult(null);
     
-    autoClear();
-  }, [autoCleared]);
+    try {
+      console.log('[Clear Storage] Step 1: Clearing all AsyncStorage...');
+      await AsyncStorage.clear();
+      
+      console.log('[Clear Storage] Step 2: Removing all global overrides...');
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+      if (typeof (globalThis as any).memoryOverride !== 'undefined') {
+        (globalThis as any).memoryOverride = undefined;
+      }
+      
+      console.log('[Clear Storage] Step 3: Setting new Render URL:', RENDER_URL);
+      await setBaseUrlOverride(RENDER_URL);
+      
+      console.log('[Clear Storage] Step 4: Forcing memory sync...');
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = RENDER_URL;
+      
+      console.log('[Clear Storage] Step 5: Verifying...');
+      const stored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+      console.log('[Clear Storage] Stored in AsyncStorage:', stored);
+      
+      const newUrl = getBaseUrl();
+      console.log('[Clear Storage] getBaseUrl() returns:', newUrl);
+      setCurrentBase(newUrl);
+      
+      setTestResult(`✅ Storage cleared!\n\nNew URL: ${RENDER_URL}\n\nPlease close and restart the app completely for changes to take full effect.`);
+      
+    } catch (error) {
+      console.error('[Clear Storage] Failed:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      setTestResult(`❌ Failed: ${message}`);
+    } finally {
+      setIsClearing(false);
+    }
+  }, []);
 
   async function handleTestConnection() {
     setIsTesting(true);
@@ -68,44 +72,7 @@ export default function ClearStorageScreen() {
     }
   }
 
-  async function handleClearOverride() {
-    try {
-      console.log('[Clear Storage] Step 1: Clearing AsyncStorage...');
-      await AsyncStorage.clear();
-      
-      console.log('[Clear Storage] Step 2: Clearing global overrides...');
-      (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
-      
-      console.log('[Clear Storage] Step 3: Setting Render URL...');
-      const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
-      await setBaseUrlOverride(renderUrl);
-      
-      console.log('[Clear Storage] Step 4: Forcing memory update...');
-      (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
-      
-      console.log('[Clear Storage] Step 5: Verifying new URL...');
-      const newUrl = getBaseUrl();
-      console.log('[Clear Storage] Current base URL:', newUrl);
-      
-      const verifyStored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-      console.log('[Clear Storage] Stored URL in AsyncStorage:', verifyStored);
-      
-      setCurrentBase(newUrl);
-      setTestResult(null);
-      
-      Alert.alert(
-        '✅ Storage Cleared Successfully', 
-        `All old URLs removed!\n\nNew URL: ${renderUrl}\n\n⚠️ IMPORTANT: Close the app completely (swipe away from recent apps) and restart it for changes to take full effect.`,
-        [
-          { text: 'Got It' }
-        ]
-      );
-    } catch (error) {
-      console.error('[Clear Storage] Clear failed:', error);
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      Alert.alert('Error Clearing Storage', errorMsg);
-    }
-  }
+
 
   return (
     <ScrollView 
@@ -123,6 +90,19 @@ export default function ClearStorageScreen() {
         <Text style={styles.label}>Default (from .env):</Text>
         <Text style={styles.value}>{defaultBase}</Text>
       </View>
+
+      <TouchableOpacity 
+        testID="clear-and-set-button"
+        style={[styles.button, styles.primaryButton]} 
+        onPress={handleClearAndReset}
+        disabled={isClearing}
+      >
+        {isClearing ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>🧹 Clear Cache & Set Render URL</Text>
+        )}
+      </TouchableOpacity>
 
       <TouchableOpacity 
         testID="test-connection-button"
@@ -145,36 +125,22 @@ export default function ClearStorageScreen() {
 
       <View style={styles.divider} />
 
-      <Text style={styles.warningTitle}>⚠️ Clear Storage</Text>
-      <Text style={styles.warningText}>
-        This will remove ALL cached data including any old API URLs. Only use this if you&apos;re experiencing connection issues.
+      <Text style={styles.infoTitle}>ℹ️ Instructions</Text>
+      <Text style={styles.infoText}>
+        1. Tap {`"`}Clear Cache & Set Render URL{`"`} above{"\n"}
+        2. Wait for confirmation{"\n"}
+        3. Close the app completely (swipe away from recent apps){"\n"}
+        4. Restart the app{"\n"}
+        5. Use {`"`}Test Connection{`"`} to verify
       </Text>
 
-      <TouchableOpacity testID="clear-storage-button" style={[styles.button, styles.dangerButton]} onPress={handleClearOverride}>
-        <Text style={styles.buttonText}>Clear All Storage & Override</Text>
-      </TouchableOpacity>
+      <View style={styles.divider} />
 
-      <TouchableOpacity
-        testID="set-render-override-button"
-        style={[styles.button, styles.setRenderButton]}
-        onPress={async () => {
-          try {
-            const url = 'https://rork-no-quest-master-mobile.onrender.com';
-            console.log('[Clear Storage] Setting Render URL override:', url);
-            await setBaseUrlOverride(url);
-            (globalThis as any).__RORK_BASE_URL_OVERRIDE = url;
-            const newUrl = getBaseUrl();
-            setCurrentBase(newUrl);
-            console.log('[Clear Storage] Override set! Current URL:', newUrl);
-            Alert.alert('Override Set', `Base URL set to:\n${url}\n\nPlease restart the app completely.`);
-          } catch (e) {
-            console.error('[Clear Storage] Set override failed:', e);
-            Alert.alert('Error', String(e));
-          }
-        }}
-      >
-        <Text style={styles.buttonText}>Use Render URL (Override)</Text>
-      </TouchableOpacity>
+      <Text style={styles.debugTitle}>🔍 Debug Info</Text>
+      <Text style={styles.debugText}>
+        Target URL: {RENDER_URL}{"\n"}
+        The app should connect to this Render backend after clearing.
+      </Text>
     </ScrollView>
   );
 }
@@ -214,6 +180,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+  primaryButton: {
+    backgroundColor: '#28a745',
+  },
   testButton: {
     backgroundColor: '#007AFF',
   },
@@ -248,16 +217,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
     marginVertical: 30,
   },
-  warningTitle: {
+  infoTitle: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 10,
-    color: '#856404',
+    color: '#004085',
   },
-  warningText: {
+  infoText: {
     fontSize: 14,
-    color: '#856404',
+    color: '#004085',
     marginBottom: 10,
-    lineHeight: 20,
+    lineHeight: 22,
+    backgroundColor: '#cce5ff',
+    padding: 15,
+    borderRadius: 8,
+    borderColor: '#b8daff',
+    borderWidth: 1,
+  },
+  debugTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 10,
+    color: '#383d41',
+  },
+  debugText: {
+    fontSize: 13,
+    color: '#383d41',
+    fontFamily: 'monospace',
+    backgroundColor: '#e2e3e5',
+    padding: 15,
+    borderRadius: 8,
+    borderColor: '#d6d8db',
+    borderWidth: 1,
   },
 });
