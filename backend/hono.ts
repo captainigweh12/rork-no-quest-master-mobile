@@ -9,10 +9,26 @@ import { Resend } from "resend";
 
 const app = new Hono();
 
+// CORS: Allow your app domain and development URLs
+const allowedOrigins = [
+  "https://rejectionhero.com",
+  "https://www.rejectionhero.com",
+  "https://dev-c23bcbuqrsjmkdoaxiu6y.rorktest.dev",
+  "http://localhost:8081",
+  "exp://127.0.0.1:8081",
+  "exp://10.0.2.2:8081",
+];
+
 app.use(
   "*",
   cors({
-    origin: "*",
+    origin: (origin) => {
+      // Allow all in development
+      if (process.env.NODE_ENV === "development") return origin || "*";
+      // In production, check allowed list
+      if (!origin || allowedOrigins.includes(origin)) return origin || "*";
+      return ""; // Reject
+    },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: [
       "Content-Type",
