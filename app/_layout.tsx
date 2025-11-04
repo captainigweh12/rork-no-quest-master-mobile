@@ -1,5 +1,4 @@
 // template
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState, useRef } from "react";
@@ -8,7 +7,6 @@ import { LogBox, Pressable, View, Text } from "react-native";
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { trpc, createTrpcClient } from "@/lib/trpc";
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
@@ -21,6 +19,7 @@ import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import { ChevronLeft } from 'lucide-react-native';
+import TrpcProvider from "@/providers/TrpcProvider";
 
 // NEW: ensure base URL override loads before first network call
 import { loadBaseUrlOverride, getBaseUrl, setBaseUrlOverride } from "@/lib/baseUrl";
@@ -308,52 +307,40 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        refetchOnWindowFocus: false,
-      },
-    },
-  }));
-
-  const [client] = useState(() => createTrpcClient());
-
   return (
     <BaseUrlBootstrap>
-      <trpc.Provider client={client} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <SchemaProvider>
-              <SubscriptionProvider>
-                <LocalizationProvider>
-                  <ThemeProvider>
-                    <OnboardingProvider>
-                      <NotificationsProvider>
-                        <GameProvider>
-                          <JournalsProvider>
-                            <CategoriesProvider>
-                              <GestureHandlerRootView style={{ flex: 1 }}>
-                                <MigrationBanner />
-                                <YouTubeProvider>
-                                  <StreamProvider>
-                                    <VideoSDKContextProvider>
-                                      <RootLayoutNav />
-                                    </VideoSDKContextProvider>
-                                  </StreamProvider>
-                                </YouTubeProvider>
-                              </GestureHandlerRootView>
-                            </CategoriesProvider>
-                          </JournalsProvider>
-                        </GameProvider>
-                      </NotificationsProvider>
-                    </OnboardingProvider>
-                  </ThemeProvider>
-                </LocalizationProvider>
-              </SubscriptionProvider>
-            </SchemaProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </trpc.Provider>
+      <TrpcProvider>
+        <AuthProvider>
+          <SchemaProvider>
+            <SubscriptionProvider>
+              <LocalizationProvider>
+                <ThemeProvider>
+                  <OnboardingProvider>
+                    <NotificationsProvider>
+                      <GameProvider>
+                        <JournalsProvider>
+                          <CategoriesProvider>
+                            <GestureHandlerRootView style={{ flex: 1 }}>
+                              <MigrationBanner />
+                              <YouTubeProvider>
+                                <StreamProvider>
+                                  <VideoSDKContextProvider>
+                                    <RootLayoutNav />
+                                  </VideoSDKContextProvider>
+                                </StreamProvider>
+                              </YouTubeProvider>
+                            </GestureHandlerRootView>
+                          </CategoriesProvider>
+                        </JournalsProvider>
+                      </GameProvider>
+                    </NotificationsProvider>
+                  </OnboardingProvider>
+                </ThemeProvider>
+              </LocalizationProvider>
+            </SubscriptionProvider>
+          </SchemaProvider>
+        </AuthProvider>
+      </TrpcProvider>
     </BaseUrlBootstrap>
   );
 }
