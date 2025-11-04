@@ -27,17 +27,20 @@ export const [VideoSDKContextProvider, useVideoSDK] =
           const result = await trpcClient.videosdk.getToken.query();
           console.log("[VideoSDK Context] Token fetched successfully:", result);
           return result;
-        } catch (error) {
-          console.error("[VideoSDK Context] Token fetch error:", error);
-          if (error instanceof Error) {
-            console.error("[VideoSDK Context] Error message:", error.message);
-            console.error("[VideoSDK Context] Error stack:", error.stack);
-          }
-          throw error;
+        } catch (err) {
+          console.error("[VideoSDK Context] Token fetch error:", err);
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[VideoSDK Context] Error message:", message);
+          setError(
+            message.includes("404")
+              ? "API route not found (404). Check Base URL and that /api/trpc/videosdk.getToken exists."
+              : "Failed to fetch authentication token"
+          );
+          throw err;
         }
       },
       staleTime: 1000 * 60 * 60,
-      retry: 1,
+      retry: 0,
     });
 
     const createMeetingMutation = useMutation({
@@ -54,8 +57,11 @@ export const [VideoSDKContextProvider, useVideoSDK] =
       },
       onError: (err) => {
         console.error("[VideoSDK Context] Error creating meeting:", err);
+        const message = err instanceof Error ? err.message : String(err);
         setError(
-          err instanceof Error ? err.message : "Failed to create meeting"
+          message.includes("404")
+            ? "Create meeting route not found (404). Verify backend Videosdk router and tRPC base URL."
+            : message || "Failed to create meeting"
         );
       },
     });
@@ -86,11 +92,7 @@ export const [VideoSDKContextProvider, useVideoSDK] =
 
     useEffect(() => {
       if (tokenQuery.error) {
-        console.error(
-          "[VideoSDK Context] Token query error:",
-          tokenQuery.error
-        );
-        setError("Failed to fetch authentication token");
+        console.error("[VideoSDK Context] Token query error:", tokenQuery.error);
       }
     }, [tokenQuery.error]);
 
