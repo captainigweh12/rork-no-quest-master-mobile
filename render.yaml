@@ -5,9 +5,27 @@ services:
     region: oregon
     plan: free
     buildCommand: bun install
-    startCommand: bun run backend/server.ts
+    startCommand: bun backend/server.ts
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: VIDEOSDK_API_KEY
+        sync: false
+      - key: VIDEOSDK_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SUPABASE_WEBHOOK_SECRET
+        sync: false
+      - key: AGORA_APP_ID
+        sync: false
+      - key: AGORA_APP_CERTIFICATE
+        sync: false
+      - key: AGORA_CUSTOMER_ID
+        sync: false
+      - key: AGORA_CUSTOMER_SECRET
+        sync: false
+      - key: MINT_RTC_TOKEN_SECRET
+        sync: false
