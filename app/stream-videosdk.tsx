@@ -114,9 +114,10 @@ const CameraPreview = ({
 
 const DiagnosticsBanner = React.memo(function DiagnosticsBanner() {
   const { data, error, isLoading, refetch, isRefetching } = trpc.videosdk.checkConfig.useQuery(undefined, { staleTime: 1000 * 30 });
+  const tokenProbe = trpc.videosdk.getToken.useQuery(undefined, { staleTime: 0, retry: 0 });
   const base = useMemo(() => `${getBaseUrl()}/api/trpc`, []);
 
-  const ok = !!data?.configured && !error;
+  const ok = !!data?.configured && !error && !tokenProbe.error;
   return (
     <View style={[styles.diagContainer, ok ? styles.diagOk : styles.diagFail]} testID="videosdk-diag-banner">
       <View style={styles.diagRow}>
@@ -124,14 +125,14 @@ const DiagnosticsBanner = React.memo(function DiagnosticsBanner() {
         <Text style={[styles.diagText, ok ? styles.diagTextOk : styles.diagTextFail]} testID="videosdk-diag-status">
           {isLoading || isRefetching ? "Checking tRPC..." : ok ? "tRPC OK" : "tRPC Fail"}
         </Text>
-        <TouchableOpacity onPress={() => refetch()} style={styles.diagRefresh} testID="videosdk-diag-refresh">
+        <TouchableOpacity onPress={() => { refetch(); tokenProbe.refetch(); }} style={styles.diagRefresh} testID="videosdk-diag-refresh">
           <Text style={styles.diagRefreshText}>Retry</Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.diagSub} numberOfLines={1} testID="videosdk-diag-base-url">{base}</Text>
       {!isLoading && (
         <Text style={styles.diagSub} testID="videosdk-diag-detail">
-          {error ? String((error as any)?.message ?? error) : `API Key: ${data?.apiKeyPresent ? 'present' : 'missing'} • Secret: ${data?.secretKeyPresent ? 'present' : 'missing'}`}
+          {error ? String((error as any)?.message ?? error) : `API Key: ${data?.apiKeyPresent ? 'present' : 'missing'} • Secret: ${data?.secretKeyPresent ? 'present' : 'missing'} • token: ${tokenProbe.data?.token ? 'ok' : tokenProbe.error ? 'fail' : 'checking'}`}
         </Text>
       )}
     </View>
