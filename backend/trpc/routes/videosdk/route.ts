@@ -65,7 +65,7 @@ async function validateVideoSDKMeeting(token: string, meetingId: string): Promis
 }
 
 // === tRPC Router ===
-export default createTRPCRouter({
+const videosdkRouter = createTRPCRouter({
   // Generate a VideoSDK token
   getToken: publicProcedure.query(async () => {
     try {
@@ -121,3 +121,5 @@ export default createTRPCRouter({
     };
   }),
 });
+
+export default videosdkRouter;
