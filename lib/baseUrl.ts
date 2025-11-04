@@ -4,39 +4,47 @@ import Constants from 'expo-constants';
 
 const STORAGE_KEY = 'EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE';
 
+function stripTrailingSlash(url: string): string {
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+}
+
+function isAndroid(): boolean {
+  return Platform.OS === 'android';
+}
+
 function normalizeBase(value: string): string {
   const trimmed = value.trim();
   if (trimmed.startsWith('exp://')) {
     const host = trimmed.replace('exp://', '').replace(/\/$/, '');
-    const isSecure = host.includes('.app') || host.includes('.ngrok-free.app') || host.includes('.ngrok.io');
+    const isSecure = host.includes('.app') || host.includes('.ngrok-free.app') || host.includes('.ngrok.io') || host.includes('.lhr.life');
     return `${isSecure ? 'https' : 'http'}://${host}`;
   }
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed.replace(/\/$/, '');
-  const isSecure = trimmed.includes('.app') || trimmed.includes('.ngrok-free.app') || trimmed.includes('.ngrok.io');
-  return `${isSecure ? 'https' : 'http'}://${trimmed.replace(/\/$/, '')}`;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return stripTrailingSlash(trimmed);
+  const isSecure = trimmed.includes('.app') || trimmed.includes('.ngrok-free.app') || trimmed.includes('.ngrok.io') || trimmed.includes('.lhr.life');
+  return `${isSecure ? 'https' : 'http'}://${stripTrailingSlash(trimmed)}`;
 }
 
 let memoryOverride: string | undefined;
 
 export function getDefaultBaseUrl(): string {
-  const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
-  if (envBase && envBase.trim().length > 0) return normalizeBase(envBase);
+  const explicit = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+  if (explicit && explicit.trim().length > 0) {
+    return stripTrailingSlash(explicit);
+  }
 
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && (window as any).location?.origin) {
-      return (window as any).location.origin as string;
+  const hostUri = Constants?.expoConfig?.hostUri ?? (Constants as any)?.manifest2?.extra?.expoClient?.hostUri;
+  if (hostUri) {
+    if (hostUri.includes(':')) {
+      return `http://${hostUri}`;
+    } else {
+      return `https://${hostUri}`;
     }
   }
 
-  const hostUri = (Constants as any)?.expoConfig?.hostUri as string | undefined;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    const isSecure = host.includes('.app') || host.includes('.ngrok-free.app') || host.includes('.ngrok.io');
-    return `${isSecure ? 'https' : 'http'}://${host}`;
+  if (isAndroid()) {
+    return 'http://10.0.2.2:8081';
   }
-
-  console.warn('[baseUrl] Missing EXPO_PUBLIC_RORK_API_BASE_URL and cannot infer host. Defaulting to http://localhost:8081');
-  return 'http://localhost:8081';
+  return 'http://127.0.0.1:8081';
 }
 
 export function getBaseUrl(): string {
