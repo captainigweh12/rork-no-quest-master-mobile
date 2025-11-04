@@ -31,35 +31,19 @@ export default function ClearStorageScreen() {
   const handleClearAndReset = useCallback(async () => {
     setIsClearing(true);
     setTestResult(null);
-    
     try {
-      console.log('[Clear Storage] Step 1: Clearing all AsyncStorage...');
-      await AsyncStorage.clear();
-      
-      console.log('[Clear Storage] Step 2: Removing all global overrides...');
+      console.log('[Clear Storage] Removing override key EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE ...');
+      await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
       if (typeof (globalThis as any).memoryOverride !== 'undefined') {
         (globalThis as any).memoryOverride = undefined;
       }
-      
-      console.log('[Clear Storage] Step 3: Clearing - no override needed, will use .env');
-      
-      console.log('[Clear Storage] Step 4: Verifying...');
       const stored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-      console.log('[Clear Storage] Stored in AsyncStorage:', stored);
-      
+      console.log('[Clear Storage] Verify override now:', stored);
       const newUrl = getDefaultBaseUrl();
-      console.log('[Clear Storage] getDefaultBaseUrl() returns:', newUrl);
       setCurrentBase(newUrl);
-      
-      setTestResult(`✅ Storage cleared!\n\nWill use .env URL: ${newUrl}\n\nPlease close and restart the app manually to apply changes.`);
-      
-      Alert.alert(
-        'Success!',
-        'Cache cleared successfully! Please close the app completely (swipe from recent apps) and restart it.',
-        [{ text: 'OK' }]
-      );
-      
+      setTestResult(`✅ Override removed. Using Base URL from .env: ${newUrl}`);
+      Alert.alert('Success', 'Override removed. App will use the Render Base URL from .env. Please restart the app.', [{ text: 'OK' }]);
     } catch (error) {
       console.error('[Clear Storage] Failed:', error);
       const message = error instanceof Error ? error.message : String(error);
@@ -115,7 +99,7 @@ export default function ClearStorageScreen() {
         {isClearing ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>🧹 Clear Cache & Set Render URL</Text>
+          <Text style={styles.buttonText}>🧹 Remove Override Key</Text>
         )}
       </TouchableOpacity>
 
@@ -150,7 +134,7 @@ export default function ClearStorageScreen() {
 
       <Text style={styles.infoTitle}>ℹ️ Instructions</Text>
       <Text style={styles.infoText}>
-        1. Tap {`"`}Clear Cache & Set Render URL{`"`} above{"\n"}
+        1. Tap {`"`}Remove Override Key{`"`} above{"\n"}
         2. Wait for confirmation{"\n"}
         3. Close the app completely (swipe away from recent apps){"\n"}
         4. Restart the app{"\n"}
@@ -162,7 +146,7 @@ export default function ClearStorageScreen() {
       <Text style={styles.debugTitle}>🔍 Debug Info</Text>
       <Text style={styles.debugText}>
         Target URL: {RENDER_URL}{"\n"}
-        The app should connect to this Render backend after clearing.
+        The app uses EXPO_PUBLIC_RORK_API_BASE_URL from .env. Override key is removed.
       </Text>
     </ScrollView>
   );
