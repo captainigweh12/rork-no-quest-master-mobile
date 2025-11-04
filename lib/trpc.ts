@@ -6,23 +6,21 @@ import { getBaseUrl } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-// Singleton promise so we only create the client once
-let clientPromise:
-  | Promise<ReturnType<typeof trpc.createClient>>
-  | null = null;
+// Singleton client so we only create once
+let client: ReturnType<typeof trpc.createClient> | null = null;
 
-async function createTrpcClient() {
-  const baseUrl = await getBaseUrl();
+function createTrpcClient() {
+  const baseUrl = getBaseUrl();
   const TRPC_URL = `${baseUrl}/api/trpc`;
 
   console.log("[tRPC] Base URL:", baseUrl);
   console.log("[tRPC] Endpoint:", TRPC_URL);
 
   return trpc.createClient({
-    transformer: superjson,
     links: [
       httpBatchLink({
         url: TRPC_URL,
+        transformer: superjson,
         // NOTE: we keep a custom fetch for extra logging + header
         fetch: async (url, options) => {
           console.log("[tRPC] →", String(url), options?.method || "GET");
@@ -55,6 +53,6 @@ async function createTrpcClient() {
  * Get a singleton tRPC client. Use this in your Provider setup.
  */
 export function getTrpcClient() {
-  if (!clientPromise) clientPromise = createTrpcClient();
-  return clientPromise;
+  if (!client) client = createTrpcClient();
+  return Promise.resolve(client);
 }
