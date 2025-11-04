@@ -11,9 +11,78 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
+
+const WebCameraPreview = () => {
+  return (
+    <View style={styles.noVideoView}>
+      <VideoOff size={64} color="#9CA3AF" />
+      <Text style={styles.noVideoText}>Camera not available on web</Text>
+      <Text style={[styles.noVideoText, { fontSize: 14, marginTop: 8 }]}>
+        Use mobile device for camera
+      </Text>
+    </View>
+  );
+};
+
+const NativeCameraPreview = Platform.OS === 'web' ? null : (() => {
+  const { CameraView, useCameraPermissions } = require('expo-camera');
+  
+  return ({ 
+    cameraEnabled, 
+    cameraType,
+    onCameraTypeChange 
+  }: { 
+    cameraEnabled: boolean;
+    cameraType: string;
+    onCameraTypeChange: () => void;
+  }) => {
+    const [permission, requestPermission] = useCameraPermissions();
+
+    if (!permission) {
+      return (
+        <View style={styles.noVideoView}>
+          <ActivityIndicator size="large" color="#6366F1" />
+        </View>
+      );
+    }
+
+    if (!permission.granted) {
+      return (
+        <View style={styles.noVideoView}>
+          <Text style={styles.permissionText}>Camera permission needed</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (!cameraEnabled) {
+      return (
+        <View style={styles.noVideoView}>
+          <VideoOff size={64} color="#9CA3AF" />
+          <Text style={styles.noVideoText}>Camera Off</Text>
+        </View>
+      );
+    }
+
+    return (
+      <CameraView 
+        style={styles.camera} 
+        facing={cameraType}
+      >
+        <TouchableOpacity 
+          style={styles.flipButton}
+          onPress={onCameraTypeChange}
+        >
+          <Text style={styles.flipButtonText}>Flip</Text>
+        </TouchableOpacity>
+      </CameraView>
+    );
+  };
+})();
 
 const CameraPreview = ({ 
   cameraEnabled, 
@@ -21,51 +90,23 @@ const CameraPreview = ({
   onCameraTypeChange 
 }: { 
   cameraEnabled: boolean;
-  cameraType: CameraType;
+  cameraType: string;
   onCameraTypeChange: () => void;
 }) => {
-  const [permission, requestPermission] = useCameraPermissions();
-
-  if (!permission) {
-    return (
-      <View style={styles.noVideoView}>
-        <ActivityIndicator size="large" color="#6366F1" />
-      </View>
-    );
+  if (Platform.OS === 'web') {
+    return <WebCameraPreview />;
   }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.noVideoView}>
-        <Text style={styles.permissionText}>Camera permission needed</Text>
-        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
+  
+  if (!NativeCameraPreview) {
+    return <WebCameraPreview />;
   }
-
-  if (!cameraEnabled) {
-    return (
-      <View style={styles.noVideoView}>
-        <VideoOff size={64} color="#9CA3AF" />
-        <Text style={styles.noVideoText}>Camera Off</Text>
-      </View>
-    );
-  }
-
+  
   return (
-    <CameraView 
-      style={styles.camera} 
-      facing={cameraType}
-    >
-      <TouchableOpacity 
-        style={styles.flipButton}
-        onPress={onCameraTypeChange}
-      >
-        <Text style={styles.flipButtonText}>Flip</Text>
-      </TouchableOpacity>
-    </CameraView>
+    <NativeCameraPreview 
+      cameraEnabled={cameraEnabled}
+      cameraType={cameraType}
+      onCameraTypeChange={onCameraTypeChange}
+    />
   );
 };
 
@@ -75,7 +116,7 @@ const StreamView = () => {
   
   const [micEnabled, setMicEnabled] = useState<boolean>(true);
   const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
-  const [cameraType, setCameraType] = useState<CameraType>("front");
+  const [cameraType, setCameraType] = useState<string>("front");
   const [viewerCount] = useState<number>(1);
 
   const handleToggleMic = () => {
