@@ -15,6 +15,19 @@ export default function ClearStorageScreen() {
   const [isTesting, setIsTesting] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
+  const handleViewStorage = useCallback(async () => {
+    try {
+      const override = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log('[AsyncStorage] All keys:', allKeys);
+      console.log('[AsyncStorage] Override value:', override);
+      setTestResult(`📦 AsyncStorage Contents:\n\nOverride: ${override || 'none'}\n\nAll keys: ${allKeys.join(', ')}`);
+    } catch (error) {
+      console.error('[AsyncStorage] View failed:', error);
+      setTestResult(`❌ Failed to view: ${error}`);
+    }
+  }, []);
+
   const handleClearAndReset = useCallback(async () => {
     setIsClearing(true);
     setTestResult(null);
@@ -117,6 +130,14 @@ export default function ClearStorageScreen() {
         )}
       </TouchableOpacity>
 
+      <TouchableOpacity 
+        testID="view-storage-button"
+        style={[styles.button, styles.infoButton]} 
+        onPress={handleViewStorage}
+      >
+        <Text style={styles.buttonText}>📦 View AsyncStorage</Text>
+      </TouchableOpacity>
+
       {testResult && (
         <View testID="test-result" style={[styles.section, testResult.includes('✅') ? styles.success : styles.error]}>
           <Text style={styles.resultText}>{testResult}</Text>
@@ -191,6 +212,9 @@ const styles = StyleSheet.create({
   },
   setRenderButton: {
     backgroundColor: '#28a745',
+  },
+  infoButton: {
+    backgroundColor: '#6c757d',
   },
   buttonText: {
     color: '#fff',
