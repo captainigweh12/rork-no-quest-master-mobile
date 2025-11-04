@@ -40,8 +40,8 @@ export const [VideoSDKContextProvider, useVideoSDK] =
         }
       },
       staleTime: 1000 * 60 * 60,
-      retry: 0,
-      enabled: false,
+      retry: 2,
+      enabled: true,
     });
 
     const createMeetingMutation = useMutation({
@@ -70,14 +70,13 @@ export const [VideoSDKContextProvider, useVideoSDK] =
     const createNewMeeting = useCallback(async () => {
       console.log("[VideoSDK Context] createNewMeeting called");
       if (!tokenQuery.data?.token) {
-        console.log("[VideoSDK Context] No token available, fetching...");
-        await tokenQuery.refetch();
+        console.log("[VideoSDK Context] No token available yet, waiting for query...");
         return;
       }
 
-      console.log("[VideoSDK Context] Creating meeting...");
+      console.log("[VideoSDK Context] Creating meeting with token...");
       await createMeetingMutation.mutateAsync(tokenQuery.data.token);
-    }, [tokenQuery.data?.token, tokenQuery.refetch, createMeetingMutation.mutateAsync]);
+    }, [tokenQuery.data?.token, createMeetingMutation.mutateAsync]);
 
     const setMeetingId = useCallback((id: string) => {
       console.log("[VideoSDK Context] Setting meeting ID manually:", id);

@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { setBaseUrlOverride, getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrpcClient } from '@/lib/trpc';
@@ -11,6 +11,44 @@ export default function ClearStorageScreen() {
   const [defaultBase] = useState(getDefaultBaseUrl());
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [autoCleared, setAutoCleared] = useState(false);
+
+  useEffect(() => {
+    async function autoClear() {
+      if (autoCleared) return;
+      
+      try {
+        console.log('[Clear Storage] Auto-clearing on mount...');
+        
+        const allKeys = await AsyncStorage.getAllKeys();
+        console.log('[Clear Storage] All AsyncStorage keys:', allKeys);
+        
+        await AsyncStorage.clear();
+        console.log('[Clear Storage] AsyncStorage cleared');
+        
+        (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+        console.log('[Clear Storage] Global override cleared');
+        
+        const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
+        await setBaseUrlOverride(renderUrl);
+        (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
+        
+        const verifyStored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+        console.log('[Clear Storage] Stored URL after set:', verifyStored);
+        
+        const newUrl = getBaseUrl();
+        console.log('[Clear Storage] New base URL:', newUrl);
+        setCurrentBase(newUrl);
+        setAutoCleared(true);
+        setTestResult(`✅ Auto-cleared! Using: ${newUrl}`);
+      } catch (error) {
+        console.error('[Clear Storage] Auto-clear failed:', error);
+        setTestResult(`❌ Auto-clear failed: ${error}`);
+      }
+    }
+    
+    autoClear();
+  }, [autoCleared]);
 
   async function handleTestConnection() {
     setIsTesting(true);
