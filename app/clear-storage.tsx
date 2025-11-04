@@ -32,39 +32,40 @@ export default function ClearStorageScreen() {
 
   async function handleClearOverride() {
     try {
-      console.log('[Clear Storage] Clearing all storage and override...');
-      
-      await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-      
+      console.log('[Clear Storage] Step 1: Clearing AsyncStorage...');
       await AsyncStorage.clear();
       
-      await setBaseUrlOverride(undefined);
-      
+      console.log('[Clear Storage] Step 2: Clearing global overrides...');
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
       
-      const allKeys = await AsyncStorage.getAllKeys();
-      console.log('[Clear Storage] Remaining keys after clear:', allKeys);
-      
+      console.log('[Clear Storage] Step 3: Setting Render URL...');
       const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
-      console.log('[Clear Storage] Setting Render URL as new base:', renderUrl);
       await setBaseUrlOverride(renderUrl);
+      
+      console.log('[Clear Storage] Step 4: Forcing memory update...');
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
       
+      console.log('[Clear Storage] Step 5: Verifying new URL...');
       const newUrl = getBaseUrl();
+      console.log('[Clear Storage] Current base URL:', newUrl);
+      
+      const verifyStored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+      console.log('[Clear Storage] Stored URL in AsyncStorage:', verifyStored);
+      
       setCurrentBase(newUrl);
       setTestResult(null);
-      console.log('[Clear Storage] Cleared! New base URL:', newUrl);
       
       Alert.alert(
-        'Success', 
-        `Cleared all storage!\n\nOld URL removed\nNew URL: ${renderUrl}\n\n✅ Please fully CLOSE and RESTART the app now!`,
+        '✅ Storage Cleared Successfully', 
+        `All old URLs removed!\n\nNew URL: ${renderUrl}\n\n⚠️ IMPORTANT: Close the app completely (swipe away from recent apps) and restart it for changes to take full effect.`,
         [
-          { text: 'OK' }
+          { text: 'Got It' }
         ]
       );
     } catch (error) {
       console.error('[Clear Storage] Clear failed:', error);
-      Alert.alert('Error', String(error));
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      Alert.alert('Error Clearing Storage', errorMsg);
     }
   }
 

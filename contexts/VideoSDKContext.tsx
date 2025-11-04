@@ -41,6 +41,7 @@ export const [VideoSDKContextProvider, useVideoSDK] =
       },
       staleTime: 1000 * 60 * 60,
       retry: 0,
+      enabled: false,
     });
 
     const createMeetingMutation = useMutation({

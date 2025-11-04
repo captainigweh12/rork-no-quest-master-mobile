@@ -31,26 +31,39 @@ LogBox.ignoreLogs([
 
 SplashScreen.preventAutoHideAsync();
 
-// --- NEW: Small gate that blocks initial render until we load any saved URL override
 function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        console.warn("[baseUrl] Bootstrap timeout, proceeding anyway");
+        setReady(true);
+      }
+    }, 5000);
+
     (async () => {
       try {
-        await loadBaseUrlOverride(); // pulls override from AsyncStorage (if any) into memory
+        console.log("[baseUrl] Loading URL override from storage...");
+        const override = await loadBaseUrlOverride();
+        console.log("[baseUrl] Override loaded:", override || "none");
+        console.log("[baseUrl] Final base URL:", getBaseUrl());
       } catch (e) {
-        console.warn("[baseUrl] override load failed:", e);
+        console.error("[baseUrl] Override load failed:", e);
       } finally {
+        clearTimeout(timeout);
         if (mounted) setReady(true);
       }
     })();
-    return () => { mounted = false; };
+    
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+    };
   }, []);
 
   if (!ready) {
-    // keep splash visible while we load; you can render a tiny placeholder if you want
     return null;
   }
   return <>{children}</>;
@@ -252,6 +265,23 @@ function RootLayoutNav() {
         />
         <Stack.Screen 
           name="stream-videosdk" 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="clear-storage" 
+          options={({ navigation }) => ({ 
+            presentation: "modal", 
+            headerShown: true,
+            title: 'API Debug',
+            headerLeft: () => (
+              <Pressable onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8 }} testID="back-clear-storage">
+                <ChevronLeft size={22} color="#000" />
+              </Pressable>
+            ),
+          })} 
+        />
+        <Stack.Screen 
+          name="emergency-clear" 
           options={{ headerShown: false }} 
         />
       </Stack>
