@@ -14,8 +14,14 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "bypass-tunnel-reminder"],
-    credentials: true,
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "bypass-tunnel-reminder",
+      "x-agora-mint-key",
+      "x-videosdk-mint-key",
+    ],
+    credentials: false,
   })
 );
 

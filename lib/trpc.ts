@@ -1,4 +1,4 @@
-import { createTRPCReact, createTRPCClient as createVanillaTRPCClient } from "@trpc/react-query";
+import { createTRPCReact } from "@trpc/react-query";
 import { httpLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
@@ -6,56 +6,25 @@ import { getBaseUrl } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-function buildAbsoluteTrpcBase(): string {
-  const base = getBaseUrl().replace(/\/+$/, "");
-  const url = `${base}/api/trpc`;
-  console.log("[tRPC Client] Building URL:", url);
-  return url;
-}
+const TRPC_URL = `${getBaseUrl()}/api/trpc`;
+console.log("[trpc] Using endpoint:", TRPC_URL);
 
-export function createTrpcClient() {
-  return trpc.createClient({
-    links: [
-      httpLink({
-        transformer: superjson,
-        url: buildAbsoluteTrpcBase(),
-        headers: () => ({
-          "bypass-tunnel-reminder": "true",
-        }),
-        fetch(url, options) {
-          console.log("[tRPC Client] Fetching:", url);
-          return fetch(url, options).then((res) => {
-            console.log("[tRPC Client] Response status:", res.status);
-            console.log("[tRPC Client] Response headers:", Object.fromEntries(res.headers.entries()));
-            return res;
-          }).catch((err) => {
-            console.error("[tRPC Client] Fetch error:", err);
-            throw err;
-          });
-        },
-      }),
-    ],
-  });
-}
-
-// Vanilla client for use outside of React components
-export const trpcClient = createVanillaTRPCClient<AppRouter>({
+export const trpcClient = trpc.createClient({
   links: [
     httpLink({
+      url: TRPC_URL,
       transformer: superjson,
-      url: buildAbsoluteTrpcBase(),
-      headers: () => ({
-        "bypass-tunnel-reminder": "true",
-      }),
-      fetch(url, options) {
-        console.log("[tRPC Vanilla Client] Fetching:", url);
-        return fetch(url, options).then((res) => {
-          console.log("[tRPC Vanilla Client] Response status:", res.status);
-          return res;
-        }).catch((err) => {
-          console.error("[tRPC Vanilla Client] Fetch error:", err);
-          throw err;
-        });
+      fetch: async (url, options) => {
+        const headers = new Headers(options?.headers);
+        headers.set("bypass-tunnel-reminder", "true");
+
+        const res = await fetch(url, { ...options, headers });
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("[tRPC] HTTP", res.status, "body:", text.slice(0, 500));
+          throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+        }
+        return res;
       },
     }),
   ],
