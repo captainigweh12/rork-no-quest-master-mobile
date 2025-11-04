@@ -13,7 +13,7 @@ const app = new Hono();
 const allowedOrigins = [
   "https://rejectionhero.com",
   "https://www.rejectionhero.com",
-  "https://dev-c23bcbuqrsjmkdoaxiu6y.rorktest.dev",
+  "https://rork-no-quest-master-mobile.onrender.com",
   "http://localhost:8081",
   "exp://127.0.0.1:8081",
   "exp://10.0.2.2:8081",
