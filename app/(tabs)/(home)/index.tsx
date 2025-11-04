@@ -344,12 +344,12 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => {
                     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
-                    router.push('/stream?mode=broadcaster' as any);
+                    router.push('/stream-videosdk' as any);
                   }}
                   style={({ pressed }) => [styles.livePrimaryBtn, { backgroundColor: theme.colors.primary, opacity: pressed ? 0.85 : 1 }]}
                   testID="btn-start-live"
                 >
-                  <Text style={styles.livePrimaryBtnText}>Go Live</Text>
+                  <Text style={styles.livePrimaryBtnText}>Go Live (VideoSDK)</Text>
                 </Pressable>
                 {ytConnected && (
                   <Pressable

@@ -19,6 +19,7 @@ import { SchemaProvider } from '@/contexts/SchemaContext';
 import MigrationBanner from '@/components/MigrationBanner';
 import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
+import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import { ChevronLeft } from 'lucide-react-native';
 
 // NEW: ensure base URL override loads before first network call
@@ -249,6 +250,10 @@ function RootLayoutNav() {
           name="stream" 
           options={{ headerShown: false }} 
         />
+        <Stack.Screen 
+          name="stream-videosdk" 
+          options={{ headerShown: false }} 
+        />
       </Stack>
     </>
   );
@@ -283,7 +288,9 @@ export default function RootLayout() {
                                 <MigrationBanner />
                                 <YouTubeProvider>
                                   <StreamProvider>
-                                    <RootLayoutNav />
+                                    <VideoSDKContextProvider>
+                                      <RootLayoutNav />
+                                    </VideoSDKContextProvider>
                                   </StreamProvider>
                                 </YouTubeProvider>
                               </GestureHandlerRootView>
