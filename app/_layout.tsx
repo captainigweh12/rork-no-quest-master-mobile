@@ -23,7 +23,8 @@ import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import { ChevronLeft } from 'lucide-react-native';
 
 // NEW: ensure base URL override loads before first network call
-import { loadBaseUrlOverride, getBaseUrl } from "@/lib/baseUrl";
+import { loadBaseUrlOverride, getBaseUrl, setBaseUrlOverride } from "@/lib/baseUrl";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -46,6 +47,23 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         console.log("[baseUrl] Loading URL override from storage...");
+        
+        // Check if there's a bad cached URL
+        const currentOverride = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+        console.log("[baseUrl] Current cached override:", currentOverride);
+        
+        // If it contains rorktest.dev, clear it immediately and set the correct Render URL
+        if (currentOverride?.includes('rorktest.dev')) {
+          console.log('[baseUrl] ⚠️ Detected old rorktest.dev URL, clearing and setting Render URL...');
+          await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+          (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+          
+          // Set the correct Render URL
+          const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
+          await setBaseUrlOverride(RENDER_URL);
+          console.log('[baseUrl] ✅ Set new URL:', RENDER_URL);
+        }
+        
         const override = await loadBaseUrlOverride();
         console.log("[baseUrl] Override loaded:", override || "none");
         console.log("[baseUrl] Final base URL:", getBaseUrl());
