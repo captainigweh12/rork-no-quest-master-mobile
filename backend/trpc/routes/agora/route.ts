@@ -63,9 +63,11 @@ const agoraRouter = createTRPCRouter({
       return result;
     } catch (err: any) {
       console.error('[AGORA TRPC] Acquire error:', err);
+      console.error('[AGORA TRPC] Error stack:', err?.stack);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: err?.message ?? "Failed to acquire recording resource",
+        cause: err,
       });
     }
   }),

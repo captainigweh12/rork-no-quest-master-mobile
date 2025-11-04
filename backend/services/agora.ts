@@ -141,14 +141,18 @@ async function request(
 
 async function parseJson<T>(res: Response, context: string): Promise<T> {
   const text = await res.text();
+  const trimmed = text.trim();
   console.log(`[AGORA] ${context} response status: ${res.status}`);
-  console.log(`[AGORA] ${context} response body:`, text.substring(0, 500));
+  console.log(`[AGORA] ${context} response body:`, trimmed.substring(0, 500));
   try {
-    return JSON.parse(text) as T;
-  } catch {
+    return JSON.parse(trimmed) as T;
+  } catch (parseError: any) {
     // Agora sometimes returns plain text on errors
+    console.error(`[AGORA] JSON parse error:`, parseError?.message);
+    console.error(`[AGORA] Raw text (first 100 chars):`, text.substring(0, 100));
+    console.error(`[AGORA] Text length:`, text.length);
     throw new Error(
-      `[AGORA] ${context} ${res.status} ${res.statusText}. Non-JSON response: ${text.substring(0, 800)}`
+      `[AGORA] ${context} failed to parse JSON: ${parseError?.message}. Response: ${trimmed.substring(0, 300)}`
     );
   }
 }
@@ -181,14 +185,19 @@ export async function createResource(params: CreateResourceParams): Promise<Crea
     body: JSON.stringify(requestBody),
   });
 
+  console.log('[AGORA] Acquire response status:', res.status, res.statusText);
+  console.log('[AGORA] Acquire response headers:', Object.fromEntries(res.headers.entries()));
+
   if (!res.ok) {
     const body = await res.text();
     console.error('[AGORA] Acquire failed with status', res.status);
-    console.error('[AGORA] Response headers:', Object.fromEntries(res.headers.entries()));
     console.error('[AGORA] Response body:', body.substring(0, 800));
     throw new Error(`[AGORA] acquire failed ${res.status}: ${body.substring(0, 800)}`);
   }
-  return parseJson<CreateResourceResponse>(res, 'acquire');
+  
+  const result = await parseJson<CreateResourceResponse>(res, 'acquire');
+  console.log('[AGORA] Parsed response:', result);
+  return result;
 }
 
 export async function startRecording(params: StartRecordingParams): Promise<StartRecordingResponse> {
