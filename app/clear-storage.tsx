@@ -1,7 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
-import { setBaseUrlOverride, getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
+import { getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrpcClient } from '@/lib/trpc';
 
@@ -42,21 +42,23 @@ export default function ClearStorageScreen() {
         (globalThis as any).memoryOverride = undefined;
       }
       
-      console.log('[Clear Storage] Step 3: Setting new Render URL:', RENDER_URL);
-      await setBaseUrlOverride(RENDER_URL);
+      console.log('[Clear Storage] Step 3: Clearing - no override needed, will use .env');
       
-      console.log('[Clear Storage] Step 4: Forcing memory sync...');
-      (globalThis as any).__RORK_BASE_URL_OVERRIDE = RENDER_URL;
-      
-      console.log('[Clear Storage] Step 5: Verifying...');
+      console.log('[Clear Storage] Step 4: Verifying...');
       const stored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
       console.log('[Clear Storage] Stored in AsyncStorage:', stored);
       
-      const newUrl = getBaseUrl();
-      console.log('[Clear Storage] getBaseUrl() returns:', newUrl);
+      const newUrl = getDefaultBaseUrl();
+      console.log('[Clear Storage] getDefaultBaseUrl() returns:', newUrl);
       setCurrentBase(newUrl);
       
-      setTestResult(`✅ Storage cleared!\n\nNew URL: ${RENDER_URL}\n\nPlease close and restart the app completely for changes to take full effect.`);
+      setTestResult(`✅ Storage cleared!\n\nWill use .env URL: ${newUrl}\n\nPlease close and restart the app manually to apply changes.`);
+      
+      Alert.alert(
+        'Success!',
+        'Cache cleared successfully! Please close the app completely (swipe from recent apps) and restart it.',
+        [{ text: 'OK' }]
+      );
       
     } catch (error) {
       console.error('[Clear Storage] Failed:', error);
