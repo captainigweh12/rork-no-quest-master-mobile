@@ -36,9 +36,11 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    console.log('[BaseUrlBootstrap] Starting initialization...');
+    
     const timeout = setTimeout(() => {
-      if (mounted) {
-        console.warn("[baseUrl] Bootstrap timeout, proceeding anyway");
+      if (mounted && !ready) {
+        console.warn("[baseUrl] Bootstrap timeout after 3s, proceeding anyway");
         setReady(true);
       }
     }, 3000);
@@ -63,11 +65,15 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
         const override = await loadBaseUrlOverride();
         console.log("[baseUrl] Override loaded:", override || "none");
         console.log("[baseUrl] Final base URL:", getBaseUrl());
+        console.log('[BaseUrlBootstrap] ✅ Initialization complete');
       } catch (e) {
         console.error("[baseUrl] Override load failed:", e);
       } finally {
         clearTimeout(timeout);
-        if (mounted) setReady(true);
+        if (mounted) {
+          console.log('[BaseUrlBootstrap] Setting ready = true');
+          setReady(true);
+        }
       }
     })();
     
@@ -78,8 +84,11 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (!ready) {
+    console.log('[BaseUrlBootstrap] Not ready yet, returning null');
     return null;
   }
+  
+  console.log('[BaseUrlBootstrap] Ready, rendering children');
   return <>{children}</>;
 }
 

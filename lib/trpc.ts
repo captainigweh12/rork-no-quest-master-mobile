@@ -2,12 +2,13 @@ import { createTRPCReact } from "@trpc/react-query";
 import { httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
-import { getBaseUrl } from "@/lib/baseUrl";
+import { getBaseUrl, loadBaseUrlOverride } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
 // Singleton client so we only create once
 let client: ReturnType<typeof trpc.createClient> | null = null;
+let clientPromise: Promise<ReturnType<typeof trpc.createClient>> | null = null;
 
 function createTrpcClient() {
   const baseUrl = getBaseUrl();
@@ -51,8 +52,23 @@ function createTrpcClient() {
 
 /**
  * Get a singleton tRPC client. Use this in your Provider setup.
+ * Ensures base URL override is loaded before creating client.
  */
-export function getTrpcClient() {
-  if (!client) client = createTrpcClient();
-  return Promise.resolve(client);
+export async function getTrpcClient() {
+  if (client) return client;
+  
+  // If already initializing, return that promise
+  if (clientPromise) return clientPromise;
+  
+  // Create new initialization promise
+  clientPromise = (async () => {
+    console.log('[tRPC] Waiting for base URL to be ready...');
+    // Ensure base URL override is loaded
+    await loadBaseUrlOverride();
+    console.log('[tRPC] Base URL ready, creating client...');
+    client = createTrpcClient();
+    return client;
+  })();
+  
+  return clientPromise;
 }
