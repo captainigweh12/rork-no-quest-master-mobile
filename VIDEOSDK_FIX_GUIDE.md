@@ -1,17 +1,17 @@
 # VideoSDK 404 Fix - Complete Guide
 
 ## Problem Summary
-The app was pointing to `https://dev-c23bcbuqrsjmkdoaxiu6y.rorktest.dev` which doesn't have the backend running. The backend runs locally at `http://localhost:8081`.
+The app was previously pointed at an old Rork dev tunnel (`rorktest.dev`) which didn't host the backend. For deployed testing use the Render URL `https://rork-no-quest-master-mobile.onrender.com`. The backend runs locally at `http://localhost:8081` for local development.
 
 ## What Was Fixed
 
 ### 1. Updated `.env` file
-Changed from:
+Changed from an old dev tunnel example to the Render deployment for production testing:
 ```
-EXPO_PUBLIC_RORK_API_BASE_URL=https://dev-c23bcbuqrsjmkdoaxiu6y.rorktest.dev
+EXPO_PUBLIC_RORK_API_BASE_URL=https://rork-no-quest-master-mobile.onrender.com
 ```
 
-To:
+For local development, set it to:
 ```
 EXPO_PUBLIC_RORK_API_BASE_URL=http://localhost:8081
 ```
