@@ -29,9 +29,9 @@ export default function LiveStreamScreen() {
     }
 
     if (id) {
-      console.log('[LIVE] Redirecting to stream viewer for stream:', id);
+      console.log('[LIVE] Redirecting to VideoSDK stream viewer for stream:', id);
       setHasRedirected(true);
-      router.replace(`/stream?streamId=${id}&mode=viewer` as any);
+      router.replace(`/stream-videosdk?streamId=${id}&mode=viewer` as any);
     } else {
       console.warn('[LIVE] No stream ID provided, going back');
       setHasRedirected(true);

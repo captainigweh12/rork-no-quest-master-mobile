@@ -309,7 +309,7 @@ export default function HomeScreen() {
                     key={s.id}
                     onPress={() => {
                       if (s.isWebRTC) {
-                        router.push(`/stream?streamId=${s.id}&mode=viewer` as any);
+                        router.push(`/stream-videosdk?streamId=${s.id}&mode=viewer` as any);
                       } else {
                         Linking.openURL(`https://www.youtube.com/watch?v=${s.id}`);
                       }
