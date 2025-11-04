@@ -16,13 +16,19 @@ export function createTrpcClient() {
         url: TRPC_URL,
         transformer: superjson,
         fetch: async (url, options) => {
+          console.log("[tRPC] Fetching:", String(url));
+          console.log("[tRPC] Method:", options?.method || "GET");
+          
           const headers = new Headers(options?.headers);
           headers.set("bypass-tunnel-reminder", "true");
 
           const res = await fetch(url, { ...options, headers });
+          console.log("[tRPC] Response status:", res.status);
+          
           if (!res.ok) {
             const text = await res.text();
             console.error("[tRPC] HTTP", res.status, "body:", text.slice(0, 500));
+            console.error("[tRPC] Failed URL:", String(url));
             throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
           }
           return res;
