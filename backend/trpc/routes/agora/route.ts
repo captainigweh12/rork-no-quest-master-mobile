@@ -57,8 +57,12 @@ const agoraRouter = createTRPCRouter({
   // Cloud Recording lifecycle (optional if you’re not recording yet)
   acquire: publicProcedure.input(createResourceInput).mutation(async ({ input }) => {
     try {
-      return await createResource(input);
+      console.log('[AGORA TRPC] Acquire called with input:', input);
+      const result = await createResource(input);
+      console.log('[AGORA TRPC] Acquire successful:', result);
+      return result;
     } catch (err: any) {
+      console.error('[AGORA TRPC] Acquire error:', err);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: err?.message ?? "Failed to acquire recording resource",

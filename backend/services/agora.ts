@@ -105,7 +105,13 @@ function getAuthHeader(): string {
   const id = requireValue(customerId, 'AGORA_CUSTOMER_ID');
   const secret = requireValue(customerSecret, 'AGORA_CUSTOMER_SECRET');
   const token = Buffer.from(`${id}:${secret}`).toString('base64');
-  return `Basic ${token}`;
+  const header = `Basic ${token}`;
+  console.log('[AGORA] Auth header created:', {
+    customerId: id.substring(0, 8) + '...',
+    secretLength: secret.length,
+    base64Length: token.length,
+  });
+  return header;
 }
 
 // ---- Fetch helper with timeout & better errors ----
@@ -135,6 +141,8 @@ async function request(
 
 async function parseJson<T>(res: Response, context: string): Promise<T> {
   const text = await res.text();
+  console.log(`[AGORA] ${context} response status: ${res.status}`);
+  console.log(`[AGORA] ${context} response body:`, text.substring(0, 500));
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -150,24 +158,37 @@ async function parseJson<T>(res: Response, context: string): Promise<T> {
 export async function createResource(params: CreateResourceParams): Promise<CreateResourceResponse> {
   const { cname, uid, region } = params;
   const url = `${getBase(region)}/acquire`;
+  
+  const authHeader = getAuthHeader();
+  const requestBody = {
+    cname,
+    uid,
+    clientRequest: {},
+  };
+  
+  console.log('[AGORA] Acquire request:', {
+    url,
+    authHeaderPresent: !!authHeader,
+    body: requestBody,
+  });
+  
   const res = await request(url, {
     method: 'POST',
     headers: {
-      'Authorization': getAuthHeader(),
+      'Authorization': authHeader,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      cname,
-      uid,
-      clientRequest: {}, // could include region if using regional resource allocation
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
     const body = await res.text();
+    console.error('[AGORA] Acquire failed with status', res.status);
+    console.error('[AGORA] Response headers:', Object.fromEntries(res.headers.entries()));
+    console.error('[AGORA] Response body:', body.substring(0, 800));
     throw new Error(`[AGORA] acquire failed ${res.status}: ${body.substring(0, 800)}`);
   }
-  return parseJson<CreateResourceResponse>(res, 'acquire failed');
+  return parseJson<CreateResourceResponse>(res, 'acquire');
 }
 
 export async function startRecording(params: StartRecordingParams): Promise<StartRecordingResponse> {
