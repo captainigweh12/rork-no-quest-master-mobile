@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { setBaseUrlOverride, getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpcClient, createTrpcClient } from '@/lib/trpc';
+import { createTrpcClient } from '@/lib/trpc';
 import { useRouter } from 'expo-router';
 
 export default function ClearStorageScreen() {
@@ -34,18 +34,23 @@ export default function ClearStorageScreen() {
 
   async function handleClearOverride() {
     try {
+      console.log('[Clear Storage] Clearing all storage and override...');
       await setBaseUrlOverride(undefined);
       await AsyncStorage.clear();
-      setCurrentBase(getBaseUrl());
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
+      const newUrl = getBaseUrl();
+      setCurrentBase(newUrl);
       setTestResult(null);
+      console.log('[Clear Storage] Cleared! New base URL:', newUrl);
       Alert.alert(
         'Success', 
-        'Cleared all storage and base URL override. Please close and restart the app completely to see changes.',
+        `Cleared all storage!\n\nNew URL: ${newUrl}\n\nPlease close and restart the app completely.`,
         [
           { text: 'OK', onPress: () => router.replace('/(tabs)/(home)') }
         ]
       );
     } catch (error) {
+      console.error('[Clear Storage] Clear failed:', error);
       Alert.alert('Error', String(error));
     }
   }
@@ -103,15 +108,20 @@ export default function ClearStorageScreen() {
         onPress={async () => {
           try {
             const url = 'https://rork-no-quest-master-mobile.onrender.com';
+            console.log('[Clear Storage] Setting Render URL override:', url);
             await setBaseUrlOverride(url);
-            setCurrentBase(getBaseUrl());
-            Alert.alert('Override Set', `Base URL set to:\n${url}\n\nPlease restart the app to apply everywhere.`);
+            (globalThis as any).__RORK_BASE_URL_OVERRIDE = url;
+            const newUrl = getBaseUrl();
+            setCurrentBase(newUrl);
+            console.log('[Clear Storage] Override set! Current URL:', newUrl);
+            Alert.alert('Override Set', `Base URL set to:\n${url}\n\nPlease restart the app completely.`);
           } catch (e) {
+            console.error('[Clear Storage] Set override failed:', e);
             Alert.alert('Error', String(e));
           }
         }}
       >
-        <Text style={styles.buttonText}>Use Render URL</Text>
+        <Text style={styles.buttonText}>Use Render URL (Override)</Text>
       </TouchableOpacity>
     </ScrollView>
   );
