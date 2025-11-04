@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: rork-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: bun install
+    startCommand: bun run backend/server.ts
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
