@@ -79,6 +79,38 @@ export default function TestTRPCScreen() {
     hiMutation.mutate({ name: 'Test User' });
   };
 
+  const testVideoSDKConfig = async () => {
+    setIsLoading(true);
+    try {
+      const baseUrl = getBaseUrl();
+      const url = `${baseUrl}/api/trpc/videosdk.checkConfig`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      addResult('VideoSDK Config Check', response.ok, { status: response.status, data });
+    } catch (error: any) {
+      addResult('VideoSDK Config Check', false, { error: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const testVideoSDKToken = async () => {
+    setIsLoading(true);
+    try {
+      const baseUrl = getBaseUrl();
+      const url = `${baseUrl}/api/trpc/videosdk.getToken`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      addResult('VideoSDK Get Token', response.ok, { status: response.status, data });
+    } catch (error: any) {
+      addResult('VideoSDK Get Token', false, { error: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const clearResults = () => {
     setTestResults([]);
   };
@@ -136,6 +168,22 @@ export default function TestTRPCScreen() {
             <Text style={[styles.buttonText, styles.primaryButtonText]}>
               4. Test tRPC Mutation
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={testVideoSDKConfig}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>5. Test VideoSDK Config</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={testVideoSDKToken}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>6. Test VideoSDK Token</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

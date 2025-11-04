@@ -6,10 +6,13 @@ import { getBaseUrl } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-const TRPC_URL = `${getBaseUrl()}/api/trpc`;
-console.log("[trpc] Using endpoint:", TRPC_URL);
-
 export function createTrpcClient() {
+  const baseUrl = getBaseUrl();
+  const TRPC_URL = `${baseUrl}/api/trpc`;
+  
+  console.log("[trpc] Creating client with base URL:", baseUrl);
+  console.log("[trpc] Full tRPC endpoint:", TRPC_URL);
+  
   return trpc.createClient({
     links: [
       httpLink({
