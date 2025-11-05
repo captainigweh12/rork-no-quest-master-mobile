@@ -13,7 +13,15 @@ export function SafeImage({ uri, style, fallback, testID }: SafeImageProps) {
   const [loadError, setLoadError] = useState(false);
   const clean = uri?.trim();
   
-  if (!clean || loadError) {
+  // More defensive check: ensure we have a valid, non-empty URI
+  if (!clean || clean === '' || clean.length === 0 || loadError) {
+    return (fallback ?? null) as any;
+  }
+  
+  // Additional validation: check if it looks like a valid URL
+  const isValidUrl = clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('data:') || clean.startsWith('file://');
+  if (!isValidUrl) {
+    console.warn('[SafeImage] Invalid URI format:', clean);
     return (fallback ?? null) as any;
   }
   
