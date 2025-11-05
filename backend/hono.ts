@@ -141,6 +141,50 @@ app.get("/api/trpc-routes", (c) => {
   });
 });
 
+// Test endpoint to verify tRPC routes are accessible
+app.get("/api/test-trpc", async (c) => {
+  console.log("\n🧪 [TEST-TRPC] Testing tRPC endpoint accessibility");
+  
+  const baseUrl = `http://localhost:${process.env.PORT || 8081}`;
+  const testResults: any = {
+    timestamp: new Date().toISOString(),
+    baseUrl,
+    tests: {},
+  };
+
+  // Test 1: Check if /api/trpc is accessible
+  try {
+    const response = await fetch(`${baseUrl}/api/trpc`);
+    testResults.tests.trpcEndpoint = {
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+      accessible: response.status !== 404,
+    };
+  } catch (error) {
+    testResults.tests.trpcEndpoint = {
+      error: error instanceof Error ? error.message : String(error),
+      accessible: false,
+    };
+  }
+
+  // Test 2: Check if videosdk.checkConfig is accessible
+  try {
+    const response = await fetch(`${baseUrl}/api/trpc/videosdk.checkConfig`);
+    testResults.tests.videosdkCheckConfig = {
+      status: response.status,
+      contentType: response.headers.get("content-type"),
+      accessible: response.status !== 404,
+    };
+  } catch (error) {
+    testResults.tests.videosdkCheckConfig = {
+      error: error instanceof Error ? error.message : String(error),
+      accessible: false,
+    };
+  }
+
+  return c.json(testResults);
+});
+
 // ---------------- Email Hook handlers (unchanged) ----------------
 
 app.post("/api/auth/hook", async (c) => {
@@ -325,6 +369,70 @@ app.get("/api/test-email", async (c) => {
       500
     );
   }
+});
+
+// ---------------- Catch-all 404 Handler (MUST BE LAST) ----------------
+// This ensures that any unmatched routes return JSON instead of HTML
+// This is critical for tRPC clients which expect JSON responses
+app.notFound((c) => {
+  const path = c.req.path;
+  console.log(`\n❌ [404] Route not found: ${path}`);
+  
+  // If it's a tRPC-related path, provide helpful debugging info
+  if (path.includes('/api/trpc')) {
+    console.log(`   🔍 This looks like a tRPC request to a non-existent route`);
+    console.log(`   Available tRPC routes:`);
+    console.log(`   - /api/trpc/example.hi`);
+    console.log(`   - /api/trpc/agora.env`);
+    console.log(`   - /api/trpc/agora.token`);
+    console.log(`   - /api/trpc/videosdk.getToken`);
+    console.log(`   - /api/trpc/videosdk.createMeeting`);
+    console.log(`   - /api/trpc/videosdk.validateMeeting`);
+    console.log(`   - /api/trpc/videosdk.checkConfig`);
+    
+    return c.json(
+      {
+        success: false,
+        error: "tRPC route not found",
+        path,
+        message: "The requested tRPC procedure does not exist. Check the route name and try again.",
+        availableRoutes: [
+          "example.hi",
+          "agora.env",
+          "agora.token",
+          "videosdk.getToken",
+          "videosdk.createMeeting",
+          "videosdk.validateMeeting",
+          "videosdk.checkConfig",
+        ],
+        hint: "Visit /api/trpc-routes for a complete list of available endpoints",
+        timestamp: new Date().toISOString(),
+      },
+      404
+    );
+  }
+  
+  // For non-tRPC routes, return a generic 404
+  return c.json(
+    {
+      success: false,
+      error: "Route not found",
+      path,
+      message: `The requested path '${path}' does not exist on this server.`,
+      availableEndpoints: [
+        "/",
+        "/api",
+        "/api/health",
+        "/api/trpc",
+        "/api/trpc-routes",
+        "/api/test-trpc",
+        "/api/test-email",
+        "/api/auth/hook",
+      ],
+      timestamp: new Date().toISOString(),
+    },
+    404
+  );
 });
 
 export default app;
