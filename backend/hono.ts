@@ -5,9 +5,25 @@ import { appRouter } from "./trpc/app-router";
 import { createContext } from "./trpc/create-context";
 import { Resend } from "resend";
 
-
-
 const app = new Hono();
+
+// Global error handler - ensures all errors return JSON
+app.onError((err, c) => {
+  console.error("❌ [Global Error Handler]", err);
+  
+  // Determine status code
+  const status = (err as any).status || (err as any).statusCode || 500;
+  
+  // Return JSON error response
+  return c.json(
+    {
+      success: false,
+      error: err.message || "Internal server error",
+      timestamp: new Date().toISOString(),
+    },
+    status
+  );
+});
 
 // CORS: Allow your app domain and development URLs
 const allowedOrigins = [
