@@ -9,7 +9,7 @@ config({ path: resolve(process.cwd(), '.env'), override: true });
 config({ path: resolve(process.cwd(), 'backend/.env'), override: true });
 
 // ✅ Import Hono app AFTER envs are loaded
-const { default: app } = await import('./hono');
+import app from './hono.js';
 
 function getLanIP(): string | null {
   const nets = networkInterfaces();
