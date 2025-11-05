@@ -8,6 +8,12 @@
     "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
     "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
     "start-rork-dev": "dotenv -e .env -- DEBUG=expo* rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
+    "backend": "cd backend && npx tsx server.ts",
+    "backend:simple": "node start-backend.js",
+    "backend:tsx": "cd backend && npx tsx server.ts",
+    "backend:bun": "cd backend && bun run server.ts",
+    "backend:dev": "cd backend && npx tsx watch server.ts",
+    "test:backend": "node test-backend-connection.js",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -77,6 +83,7 @@
     "@types/react": "~19.1.10",
     "eslint": "9.31.0",
     "eslint-config-expo": "9.2.0",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.2"
   },
   "private": true
