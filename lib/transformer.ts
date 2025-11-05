@@ -1,10 +1,4 @@
-export const transformer = {
-  input: {
-    serialize: (data: unknown) => data,
-    deserialize: (data: unknown) => data,
-  },
-  output: {
-    serialize: (data: unknown) => data,
-    deserialize: (data: unknown) => data,
-  },
-};
+import superjson from "superjson";
+
+// Export superjson directly to ensure consistency with backend
+export const transformer = superjson;
