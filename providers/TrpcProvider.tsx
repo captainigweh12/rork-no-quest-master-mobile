@@ -16,10 +16,10 @@ export default function TrpcProvider({ children }: { children: React.ReactNode }
     
     const timeout = setTimeout(() => {
       if (mounted && !client) {
-        console.error('[TrpcProvider] ❌ Initialization timeout after 5s');
-        setError('Connection timeout. Please check your internet connection.');
+        console.error('[TrpcProvider] ❌ Initialization timeout after 10s');
+        setError('Connection timeout. The backend may be starting up or unreachable.');
       }
-    }, 5000);
+    }, 10000); // Increased to 10s for Render cold starts
     
     getTrpcClient()
       .then((c) => {
@@ -33,7 +33,16 @@ export default function TrpcProvider({ children }: { children: React.ReactNode }
         clearTimeout(timeout);
         console.error('[TrpcProvider] ❌ Failed to initialize:', err);
         if (mounted) {
-          setError(err.message || 'Failed to initialize tRPC');
+          // Provide more helpful error messages
+          let errorMsg = err.message || 'Failed to initialize tRPC';
+          
+          if (errorMsg.includes('Failed to fetch') || errorMsg.includes('Network request failed')) {
+            errorMsg = 'Network error. Please check your internet connection and ensure the backend is running.';
+          } else if (errorMsg.includes('JSON')) {
+            errorMsg = 'Server returned invalid response. The backend may be misconfigured.';
+          }
+          
+          setError(errorMsg);
         }
       });
     return () => {
