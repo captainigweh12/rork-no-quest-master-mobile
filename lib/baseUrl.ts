@@ -140,4 +140,49 @@ export async function clearBaseUrlOverride(): Promise<void> {
   }
 }
 
+/**
+ * Check if a URL is a stale/old URL that should be cleared.
+ * This includes old rorkset.dev URLs and other deprecated endpoints.
+ */
+export function isStaleUrl(url: string | undefined): boolean {
+  if (!url || url.trim().length === 0) return false;
+  
+  const stalePatterns = [
+    'rorkset.dev',
+    'rorktest.dev',
+    // Add other old/deprecated URLs here if needed
+  ];
+  
+  // Check if URL contains any stale patterns
+  const isStale = stalePatterns.some(pattern => url.includes(pattern));
+  
+  if (isStale) {
+    console.log(`⚠️ [baseUrl] Detected stale URL pattern in: ${url}`);
+  }
+  
+  return isStale;
+}
+
+/**
+ * Automatically detect and clear stale URLs from storage.
+ * Returns true if a stale URL was cleared, false otherwise.
+ */
+export async function clearStaleUrlIfNeeded(): Promise<boolean> {
+  try {
+    const currentOverride = await loadBaseUrlOverride();
+    
+    if (isStaleUrl(currentOverride)) {
+      console.log(`🧹 [baseUrl] Clearing stale URL: ${currentOverride}`);
+      await clearBaseUrlOverride();
+      console.log(`✅ [baseUrl] Stale URL cleared successfully`);
+      return true;
+    }
+    
+    return false;
+  } catch (e) {
+    console.error('[baseUrl] Error checking/clearing stale URL:', e);
+    return false;
+  }
+}
+
 export { OVERRIDE_KEY as BASE_URL_OVERRIDE_KEY };

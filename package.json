@@ -14,6 +14,9 @@
     "backend:bun": "cd backend && bun run server.ts",
     "backend:dev": "cd backend && npx tsx watch server.ts",
     "test:backend": "node test-backend-connection.js",
+    "test:jest": "jest --config jest.config.cjs",
+    "test": "vitest",
+    "test:ci": "vitest run",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -26,7 +29,7 @@
     "@stardazed/streams-text-encoding": "^1.0.2",
     "@supabase/supabase-js": "^2.76.1",
     "@tanstack/eslint-plugin-query": "^5.91.2",
-    "@tanstack/react-query": "^5.90.6",
+    "@tanstack/react-query": "^5.90.7",
     "@trpc/client": "^11.7.1",
     "@trpc/react-query": "^11.7.1",
     "@trpc/server": "^11.7.1",
@@ -79,12 +82,25 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@babel/preset-typescript": "^7.28.5",
     "@expo/ngrok": "^4.1.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/node": "20",
     "@types/react": "~19.1.10",
+    "@vitest/ui": "^4.0.7",
+    "babel-jest": "^30.2.0",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-preset-expo": "^54.0.6",
     "eslint": "9.31.0",
     "eslint-config-expo": "9.2.0",
+    "happy-dom": "^20.0.10",
+    "jest-environment-jsdom": "^30.2.0",
+    "react-test-renderer": "^19.2.0",
     "tsx": "^4.20.6",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.7"
   },
   "private": true
 }

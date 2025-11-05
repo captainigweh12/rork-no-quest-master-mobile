@@ -1,0 +1,8 @@
+[test]
+preload = ["./test/setup.ts"]
+# Skip node_modules to avoid React Native type issues
+skipNodeModules = true
+
+[module]
+# Use our own React Native mock for tests
+"react-native" = "./test/mocks/react-native.ts"

@@ -1,34 +1,69 @@
-# Fix JSON Parsing Error with Null Bytes - TODO
+# Clear Storage & Stale URL Fix - Implementation TODO
 
-## Root Cause
-The custom fetch wrapper in `lib/trpc.ts` is throwing errors before tRPC can parse responses, causing null bytes in JSON error.
+## Tasks Completed ✅
 
-## Tasks
+### 1. Fix lib/baseUrl.ts ✅
+- [x] Add `isStaleUrl()` function to detect rorkset.dev and other stale URLs
+- [x] Add `clearStaleUrlIfNeeded()` function for automatic clearing
+- [x] Enhance logging for stale URL detection
 
-- [x] 1. Fix lib/trpc.ts - Remove problematic fetch wrapper
-  - [x] Remove the `!res.ok` check that consumes response body
-  - [x] Let tRPC handle all HTTP errors through its own error handling
-  - [x] Keep logging and header injection only
+### 2. Fix providers/TrpcProvider.tsx ✅
+- [x] Use new `isStaleUrl()` function via `clearStaleUrlIfNeeded()`
+- [x] Add explicit rorkset.dev detection
+- [x] Improve logging and error messages
+- [x] Simplified stale URL detection logic
 
-- [x] 2. Enhance error handling in TrpcProvider.tsx
-  - [x] Add more detailed error messages
-  - [x] Improve timeout handling (increased to 10s for Render cold starts)
-  - [x] Better error message categorization
+### 3. Fix app/clear-storage.tsx ✅
+- [x] Add stale URL detection display on mount
+- [x] Add dedicated "Clear Stale rorkset.dev URL" button
+- [x] Improve user feedback with warning section
+- [x] Add visual indicators for stale URLs (red text, warning banner)
+- [x] Dynamic instructions based on stale URL detection
 
-- [ ] 3. Test the fix
-  - [ ] Verify tRPC queries work properly
-  - [ ] Check error responses are handled correctly
-  - [ ] Test with backend on Render
+### 4. Verify app/_layout.tsx
+- [x] Confirmed TrpcProvider is properly used (no duplicates found)
+- [x] TrpcProvider wraps the entire app correctly
 
-## Progress
-- Started: [Current timestamp]
-- Status: ✅ COMPLETE - Ready for testing
-- Main fix applied to lib/trpc.ts
-- Enhanced error handling in TrpcProvider.tsx
-- Comprehensive documentation created (JSON_PARSING_ERROR_FIX.md)
+## Current Status: ✅ Implementation Complete
 
-## Next Steps for User
-1. Clear any cached base URL overrides (use app/emergency-clear.tsx)
-2. Ensure backend is running on Render
-3. Restart the app and test the connection
-4. Verify tRPC queries work without JSON parsing errors
+## What Was Fixed:
+
+1. **lib/baseUrl.ts**
+   - Added `isStaleUrl()` to detect URLs containing 'rorkset.dev' or 'rorktest.dev'
+   - Added `clearStaleUrlIfNeeded()` to automatically clear stale URLs
+   - Enhanced logging to show when stale URLs are detected
+
+2. **providers/TrpcProvider.tsx**
+   - Now uses `clearStaleUrlIfNeeded()` on app startup
+   - Automatically clears rorkset.dev URLs and sets the correct Render URL
+   - Improved logging to show when stale URLs are cleared
+
+3. **app/clear-storage.tsx**
+   - Detects stale URLs on screen mount
+   - Shows prominent warning banner when stale URL is detected
+   - Added dedicated "Clear Stale rorkset.dev URL" button
+   - Visual indicators (red text) for stale URLs
+   - Dynamic instructions based on whether stale URL is present
+
+## Testing Steps:
+
+1. **Test Stale URL Detection:**
+   - Manually set a rorkset.dev URL in AsyncStorage
+   - Open the app - should auto-detect and clear it
+   - Navigate to /clear-storage - should show warning if detected
+
+2. **Test Clear Storage Button:**
+   - Navigate to /clear-storage
+   - If stale URL detected, tap "Clear Stale rorkset.dev URL"
+   - Verify success message and app restart prompt
+
+3. **Test Production Mode:**
+   - Build production app
+   - Verify it always uses https://rork-no-quest-master-mobile.onrender.com
+   - Verify stale URLs are automatically cleared
+
+## Next Steps:
+- Test the implementation with actual stale URLs
+- Verify app startup clears stale URLs automatically
+- Test the clear storage UI with and without stale URLs
+- Deploy and monitor for any issues
