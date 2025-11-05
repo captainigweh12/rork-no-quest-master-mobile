@@ -72,3 +72,26 @@ export async function getTrpcClient() {
   
   return clientPromise;
 }
+
+/**
+ * Synchronous client getter for contexts that need direct access.
+ * Note: This may return null if called before initialization.
+ * Prefer using tRPC React hooks (trpc.*.useQuery/useMutation) instead.
+ */
+export function getTrpcClientSync() {
+  return client;
+}
+
+/**
+ * @deprecated Use tRPC React hooks instead (trpc.*.useQuery/useMutation)
+ * This export exists for backward compatibility only.
+ */
+export const trpcClient = new Proxy({} as ReturnType<typeof trpc.createClient>, {
+  get(target, prop) {
+    if (!client) {
+      console.warn('[tRPC] Client accessed before initialization. Use getTrpcClient() or React hooks instead.');
+      return undefined;
+    }
+    return (client as any)[prop];
+  }
+});
