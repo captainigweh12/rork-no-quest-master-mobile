@@ -30,13 +30,46 @@ function createTrpcClient() {
           const headers = new Headers(options?.headers);
           headers.set("bypass-tunnel-reminder", "true");
 
-          const res = await fetch(url, { ...options, headers });
+          try {
+            const res = await fetch(url, { ...options, headers });
 
-          console.log("[tRPC] ←", res.status, String(url));
+            console.log("[tRPC] ←", res.status, String(url));
 
-          // Let tRPC handle the response (including errors)
-          // This allows the transformer to properly parse error responses
-          return res;
+            // Check Content-Type to detect HTML responses (404 pages, etc.)
+            const contentType = res.headers.get("content-type") || "";
+            
+            if (!res.ok && contentType.includes("text/html")) {
+              console.error("[tRPC] ❌ Server returned HTML instead of JSON");
+              console.error("[tRPC] Status:", res.status);
+              console.error("[tRPC] Content-Type:", contentType);
+              
+              // Try to read a preview of the HTML response
+              const clonedRes = res.clone();
+              try {
+                const text = await clonedRes.text();
+                const preview = text.slice(0, 200);
+                console.error("[tRPC] Response preview:", preview);
+                
+                // Check for common error patterns
+                if (text.includes("404") || text.includes("Not Found")) {
+                  console.error("[tRPC] 🔍 Route not found - check backend routing");
+                } else if (text.includes("502") || text.includes("Bad Gateway")) {
+                  console.error("[tRPC] 🔍 Backend may be down or unreachable");
+                } else if (text.includes("CORS")) {
+                  console.error("[tRPC] 🔍 CORS error - check backend CORS configuration");
+                }
+              } catch (e) {
+                console.error("[tRPC] Could not read response body:", e);
+              }
+            }
+
+            // Let tRPC handle the response (including errors)
+            // This allows the transformer to properly parse error responses
+            return res;
+          } catch (error) {
+            console.error("[tRPC] ❌ Fetch error:", error);
+            throw error;
+          }
         },
       }),
     ],
