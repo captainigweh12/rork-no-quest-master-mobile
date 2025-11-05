@@ -6,9 +6,8 @@ import { getBaseUrl, loadBaseUrlOverride } from "@/lib/baseUrl";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-// Singleton client so we only create once
+// Singleton client - created immediately with default URL
 let client: ReturnType<typeof trpc.createClient> | null = null;
-let clientPromise: Promise<ReturnType<typeof trpc.createClient>> | null = null;
 
 function createTrpcClient() {
   const baseUrl = getBaseUrl();
@@ -45,26 +44,24 @@ function createTrpcClient() {
 }
 
 /**
- * Get a singleton tRPC client. Use this in your Provider setup.
- * Ensures base URL override is loaded before creating client.
+ * Get the tRPC client synchronously. Creates it immediately if it doesn't exist.
+ * Base URL override will be loaded in the background and applied on next client creation.
  */
-export async function getTrpcClient() {
-  if (client) return client;
-  
-  // If already initializing, return that promise
-  if (clientPromise) return clientPromise;
-  
-  // Create new initialization promise
-  clientPromise = (async () => {
-    console.log('[tRPC] Waiting for base URL to be ready...');
-    // Ensure base URL override is loaded
-    await loadBaseUrlOverride();
-    console.log('[tRPC] Base URL ready, creating client...');
+export function getTrpcClient() {
+  if (!client) {
+    console.log('[tRPC] Creating client with current base URL...');
     client = createTrpcClient();
-    return client;
-  })();
+    
+    // Load base URL override in background (non-blocking)
+    loadBaseUrlOverride().then(() => {
+      console.log('[tRPC] Base URL override loaded (if any)');
+      // Note: Client will use updated URL on next request
+    }).catch(err => {
+      console.warn('[tRPC] Failed to load base URL override:', err);
+    });
+  }
   
-  return clientPromise;
+  return client;
 }
 
 /**
