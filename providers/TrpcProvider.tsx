@@ -1,10 +1,44 @@
 import React, { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { trpc, getTrpcClient } from "@/lib/trpc";
-import { View, Text, ActivityIndicator, Pressable, Linking } from "react-native";
-import { getBaseUrl } from "@/lib/baseUrl";
+import { trpc } from "@/lib/trpc";
+import { View, Text, ActivityIndicator, Pressable } from "react-native";
+import { loadBaseUrlOverride, getBaseUrl, setBaseUrlOverride } from "@/lib/baseUrl";
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
 
 const queryClient = new QueryClient();
+
+function createTrpcClient() {
+  const baseUrl = getBaseUrl();
+  const TRPC_URL = `${baseUrl}/api/trpc`;
+
+  console.log("[TrpcProvider] Creating client with base URL:", baseUrl);
+  console.log("[TrpcProvider] tRPC endpoint:", TRPC_URL);
+
+  return trpc.createClient({
+    links: [
+      httpBatchLink({
+        url: TRPC_URL,
+        transformer: superjson,
+        fetch: async (url, options) => {
+          console.log("[tRPC] →", String(url), options?.method || "GET");
+
+          const headers = new Headers(options?.headers);
+          headers.set("bypass-tunnel-reminder", "true");
+
+          try {
+            const res = await fetch(url, { ...options, headers });
+            console.log("[tRPC] ←", res.status, String(url));
+            return res;
+          } catch (error) {
+            console.error("[tRPC] ❌ Fetch error:", error);
+            throw error;
+          }
+        },
+      }),
+    ],
+  });
+}
 
 export default function TrpcProvider({ children }: { children: React.ReactNode }) {
   const [client, setClient] =
@@ -14,47 +48,75 @@ export default function TrpcProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let mounted = true;
-    console.log('[TrpcProvider] Initializing tRPC client...');
+    console.log('[TrpcProvider] Starting initialization...');
     
-    const timeout = setTimeout(() => {
+    const initTimeout = setTimeout(() => {
       if (mounted && !client) {
-        console.error('[TrpcProvider] ❌ Initialization timeout after 10s');
+        console.error('[TrpcProvider] ❌ Initialization timeout after 15s');
         setErrorType('timeout');
         setError('Connection timeout. The backend may be starting up or unreachable.');
       }
-    }, 10000); // Increased to 10s for Render cold starts
+    }, 15000);
     
-    try {
-      const c = getTrpcClient();
-      clearTimeout(timeout);
-      if (mounted) {
-        console.log('[TrpcProvider] ✅ Client ready');
-        setClient(c);
-      }
-    } catch (err: any) {
-      clearTimeout(timeout);
-      console.error('[TrpcProvider] ❌ Failed to initialize:', err);
-      if (mounted) {
-        // Provide more helpful error messages
-        let errorMsg = err.message || 'Failed to initialize tRPC';
-        let type: 'timeout' | 'connection' | 'other' = 'other';
-        
-        if (errorMsg.includes('Failed to fetch') || errorMsg.includes('Network request failed') || errorMsg.includes('ECONNREFUSED')) {
-          type = 'connection';
-          errorMsg = 'Cannot connect to backend server.';
-        } else if (errorMsg.includes('JSON') || errorMsg.includes('HTML')) {
-          type = 'other';
-          errorMsg = 'Server returned invalid response (HTML instead of JSON).';
+    (async () => {
+      try {
+        console.log('[TrpcProvider] Loading base URL override...');
+        const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
+
+        const currentOverride = await loadBaseUrlOverride();
+        console.log('[TrpcProvider] Current override:', currentOverride || 'none');
+
+        const isStaleUrl = currentOverride && 
+          !currentOverride.includes('rork-no-quest-master-mobile.onrender.com') &&
+          !currentOverride.includes('localhost') &&
+          !currentOverride.includes('127.0.0.1') &&
+          !currentOverride.includes('10.0.2.2');
+
+        if (isStaleUrl) {
+          console.log('[TrpcProvider] ⚠️ Clearing stale URL and setting Render URL');
+          await setBaseUrlOverride(RENDER_URL);
         }
+
+        if (!__DEV__) {
+          const currentUrl = getBaseUrl();
+          if (!currentUrl.includes('rork-no-quest-master-mobile.onrender.com')) {
+            console.log('[TrpcProvider] 🔧 Production: Forcing Render URL');
+            await setBaseUrlOverride(RENDER_URL);
+          }
+        }
+
+        console.log('[TrpcProvider] Final URL:', getBaseUrl());
         
-        setErrorType(type);
-        setError(errorMsg);
+        if (mounted) {
+          const c = createTrpcClient();
+          console.log('[TrpcProvider] ✅ Client created successfully');
+          clearTimeout(initTimeout);
+          setClient(c);
+        }
+      } catch (err: any) {
+        clearTimeout(initTimeout);
+        console.error('[TrpcProvider] ❌ Initialization failed:', err);
+        if (mounted) {
+          let errorMsg = err.message || 'Failed to initialize tRPC';
+          let type: 'timeout' | 'connection' | 'other' = 'other';
+          
+          if (errorMsg.includes('Failed to fetch') || errorMsg.includes('Network request failed') || errorMsg.includes('ECONNREFUSED')) {
+            type = 'connection';
+            errorMsg = 'Cannot connect to backend server.';
+          } else if (errorMsg.includes('JSON') || errorMsg.includes('HTML')) {
+            type = 'other';
+            errorMsg = 'Server returned invalid response (HTML instead of JSON).';
+          }
+          
+          setErrorType(type);
+          setError(errorMsg);
+        }
       }
-    }
+    })();
     
     return () => {
       mounted = false;
-      clearTimeout(timeout);
+      clearTimeout(initTimeout);
     };
   }, []);
 
@@ -86,7 +148,7 @@ export default function TrpcProvider({ children }: { children: React.ReactNode }
             <Text style={{ color: '#856404', fontSize: 11, fontFamily: 'monospace', marginTop: 4 }}>
               1. Open a new terminal{'\n'}
               2. Run: npm run backend{'\n'}
-              3. Wait for "listening on..." message{'\n'}
+              3. Wait for listening on... message{'\n'}
               4. Restart this app
             </Text>
           </View>

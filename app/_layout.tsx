@@ -1,23 +1,9 @@
-// types for expo-router are declared in app/expo-router.d.ts
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { trpc } from "@/lib/trpc";
-import { httpBatchLink } from "@trpc/client";
 import { useEffect, useState, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { LogBox, Pressable, View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { LogBox, Pressable, View, Text } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
-import { getTrpcClient } from "@/lib/trpc";
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
-});
 
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -34,9 +20,7 @@ import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import TrpcProvider from "@/providers/TrpcProvider";
-
-// NEW: ensure base URL override loads before first network call
-import { loadBaseUrlOverride, getBaseUrl, setBaseUrlOverride } from "@/lib/baseUrl";
+import { getBaseUrl } from "@/lib/baseUrl";
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -44,94 +28,7 @@ LogBox.ignoreLogs([
 
 SplashScreen.preventAutoHideAsync();
 
-function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    console.log('[BaseUrlBootstrap] Starting initialization...');
-    
-    const timeout = setTimeout(() => {
-      if (mounted && !ready) {
-        console.warn("[baseUrl] Bootstrap timeout after 3s, proceeding anyway");
-        setReady(true);
-      }
-    }, 3000);
-
-    (async () => {
-      try {
-        console.log("[baseUrl] Loading URL override from storage...");
-        const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
-
-        // Load any existing override using the safe helper (handles missing AsyncStorage)
-        const currentOverride = await loadBaseUrlOverride();
-        console.log("[baseUrl] Current cached override:", currentOverride || "none");
-
-        // AGGRESSIVE CLEARING: Clear any override that's not the Render URL or localhost
-        const isStaleUrl = currentOverride && 
-          !currentOverride.includes('rork-no-quest-master-mobile.onrender.com') &&
-          !currentOverride.includes('localhost') &&
-          !currentOverride.includes('127.0.0.1') &&
-          !currentOverride.includes('10.0.2.2');
-
-        if (isStaleUrl) {
-          console.log('[baseUrl] ⚠️ Detected stale URL, clearing and setting Render URL...');
-          console.log('[baseUrl] Stale URL was:', currentOverride);
-          await setBaseUrlOverride(RENDER_URL);
-          console.log('[baseUrl] ✅ Cleared stale URL and set new URL:', RENDER_URL);
-        }
-
-        const override = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
-        console.log("[baseUrl] Override loaded:", override || "none");
-
-        // ALWAYS force Render URL in production builds (not in development)
-        if (!__DEV__) {
-          const currentUrl = override || getBaseUrl();
-          if (!currentUrl.includes('rork-no-quest-master-mobile.onrender.com')) {
-            console.log('[baseUrl] 🔧 Production mode: Forcing Render URL...');
-            console.log('[baseUrl] Current URL was:', currentUrl);
-            await setBaseUrlOverride(RENDER_URL);
-            console.log('[baseUrl] ✅ Forced Render URL:', RENDER_URL);
-          } else {
-            console.log('[baseUrl] ✅ Production mode: Already using Render URL');
-          }
-        } else {
-          console.log('[baseUrl] 🔧 Development mode - using local backend or env var');
-        }
-
-        console.log("[baseUrl] Final base URL:", getBaseUrl());
-        console.log('[BaseUrlBootstrap] ✅ Initialization complete');
-      } catch (e) {
-        console.error("[baseUrl] Override load failed:", e);
-      } finally {
-        clearTimeout(timeout);
-        if (mounted) {
-          console.log('[BaseUrlBootstrap] Setting ready = true');
-          setReady(true);
-        }
-      }
-    })();
-    
-    return () => {
-      mounted = false;
-      clearTimeout(timeout);
-    };
-  }, []);
-
-  // Show loading screen instead of returning null
-  if (!ready) {
-    console.log('[BaseUrlBootstrap] Not ready yet, showing loading screen');
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Initializing...</Text>
-      </View>
-    );
-  }
-  
-  console.log('[BaseUrlBootstrap] Ready, rendering children');
-  return <>{children}</>;
-}
 
 function RootLayoutNav() {
   const { session, isLoading } = useAuth();
@@ -353,60 +250,39 @@ function RootLayoutNav() {
   );
 }
 
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666666',
-  },
-});
-
 export default function RootLayout() {
-  // Create tRPC client synchronously - no more blocking
-  const trpcClient = getTrpcClient();
-
   return (
-    <BaseUrlBootstrap>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <SchemaProvider>
-              <SubscriptionProvider>
-                <LocalizationProvider>
-                  <ThemeProvider>
-                    <OnboardingProvider>
-                      <NotificationsProvider>
-                        <GameProvider>
-                          <JournalsProvider>
-                            <CategoriesProvider>
-                              <GestureHandlerRootView style={{ flex: 1 }}>
-                                <MigrationBanner />
-                                <YouTubeProvider>
-                                  <StreamProvider>
-                                    <VideoSDKContextProvider>
-                                      <RootLayoutNav />
-                                    </VideoSDKContextProvider>
-                                  </StreamProvider>
-                                </YouTubeProvider>
-                              </GestureHandlerRootView>
-                            </CategoriesProvider>
-                          </JournalsProvider>
-                        </GameProvider>
-                      </NotificationsProvider>
-                    </OnboardingProvider>
-                  </ThemeProvider>
-                </LocalizationProvider>
-              </SubscriptionProvider>
-            </SchemaProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </trpc.Provider>
-    </BaseUrlBootstrap>
+    <TrpcProvider>
+      <AuthProvider>
+        <SchemaProvider>
+          <SubscriptionProvider>
+            <LocalizationProvider>
+              <ThemeProvider>
+                <OnboardingProvider>
+                  <NotificationsProvider>
+                    <GameProvider>
+                      <JournalsProvider>
+                        <CategoriesProvider>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            <MigrationBanner />
+                            <YouTubeProvider>
+                              <StreamProvider>
+                                <VideoSDKContextProvider>
+                                  <RootLayoutNav />
+                                </VideoSDKContextProvider>
+                              </StreamProvider>
+                            </YouTubeProvider>
+                          </GestureHandlerRootView>
+                        </CategoriesProvider>
+                      </JournalsProvider>
+                    </GameProvider>
+                  </NotificationsProvider>
+                </OnboardingProvider>
+              </ThemeProvider>
+            </LocalizationProvider>
+          </SubscriptionProvider>
+        </SchemaProvider>
+      </AuthProvider>
+    </TrpcProvider>
   );
 }
