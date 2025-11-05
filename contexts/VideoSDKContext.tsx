@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import createContextHook from "@nkzw/create-context-hook";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { trpcClient } from "@/lib/trpc";
+import { trpc } from "@/lib/trpc";
 
 interface VideoSDKContextType {
   token: string | null;
@@ -19,40 +18,32 @@ export const [VideoSDKContextProvider, useVideoSDK] =
     const [meetingId, setMeetingIdState] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const tokenQuery = useQuery({
-      queryKey: ["videosdk-token"],
-      queryFn: async () => {
-        try {
-          console.log("[VideoSDK Context] Fetching token");
-          const result = await trpcClient.videosdk.getToken.query();
-          console.log("[VideoSDK Context] Token fetched successfully:", result);
-          return result;
-        } catch (err) {
-          console.error("[VideoSDK Context] Token fetch error:", err);
-          const message = err instanceof Error ? err.message : String(err);
-          console.error("[VideoSDK Context] Error message:", message);
-          setError(
-            message.includes("404")
-              ? "API route not found (404). Check Base URL and that /api/trpc/videosdk.getToken exists."
-              : "Failed to fetch authentication token"
-          );
-          throw err;
-        }
-      },
+    // Use tRPC React Query hooks instead of direct client calls
+    const tokenQuery = trpc.videosdk.getToken.useQuery(undefined, {
       staleTime: 1000 * 60 * 60,
       retry: 2,
-      enabled: true,
     });
 
-    const createMeetingMutation = useMutation({
-      mutationFn: async (token: string) => {
-        console.log("[VideoSDK Context] Creating meeting with token");
-        const result = await trpcClient.videosdk.createMeeting.mutate({ token });
-        console.log("[VideoSDK Context] Meeting created:", result.meetingId);
-        return result;
-      },
+    // Handle token query errors via useEffect
+    useEffect(() => {
+      if (tokenQuery.error) {
+        console.error("[VideoSDK Context] Token fetch error:", tokenQuery.error);
+        const message = tokenQuery.error instanceof Error ? tokenQuery.error.message : String(tokenQuery.error);
+        console.error("[VideoSDK Context] Error message:", message);
+        setError(
+          message.includes("404")
+            ? "API route not found (404). Check Base URL and that /api/trpc/videosdk.getToken exists."
+            : "Failed to fetch authentication token"
+        );
+      } else if (tokenQuery.data) {
+        console.log("[VideoSDK Context] Token fetched successfully:", tokenQuery.data);
+        setError(null);
+      }
+    }, [tokenQuery.error, tokenQuery.data]);
+
+    const createMeetingMutation = trpc.videosdk.createMeeting.useMutation({
       onSuccess: (data) => {
-        console.log("[VideoSDK Context] Setting meeting ID:", data.meetingId);
+        console.log("[VideoSDK Context] Meeting created:", data.meetingId);
         setMeetingIdState(data.meetingId);
         setError(null);
       },
@@ -75,8 +66,8 @@ export const [VideoSDKContextProvider, useVideoSDK] =
       }
 
       console.log("[VideoSDK Context] Creating meeting with token...");
-      await createMeetingMutation.mutateAsync(tokenQuery.data.token);
-    }, [tokenQuery.data?.token, createMeetingMutation.mutateAsync]);
+      await createMeetingMutation.mutateAsync({ token: tokenQuery.data.token });
+    }, [tokenQuery.data?.token, createMeetingMutation]);
 
     const setMeetingId = useCallback((id: string) => {
       console.log("[VideoSDK Context] Setting meeting ID manually:", id);
@@ -90,11 +81,6 @@ export const [VideoSDKContextProvider, useVideoSDK] =
       setError(null);
     }, []);
 
-    useEffect(() => {
-      if (tokenQuery.error) {
-        console.error("[VideoSDK Context] Token query error:", tokenQuery.error);
-      }
-    }, [tokenQuery.error]);
 
     return useMemo(
       () => ({
