@@ -23,6 +23,8 @@ function createTrpcClient() {
         url: TRPC_URL,
         transformer: superjson,
         // NOTE: we keep a custom fetch for extra logging + header
+        // IMPORTANT: We do NOT throw on !res.ok - let tRPC handle all responses
+        // including errors, so the transformer can properly parse them
         fetch: async (url, options) => {
           console.log("[tRPC] →", String(url), options?.method || "GET");
 
@@ -33,16 +35,8 @@ function createTrpcClient() {
 
           console.log("[tRPC] ←", res.status, String(url));
 
-          if (!res.ok) {
-            const text = await res.text();
-            console.error(
-              "[tRPC] HTTP",
-              res.status,
-              "body:",
-              text.slice(0, 500)
-            );
-            throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-          }
+          // Let tRPC handle the response (including errors)
+          // This allows the transformer to properly parse error responses
           return res;
         },
       }),
