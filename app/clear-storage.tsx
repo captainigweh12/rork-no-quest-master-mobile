@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createTrpcClient } from '@/lib/trpc';
+import { getTrpcClient } from '@/lib/trpc';
 
 const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
 
@@ -53,12 +53,33 @@ export default function ClearStorageScreen() {
     }
   }, []);
 
+  const handleForceSetRenderUrl = useCallback(async () => {
+    setIsClearing(true);
+    setTestResult(null);
+    try {
+      console.log('[Clear Storage] Force setting Render URL...');
+      await AsyncStorage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', RENDER_URL);
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = RENDER_URL;
+      const stored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+      console.log('[Clear Storage] Verify override now:', stored);
+      setCurrentBase(RENDER_URL);
+      setTestResult(`✅ Render URL set: ${RENDER_URL}\n\nPlease restart the app for changes to take effect.`);
+      Alert.alert('Success', `Render URL has been set to:\n\n${RENDER_URL}\n\nPlease close and restart the app.`, [{ text: 'OK' }]);
+    } catch (error) {
+      console.error('[Clear Storage] Failed:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      setTestResult(`❌ Failed: ${message}`);
+    } finally {
+      setIsClearing(false);
+    }
+  }, []);
+
   async function handleTestConnection() {
     setIsTesting(true);
     setTestResult(null);
     try {
       console.log('[Clear Storage] Testing connection to:', getBaseUrl());
-      const freshClient = createTrpcClient();
+      const freshClient = getTrpcClient();
       const result = await freshClient.videosdk.checkConfig.query();
       console.log('[Clear Storage] Test result:', result);
       setTestResult(`✅ Success! Connected to ${getBaseUrl()}\n\nAPI is working correctly.`);
@@ -89,6 +110,19 @@ export default function ClearStorageScreen() {
         <Text style={styles.label}>Default (from .env):</Text>
         <Text style={styles.value}>{defaultBase}</Text>
       </View>
+
+      <TouchableOpacity 
+        testID="force-set-render-button"
+        style={[styles.button, styles.setRenderButton]} 
+        onPress={handleForceSetRenderUrl}
+        disabled={isClearing}
+      >
+        {isClearing ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>🎯 Force Set Render URL</Text>
+        )}
+      </TouchableOpacity>
 
       <TouchableOpacity 
         testID="clear-and-set-button"
@@ -132,13 +166,15 @@ export default function ClearStorageScreen() {
 
       <View style={styles.divider} />
 
-      <Text style={styles.infoTitle}>ℹ️ Instructions</Text>
+      <Text style={styles.infoTitle}>ℹ️ Quick Fix Instructions</Text>
       <Text style={styles.infoText}>
-        1. Tap {`"`}Remove Override Key{`"`} above{"\n"}
+        If you're seeing tRPC 404 errors:{"\n\n"}
+        1. Tap {`"`}Force Set Render URL{`"`} above{"\n"}
         2. Wait for confirmation{"\n"}
         3. Close the app completely (swipe away from recent apps){"\n"}
         4. Restart the app{"\n"}
-        5. Use {`"`}Test Connection{`"`} to verify
+        5. Use {`"`}Test Connection{`"`} to verify{"\n\n"}
+        This will force the app to use the correct production URL.
       </Text>
 
       <View style={styles.divider} />

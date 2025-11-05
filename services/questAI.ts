@@ -602,15 +602,20 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
 
   console.log('[QUEST AI] Generating quest locally with params:', params);
   if (categoryId) {
-    console.log('[QUEST AI] Category locked:', categoryId);
+    console.log('[QUEST AI] 🎯 Category LOCKED:', categoryId, '- Will stay in this category');
   }
 
   let questPool: QuestTemplate[] = questTemplatesGeneral;
   let priorityPool: QuestTemplate[] = [];
+  let categoryLocked = false;
 
+  // When categoryId is provided, ONLY use category-specific templates
   if (categoryId && categoryTemplates[categoryId]) {
     priorityPool = categoryTemplates[categoryId];
-    questPool = [...categoryTemplates[categoryId], ...questTemplatesGeneral];
+    categoryLocked = true;
+    // Don't mix with general templates - stay in category
+    questPool = [...categoryTemplates[categoryId]];
+    console.log('[QUEST AI] 📚 Using ONLY', categoryId, 'templates:', questPool.length, 'available');
   } else if (relationshipStatus === 'single') {
     priorityPool = questTemplatesSingle;
     questPool = [...questTemplatesSingle, ...questTemplatesGeneral];
@@ -694,6 +699,14 @@ export async function generateQuest(params: GenerateQuestParams): Promise<Quest>
     category: categoryId,
   };
 
-  console.log('[QUEST AI] Quest generated successfully with category:', quest.category, '| Title:', quest.title);
+  console.log('[QUEST AI] ✅ Quest generated successfully!');
+  console.log('[QUEST AI] 📁 Category:', quest.category || 'general');
+  console.log('[QUEST AI] 📝 Title:', quest.title);
+  console.log('[QUEST AI] 🎯 Difficulty:', quest.difficulty, '| Min No Required:', quest.minNoRequired);
+  
+  if (categoryLocked) {
+    console.log('[QUEST AI] 🔒 Category lock MAINTAINED - quest stays in', categoryId, 'category');
+  }
+  
   return quest;
 }

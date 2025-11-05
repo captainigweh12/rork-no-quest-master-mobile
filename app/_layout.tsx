@@ -67,23 +67,36 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
         const currentOverride = await loadBaseUrlOverride();
         console.log("[baseUrl] Current cached override:", currentOverride || "none");
 
-        // If it contains rorktest.dev, clear it immediately and set the correct Render URL
-        if (currentOverride?.includes('rorktest.dev')) {
-          console.log('[baseUrl] ⚠️ Detected old rorktest.dev URL, clearing and setting Render URL...');
+        // AGGRESSIVE CLEARING: Clear any override that's not the Render URL or localhost
+        const isStaleUrl = currentOverride && 
+          !currentOverride.includes('rork-no-quest-master-mobile.onrender.com') &&
+          !currentOverride.includes('localhost') &&
+          !currentOverride.includes('127.0.0.1') &&
+          !currentOverride.includes('10.0.2.2');
+
+        if (isStaleUrl) {
+          console.log('[baseUrl] ⚠️ Detected stale URL, clearing and setting Render URL...');
+          console.log('[baseUrl] Stale URL was:', currentOverride);
           await setBaseUrlOverride(RENDER_URL);
-          console.log('[baseUrl] ✅ Cleared old URL and set new URL:', RENDER_URL);
+          console.log('[baseUrl] ✅ Cleared stale URL and set new URL:', RENDER_URL);
         }
 
         const override = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
         console.log("[baseUrl] Override loaded:", override || "none");
 
-        // Only set Render URL in production builds, not in development
-        if (!override && !__DEV__) {
-          console.log('[baseUrl] No override found in production; setting Render URL override...');
-          await setBaseUrlOverride(RENDER_URL);
-          console.log('[baseUrl] ✅ Set proactive override to:', RENDER_URL);
-        } else if (__DEV__) {
-          console.log('[baseUrl] Development mode - using local backend or env var');
+        // ALWAYS force Render URL in production builds (not in development)
+        if (!__DEV__) {
+          const currentUrl = override || getBaseUrl();
+          if (!currentUrl.includes('rork-no-quest-master-mobile.onrender.com')) {
+            console.log('[baseUrl] 🔧 Production mode: Forcing Render URL...');
+            console.log('[baseUrl] Current URL was:', currentUrl);
+            await setBaseUrlOverride(RENDER_URL);
+            console.log('[baseUrl] ✅ Forced Render URL:', RENDER_URL);
+          } else {
+            console.log('[baseUrl] ✅ Production mode: Already using Render URL');
+          }
+        } else {
+          console.log('[baseUrl] 🔧 Development mode - using local backend or env var');
         }
 
         console.log("[baseUrl] Final base URL:", getBaseUrl());

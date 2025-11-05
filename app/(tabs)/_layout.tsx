@@ -100,6 +100,18 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
           }}
         />
+        <Tabs.Screen
+          name="ranks"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="growth"
+          options={{
+            href: null,
+          }}
+        />
         </Tabs>
       </ErrorBoundary>
     </View>
