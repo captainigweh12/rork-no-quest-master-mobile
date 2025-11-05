@@ -8,12 +8,8 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LogBox, Pressable, View, Text } from "react-native";
-import { transformer } from "@/lib/transformer";
 import { ChevronLeft } from "lucide-react-native";
-
-if (!process.env.EXPO_PUBLIC_API_URL) {
-  process.env.EXPO_PUBLIC_API_URL = 'http://localhost:3000';
-}
+import { getTrpcClient } from "@/lib/trpc";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,31 +18,7 @@ export const queryClient = new QueryClient({
     },
   },
 });
-export const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: `${process.env.EXPO_PUBLIC_API_URL}/trpc`,
-      async headers() {
-        return {};
-      },
-      transformer
-    })
-  ]
-});
 
-export const client = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: getBaseUrl(),
-      async headers() {
-        return {
-          // Include any headers needed
-        };
-      },
-      transformer
-    })
-  ]
-});
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -105,11 +77,13 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
         const override = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
         console.log("[baseUrl] Override loaded:", override || "none");
 
-        // If no override is present, proactively set the Render URL so the app uses the deployed backend
-        if (!override) {
-          console.log('[baseUrl] No override found; proactively setting Render URL override...');
+        // Only set Render URL in production builds, not in development
+        if (!override && !__DEV__) {
+          console.log('[baseUrl] No override found in production; setting Render URL override...');
           await setBaseUrlOverride(RENDER_URL);
           console.log('[baseUrl] ✅ Set proactive override to:', RENDER_URL);
+        } else if (__DEV__) {
+          console.log('[baseUrl] Development mode - using local backend or env var');
         }
 
         console.log("[baseUrl] Final base URL:", getBaseUrl());
@@ -361,6 +335,16 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [trpcClient, setTrpcClient] = useState<ReturnType<typeof trpc.createClient> | null>(null);
+
+  useEffect(() => {
+    getTrpcClient().then(setTrpcClient);
+  }, []);
+
+  if (!trpcClient) {
+    return null; // Wait for client to be ready
+  }
+
   return (
     <BaseUrlBootstrap>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
