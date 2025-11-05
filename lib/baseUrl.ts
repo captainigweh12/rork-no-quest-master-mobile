@@ -100,8 +100,23 @@ export async function setBaseUrlOverride(url?: string | undefined): Promise<void
 
 export function getBaseUrl(): string {
   const override = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
+  const defaultUrl = getDefaultBaseUrl();
+  
+  // Log once per session for debugging
+  if (!(globalThis as any).__RORK_BASE_URL_LOGGED) {
+    (globalThis as any).__RORK_BASE_URL_LOGGED = true;
+    
+    if (override && override.trim().length > 0) {
+      console.log('📡 Using AsyncStorage override Base URL:', override);
+      console.log('   (Default would be:', defaultUrl + ')');
+    } else {
+      console.log('🌐 Using default Base URL:', defaultUrl);
+      console.log('   (No AsyncStorage override set)');
+    }
+  }
+  
   if (override && override.trim().length > 0) return override;
-  return getDefaultBaseUrl();
+  return defaultUrl;
 }
 
 // Globals for cached override + one-time log guard
