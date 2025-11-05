@@ -7,7 +7,7 @@ import { useEffect, useState, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { LogBox, Pressable, View, Text } from "react-native";
+import { LogBox, Pressable, View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { getTrpcClient } from "@/lib/trpc";
 
@@ -105,9 +105,15 @@ function BaseUrlBootstrap({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Show loading screen instead of returning null
   if (!ready) {
-    console.log('[BaseUrlBootstrap] Not ready yet, returning null');
-    return null;
+    console.log('[BaseUrlBootstrap] Not ready yet, showing loading screen');
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Initializing...</Text>
+      </View>
+    );
   }
   
   console.log('[BaseUrlBootstrap] Ready, rendering children');
@@ -334,16 +340,23 @@ function RootLayoutNav() {
   );
 }
 
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666666',
+  },
+});
+
 export default function RootLayout() {
-  const [trpcClient, setTrpcClient] = useState<ReturnType<typeof trpc.createClient> | null>(null);
-
-  useEffect(() => {
-    getTrpcClient().then(setTrpcClient);
-  }, []);
-
-  if (!trpcClient) {
-    return null; // Wait for client to be ready
-  }
+  // Create tRPC client synchronously - no more blocking
+  const trpcClient = getTrpcClient();
 
   return (
     <BaseUrlBootstrap>
