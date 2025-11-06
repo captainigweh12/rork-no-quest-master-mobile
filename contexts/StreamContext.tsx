@@ -159,6 +159,7 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       visibility?: StreamVisibility;
       groupId?: string | null;
       shareLocation?: boolean;
+      thumbnailUrl?: string | null;
     }) => {
       if (!user) {
         const error = new Error('User not authenticated');
@@ -185,6 +186,7 @@ export const [StreamProvider, useStream] = createContextHook(() => {
         questId: data.questId,
         questTitle: data.questTitle,
         category: data.category,
+        thumbnailUrl: data.thumbnailUrl,
       } as any);
     },
     [user, createStreamAsync, visibility, selectedGroupId, shareLocation]

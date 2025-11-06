@@ -96,6 +96,9 @@
           "icon": "./assets/images/icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
+          "sounds": [
+            "./local/assets/notification_sound.wav"
+          ],
           "enableBackgroundRemoteNotifications": true
         }
       ],

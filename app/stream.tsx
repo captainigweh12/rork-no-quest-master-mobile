@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,7 +20,7 @@ import { useStream } from '@/contexts/StreamContext';
 import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Users, Send, Video, VideoOff, Server, Globe, Lock } from 'lucide-react-native';
+import { X, Users, Send, Video, VideoOff, Server, Globe, Lock, ImagePlus, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { trpc } from '@/lib/trpc';
 import { useQuery } from '@tanstack/react-query';
@@ -63,6 +64,10 @@ export default function StreamScreen() {
   const [joinHint, setJoinHint] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const styles = createStyles(theme.colors);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
+  const [isGeneratingCover, setIsGeneratingCover] = useState<boolean>(false);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
 
   const teamsQuery = useQuery({
     queryKey: ['teams-mini', user?.id],
@@ -133,7 +138,50 @@ export default function StreamScreen() {
     }
   }, [messages]);
 
+  const handleGenerateCover = async () => {
+    if (!generatedPrompt.trim()) {
+      Alert.alert('Prompt Required', 'Please enter a description for your cover photo');
+      return;
+    }
+
+    setIsGeneratingCover(true);
+    try {
+      const response = await fetch('https://toolkit.rork.com/images/generate/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: generatedPrompt,
+          size: '1024x1024',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate cover photo');
+      }
+
+      const data = await response.json();
+      const base64Image = `data:${data.image.mimeType};base64,${data.image.base64Data}`;
+      setCoverPhotoUrl(base64Image);
+      setShowCoverModal(false);
+      try {
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch {}
+    } catch (error) {
+      console.error('[STREAM] Failed to generate cover:', error);
+      Alert.alert('Error', 'Failed to generate cover photo. Please try again.');
+    } finally {
+      setIsGeneratingCover(false);
+    }
+  };
+
   const handleStartStream = async () => {
+    if (!coverPhotoUrl) {
+      setShowCoverModal(true);
+      return;
+    }
+
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
@@ -154,6 +202,7 @@ export default function StreamScreen() {
         visibility,
         groupId: visibility === 'group' ? selectedGroupId ?? null : null,
         shareLocation,
+        thumbnailUrl: coverPhotoUrl,
       });
 
       try {
@@ -244,6 +293,38 @@ export default function StreamScreen() {
           <Text style={[styles.setupSubtitle, { color: theme.colors.textSecondary }]}>
             Share your quest journey with the community
           </Text>
+
+          <View style={{ width: '100%', gap: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800' as const, color: theme.colors.text }}>Cover Photo</Text>
+            <Pressable
+              onPress={() => setShowCoverModal(true)}
+              style={({ pressed }) => [{
+                width: '100%',
+                height: 200,
+                borderRadius: 16,
+                overflow: 'hidden',
+                backgroundColor: theme.colors.card,
+                borderWidth: 2,
+                borderColor: theme.colors.border,
+                opacity: pressed ? 0.95 : 1,
+              }]}
+              testID="select-cover-photo"
+            >
+              {coverPhotoUrl ? (
+                <Image
+                  source={{ uri: coverPhotoUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                  <ImagePlus size={48} color={theme.colors.textSecondary} />
+                  <Text style={{ color: theme.colors.textSecondary, fontWeight: '700' as const }}>Add Cover Photo</Text>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 12, textAlign: 'center', paddingHorizontal: 20 }}>Generate with AI or upload from gallery</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
 
           <View style={styles.setupInfo}>
             <Video size={48} color={theme.colors.primary} />
@@ -449,6 +530,73 @@ export default function StreamScreen() {
                   <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>Cancel</Text>
                 </Pressable>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={showCoverModal} transparent animationType="fade" onRequestClose={() => setShowCoverModal(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.colors.card, borderRadius: 16, overflow: 'hidden' }}>
+              <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '900' as const, color: theme.colors.text }}>Choose Cover Photo</Text>
+                <Pressable onPress={() => setShowCoverModal(false)} testID="close-cover-modal">
+                  <X size={24} color={theme.colors.text} />
+                </Pressable>
+              </View>
+              <ScrollView style={{ maxHeight: 500 }} contentContainerStyle={{ padding: 18, gap: 16 }}>
+                <View style={{ gap: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800' as const, color: theme.colors.text }}>Generate with AI</Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Describe your live stream and we will generate a cover photo</Text>
+                  <TextInput
+                    style={[{
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      borderRadius: 12,
+                      padding: 12,
+                      color: theme.colors.text,
+                      fontSize: 14,
+                      minHeight: 80,
+                      textAlignVertical: 'top',
+                    }]}
+                    value={generatedPrompt}
+                    onChangeText={setGeneratedPrompt}
+                    placeholder="e.g., A person climbing a mountain at sunset, motivational, vibrant colors"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    multiline
+                    testID="cover-prompt-input"
+                  />
+                  <Pressable
+                    onPress={handleGenerateCover}
+                    disabled={isGeneratingCover || !generatedPrompt.trim()}
+                    style={({ pressed }) => [{
+                      backgroundColor: theme.colors.primary,
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      flexDirection: 'row',
+                      justifyContent: 'center',
+                      gap: 8,
+                      opacity: (isGeneratingCover || !generatedPrompt.trim()) ? 0.5 : (pressed ? 0.9 : 1),
+                    }]}
+                    testID="generate-cover-button"
+                  >
+                    {isGeneratingCover ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Sparkles size={20} color="#fff" />
+                        <Text style={{ color: '#fff', fontWeight: '900' as const, fontSize: 16 }}>Generate Cover</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+
+                <View style={{ height: 1, backgroundColor: theme.colors.border, marginVertical: 8 }} />
+
+                <View style={{ gap: 12 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800' as const, color: theme.colors.text }}>Upload from Gallery</Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Coming soon</Text>
+                </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>

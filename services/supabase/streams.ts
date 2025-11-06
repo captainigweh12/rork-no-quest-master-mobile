@@ -10,6 +10,7 @@ export async function createStream(data: {
   visibility?: 'public' | 'private' | 'group';
   groupId?: string | null;
   shareLocation?: boolean;
+  thumbnailUrl?: string | null;
 }): Promise<LiveStream> {
   console.log('[STREAMS] Creating new stream:', data);
   
@@ -29,6 +30,7 @@ export async function createStream(data: {
       quest_id: data.questId,
       quest_title: data.questTitle,
       category: data.category,
+      thumbnail_url: data.thumbnailUrl,
       is_live: true,
     })
     .select(`
