@@ -18,7 +18,7 @@ import { useVideoSDK } from "@/contexts/VideoSDKContext";
 import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Instagram } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
-import { getBaseUrl } from "@/lib/baseUrl";
+import { getBaseUrl, DEFAULT_RENDER_BASE_URL, setBaseUrlOverride } from "@/lib/baseUrl";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/contexts/GameContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -221,6 +221,26 @@ const StreamView = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  
+  useEffect(() => {
+    try {
+      const desired = DEFAULT_RENDER_BASE_URL;
+      const current = getBaseUrl();
+      if (current !== desired) {
+        console.log('[VideoSDK] Enforcing Render base URL for livestream:', desired);
+        setBaseUrlOverride(desired)
+          .then(() => {
+            const reinit = (globalThis as any).__RORK_INIT_BASE_URL__ as (() => Promise<void>) | undefined;
+            if (reinit) reinit();
+          })
+          .catch((e: unknown) => {
+            console.error('[VideoSDK] Failed to enforce base URL on livestream open', e);
+          });
+      }
+    } catch (e) {
+      console.error('[VideoSDK] Error ensuring base URL on livestream open', e);
+    }
+  }, []);
   
   const [micEnabled, setMicEnabled] = useState<boolean>(true);
   const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
