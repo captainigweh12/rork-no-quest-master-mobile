@@ -91,13 +91,20 @@ function RootLayoutNav() {
 
   return (
     <>
-      {__DEV__ && (
-        <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FFE8D9' }}>
-          <Text style={{ color: '#5C2D0C', fontSize: 12 }}>
-            tRPC Base: {getBaseUrl()}/api/trpc
-          </Text>
-        </View>
-      )}
+      {(() => {
+        const isLiveScreen = Array.isArray(segments) && (
+          segments.includes('stream') ||
+          segments.includes('stream-videosdk') ||
+          (segments[0] === '(tabs)' && (segments.includes('(home)') && segments.includes('live')))
+        );
+        return __DEV__ && !isLiveScreen ? (
+          <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FFE8D9' }}>
+            <Text style={{ color: '#5C2D0C', fontSize: 12 }}>
+              tRPC Base: {getBaseUrl()}/api/trpc
+            </Text>
+          </View>
+        ) : null;
+      })()}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />

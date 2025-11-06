@@ -5,19 +5,20 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   Alert,
+  Share,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, CheckCircle2, XCircle, Map as MapIcon, Square, LayoutList } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2 } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/contexts/GameContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const WebCameraPreview = () => {
   return (
@@ -212,6 +213,7 @@ const QuestLiveBanner = ({
 const StreamView = () => {
   const router = useRouter();
   const { meetingId } = useVideoSDK();
+  const insets = useSafeAreaInsets();
   
   const [micEnabled, setMicEnabled] = useState<boolean>(true);
   const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
@@ -286,50 +288,93 @@ const StreamView = () => {
         </View>
 
         <QuestLiveBanner onOpenQuest={() => setShowQuest(true)} onOpenMap={() => setShowMap(true)} />
-
-        <View style={styles.meetingIdContainer}>
-          <Text style={styles.meetingIdLabel}>Meeting ID: {meetingId}</Text>
-          <TouchableOpacity onPress={handleCopyMeetingId}>
-            <Copy size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {showQuest && <QuestOverlay onClose={() => setShowQuest(false)} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} />}
 
-      <View style={styles.controls}>
-        <TouchableOpacity
-          style={[styles.controlButton, !micEnabled && styles.controlButtonOff]}
-          onPress={handleToggleMic}
-        >
-          {micEnabled ? (
-            <Mic size={28} color="#fff" />
-          ) : (
-            <MicOff size={28} color="#fff" />
-          )}
-        </TouchableOpacity>
+      <View style={[styles.controls, { paddingBottom: Math.max(8, 8 + insets.bottom) }]}>
 
-        <TouchableOpacity
-          style={[
-            styles.controlButton,
-            !cameraEnabled && styles.controlButtonOff,
-          ]}
-          onPress={handleToggleCamera}
-        >
-          {cameraEnabled ? (
-            <VideoIcon size={28} color="#fff" />
-          ) : (
-            <VideoOff size={28} color="#fff" />
-          )}
-        </TouchableOpacity>
+        <View style={styles.controlsLeft}>
+          <TouchableOpacity
+            style={[styles.controlButton, !micEnabled && styles.controlButtonOff]}
+            onPress={handleToggleMic}
+            accessibilityLabel="Toggle microphone"
+            testID="toggle-mic"
+          >
+            {micEnabled ? (
+              <Mic size={22} color="#fff" />
+            ) : (
+              <MicOff size={22} color="#fff" />
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.controlButton, styles.endCallButton]}
-          onPress={handleEndStream}
-        >
-          <PhoneOff size={28} color="#fff" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.controlButton, !cameraEnabled && styles.controlButtonOff]}
+            onPress={handleToggleCamera}
+            accessibilityLabel="Toggle camera"
+            testID="toggle-camera"
+          >
+            {cameraEnabled ? (
+              <VideoIcon size={22} color="#fff" />
+            ) : (
+              <VideoOff size={22} color="#fff" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.controlButton]}
+            onPress={() => setShowMap(true)}
+            accessibilityLabel="Open map"
+            testID="open-map"
+          >
+            <MapIcon size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.controlsCenter}>
+          <TouchableOpacity
+            style={styles.meetingPill}
+            onPress={handleCopyMeetingId}
+            accessibilityLabel="Copy meeting ID"
+            testID="copy-meeting-id"
+          >
+            <Text style={styles.meetingPillText} numberOfLines={1}>ID: {meetingId}</Text>
+            <Copy size={14} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.shareBtn}
+            onPress={async () => {
+              try {
+                const text = `Join my live stream\nMeeting ID: ${meetingId}`;
+                if (Platform.OS === 'web') {
+                  await Clipboard.setStringAsync(text);
+                  alert('Share text copied to clipboard');
+                } else {
+                  await Share.share({ message: text, title: 'Join my live stream' });
+                }
+              } catch (e) {
+                console.log('[Share] Failed', e);
+              }
+            }}
+            accessibilityLabel="Share meeting"
+            testID="share-meeting"
+          >
+            <Share2 size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.controlsRight}>
+          <TouchableOpacity
+            style={[styles.endCallButton]}
+            onPress={handleEndStream}
+            accessibilityLabel="End stream"
+            testID="end-stream"
+          >
+            <PhoneOff size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -358,6 +403,7 @@ const QuestOverlay = ({ onClose }: { onClose: () => void }) => {
 
 const MapOverlay = ({ onClose }: { onClose: () => void }) => {
   const { theme } = useTheme();
+  const router = useRouter();
   return (
     <View style={overlayStyles.backdrop} pointerEvents="box-none">
       <View style={[overlayStyles.sheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
@@ -367,7 +413,18 @@ const MapOverlay = ({ onClose }: { onClose: () => void }) => {
             <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}>Coming soon: collaborative maps. For now this shows an overlay for the stream.</Text>
+        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}>Open the full interactive Quest Map to navigate to places and unlock quests.</Text>
+        <TouchableOpacity
+          onPress={() => {
+            onClose();
+            router.push('/(tabs)/map' as any);
+          }}
+          style={{ marginTop: 12, paddingVertical: 12, borderRadius: 12, backgroundColor: theme.colors.primary, alignItems: 'center' }}
+          accessibilityLabel="Open full map"
+          testID="open-full-map"
+        >
+          <Text style={{ color: '#fff', fontWeight: '800' as const }}>Open Map</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -377,6 +434,7 @@ export default function StreamVideoSDKScreen() {
   const { token, meetingId, isLoadingToken, createNewMeeting, error } =
     useVideoSDK();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [isCreatingMeeting, setIsCreatingMeeting] = useState<boolean>(false);
 
   useEffect(() => {
@@ -404,7 +462,7 @@ export default function StreamVideoSDKScreen() {
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: Math.max(0, insets.bottom - 4) } ]}>
         <Stack.Screen
           options={{
             title: "Live Stream",
@@ -426,7 +484,7 @@ export default function StreamVideoSDKScreen() {
 
   if (isLoadingToken || !token || !meetingId || isCreatingMeeting) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: Math.max(0, insets.bottom - 4) } ]}>
         <Stack.Screen
           options={{
             title: "Live Stream",
@@ -448,7 +506,7 @@ export default function StreamVideoSDKScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(0, insets.bottom - 4) } ]}>
       <Stack.Screen
         options={{
           title: "Live Stream",
@@ -711,18 +769,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     backgroundColor: "#000",
-    gap: 12,
+    gap: 8,
   },
+  controlsLeft: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  controlsCenter: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  controlsRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   controlButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "#4B5563",
     justifyContent: "center",
     alignItems: "center",
+  },
+  meetingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)'
+  },
+  meetingPillText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700' as const,
+    maxWidth: 160,
+  },
+  shareBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   controlButtonOff: {
     backgroundColor: "#DC2626",
