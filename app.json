@@ -76,10 +76,7 @@
     },
     "plugins": [
       [
-        "expo-router",
-        {
-          "origin": "https://rork.app"
-        }
+        "expo-router"
       ],
       [
         "expo-location",
