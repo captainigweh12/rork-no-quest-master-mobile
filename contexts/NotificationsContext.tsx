@@ -43,6 +43,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
       return;
     }
 
+    if (Platform.OS === 'android' && Constants.appOwnership === 'expo') {
+      console.log('Skipping push registration: Expo Go on Android does not support remote push since SDK 53');
+      setPermissionStatus('denied');
+      return;
+    }
+
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -59,9 +65,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         return;
       }
 
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const projectId = (Constants?.expoConfig?.extra as any)?.eas?.projectId ?? (Constants?.manifestExtra as any)?.eas?.projectId;
       if (!projectId) {
-        console.error('No projectId found in app.json');
+        console.warn('No EAS projectId found in config. Skipping push token registration.');
         return;
       }
 
