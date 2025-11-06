@@ -883,10 +883,10 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
   const [isPanning, setIsPanning] = useState(false);
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponder: () => index === currentIndex,
       onMoveShouldSetPanResponder: (_evt, gesture) => {
         if (index !== currentIndex) return false;
-        const shouldMove = Math.abs(gesture.dx) > 15;
+        const shouldMove = Math.abs(gesture.dx) > 8 || Math.abs(gesture.dy) > 8;
         return shouldMove;
       },
       onPanResponderGrant: () => {
