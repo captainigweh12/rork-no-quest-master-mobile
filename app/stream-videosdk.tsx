@@ -494,9 +494,11 @@ const overlayStyles = StyleSheet.create({
   },
   sheet: {
     margin: 12,
+    marginBottom: 120,
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
+    maxHeight: '60%',
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sheetTitle: { fontSize: 14, fontWeight: '900' as const },
