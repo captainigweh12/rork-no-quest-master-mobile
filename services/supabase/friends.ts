@@ -13,19 +13,19 @@ export async function searchUsers(query: string): Promise<Friend[]> {
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('id, username, full_name, avatar_url, level, total_points, total_rejections, streak')
+      .select('id, username, full_name, avatar_url, level, total_points, streak')
       .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
       .order('total_points', { ascending: false })
       .limit(50);
 
     if (error) {
-      console.error('[Friends] Search error:', error);
+      console.error('[Friends] Search error:', error?.message ?? JSON.stringify(error));
       throw new Error(error.message);
     }
 
     console.log('[Friends] Search results:', data?.length || 0, 'users');
 
-    return (data || []).map(user => ({
+    return (data || []).map((user: any) => ({
       id: user.id,
       username: user.username,
       fullName: user.full_name || '',
@@ -34,11 +34,11 @@ export async function searchUsers(query: string): Promise<Friend[]> {
       currentXp: 0,
       xpToNextLevel: 100,
       totalPoints: user.total_points || 0,
-      totalRejections: user.total_rejections || 0,
+      totalRejections: 0,
       streak: user.streak || 0,
     }));
   } catch (error: any) {
-    console.error('[Friends] searchUsers error:', error);
+    console.error('[Friends] searchUsers error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
@@ -59,7 +59,6 @@ export async function getFriends(userId: string): Promise<Friend[]> {
           avatar_url,
           level,
           total_points,
-          total_rejections,
           streak
         )
       `)
@@ -67,7 +66,7 @@ export async function getFriends(userId: string): Promise<Friend[]> {
       .eq('status', 'accepted');
 
     if (error) {
-      console.error('[Friends] Get friends error:', error);
+      console.error('[Friends] Get friends error:', error?.message ?? JSON.stringify(error));
       throw new Error(error.message);
     }
 
@@ -84,13 +83,13 @@ export async function getFriends(userId: string): Promise<Friend[]> {
         currentXp: 0,
         xpToNextLevel: 100,
         totalPoints: profile.total_points || 0,
-        totalRejections: profile.total_rejections || 0,
+        totalRejections: 0,
         streak: profile.streak || 0,
         friendshipStatus: 'accepted' as const,
       };
     });
   } catch (error: any) {
-    console.error('[Friends] getFriends error:', error);
+    console.error('[Friends] getFriends error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
@@ -106,7 +105,7 @@ export async function recommendFriends(userId: string, limit: number = 10): Prom
       .single();
 
     if (userError) {
-      console.error('[Friends] Error fetching current user:', userError);
+      console.error('[Friends] Error fetching current user:', userError?.message ?? JSON.stringify(userError));
       throw new Error(userError.message);
     }
 
@@ -116,19 +115,19 @@ export async function recommendFriends(userId: string, limit: number = 10): Prom
       .eq('user_id', userId);
 
     if (friendsError) {
-      console.error('[Friends] Error fetching existing friends:', friendsError);
+      console.error('[Friends] Error fetching existing friends:', friendsError?.message ?? JSON.stringify(friendsError));
     }
 
-    const friendIds = (existingFriends || []).map(f => f.friend_id);
+    const friendIds = (existingFriends || []).map((f: any) => f.friend_id);
     friendIds.push(userId);
 
-    const userLevel = currentUser?.level || 1;
+    const userLevel = (currentUser as any)?.level || 1;
     const minLevel = Math.max(1, userLevel - 3);
     const maxLevel = userLevel + 3;
 
     const { data: recommendations, error: recError } = await supabase
       .from('user_profiles')
-      .select('id, username, full_name, avatar_url, level, total_points, total_rejections, streak')
+      .select('id, username, full_name, avatar_url, level, total_points, streak')
       .not('id', 'in', `(${friendIds.join(',')})`)
       .gte('level', minLevel)
       .lte('level', maxLevel)
@@ -136,13 +135,13 @@ export async function recommendFriends(userId: string, limit: number = 10): Prom
       .limit(limit);
 
     if (recError) {
-      console.error('[Friends] Recommendations error:', recError);
+      console.error('[Friends] Recommendations error:', recError?.message ?? JSON.stringify(recError));
       throw new Error(recError.message);
     }
 
     console.log('[Friends] Found', recommendations?.length || 0, 'recommendations');
 
-    return (recommendations || []).map(user => ({
+    return (recommendations || []).map((user: any) => ({
       id: user.id,
       username: user.username,
       fullName: user.full_name || '',
@@ -151,11 +150,11 @@ export async function recommendFriends(userId: string, limit: number = 10): Prom
       currentXp: 0,
       xpToNextLevel: 100,
       totalPoints: user.total_points || 0,
-      totalRejections: user.total_rejections || 0,
+      totalRejections: 0,
       streak: user.streak || 0,
     }));
   } catch (error: any) {
-    console.error('[Friends] recommendFriends error:', error);
+    console.error('[Friends] recommendFriends error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
@@ -184,7 +183,7 @@ export async function sendFriendRequest(userId: string, friendId: string): Promi
       });
 
     if (insertError) {
-      console.error('[Friends] Send request error:', insertError);
+      console.error('[Friends] Send request error:', insertError?.message ?? JSON.stringify(insertError));
       throw new Error(insertError.message);
     }
 
@@ -199,12 +198,12 @@ export async function sendFriendRequest(userId: string, friendId: string): Promi
       });
 
     if (notifError) {
-      console.error('[Friends] Notification error:', notifError);
+      console.error('[Friends] Notification error:', notifError?.message ?? JSON.stringify(notifError));
     }
 
     console.log('[Friends] Friend request sent successfully');
   } catch (error: any) {
-    console.error('[Friends] sendFriendRequest error:', error);
+    console.error('[Friends] sendFriendRequest error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
@@ -220,7 +219,7 @@ export async function acceptFriendRequest(requestId: string, userId: string, fri
       .eq('friend_id', userId);
 
     if (updateError) {
-      console.error('[Friends] Accept error:', updateError);
+      console.error('[Friends] Accept error:', updateError?.message ?? JSON.stringify(updateError));
       throw new Error(updateError.message);
     }
 
@@ -233,12 +232,12 @@ export async function acceptFriendRequest(requestId: string, userId: string, fri
       });
 
     if (insertError) {
-      console.error('[Friends] Create reciprocal friendship error:', insertError);
+      console.error('[Friends] Create reciprocal friendship error:', insertError?.message ?? JSON.stringify(insertError));
     }
 
     console.log('[Friends] Friend request accepted');
   } catch (error: any) {
-    console.error('[Friends] acceptFriendRequest error:', error);
+    console.error('[Friends] acceptFriendRequest error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
@@ -260,7 +259,7 @@ export async function createFriendInvite(userId: string, email?: string): Promis
       .single();
 
     if (error) {
-      console.error('[Friends] Create invite error:', error);
+      console.error('[Friends] Create invite error:', error?.message ?? JSON.stringify(error));
       throw new Error(error.message);
     }
 
@@ -274,7 +273,7 @@ export async function createFriendInvite(userId: string, email?: string): Promis
       expiresAt: new Date(data.expires_at),
     };
   } catch (error: any) {
-    console.error('[Friends] createFriendInvite error:', error);
+    console.error('[Friends] createFriendInvite error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
@@ -288,13 +287,13 @@ export async function acceptFriendInvite(inviteCode: string): Promise<void> {
     });
 
     if (error) {
-      console.error('[Friends] Accept invite error:', error);
+      console.error('[Friends] Accept invite error:', error?.message ?? JSON.stringify(error));
       throw new Error(error.message);
     }
 
     console.log('[Friends] Friend invite accepted');
   } catch (error: any) {
-    console.error('[Friends] acceptFriendInvite error:', error);
+    console.error('[Friends] acceptFriendInvite error:', error?.message ?? JSON.stringify(error));
     throw error;
   }
 }
