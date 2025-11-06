@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2 } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, Square, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl } from "@/lib/baseUrl";
@@ -221,6 +221,8 @@ const StreamView = () => {
   const [viewerCount] = useState<number>(1);
   const [showQuest, setShowQuest] = useState<boolean>(false);
   const [showMap, setShowMap] = useState<boolean>(false);
+  const [showChat, setShowChat] = useState<boolean>(false);
+  const [showGenerateQuest, setShowGenerateQuest] = useState<boolean>(false);
 
   const handleToggleMic = () => {
     console.log("[VideoSDK] Toggling microphone");
@@ -292,6 +294,8 @@ const StreamView = () => {
 
       {showQuest && <QuestOverlay onClose={() => setShowQuest(false)} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} />}
+      {showChat && <ChatOverlay onClose={() => setShowChat(false)} />}
+      {showGenerateQuest && <GenerateQuestOverlay onClose={() => setShowGenerateQuest(false)} />}
 
       <View style={[styles.controls, { paddingBottom: Math.max(8, 8 + insets.bottom) }]}>
 
@@ -334,16 +338,6 @@ const StreamView = () => {
 
         <View style={styles.controlsCenter}>
           <TouchableOpacity
-            style={styles.meetingPill}
-            onPress={handleCopyMeetingId}
-            accessibilityLabel="Copy meeting ID"
-            testID="copy-meeting-id"
-          >
-            <Text style={styles.meetingPillText} numberOfLines={1}>ID: {meetingId}</Text>
-            <Copy size={14} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={styles.shareBtn}
             onPress={async () => {
               try {
@@ -363,16 +357,34 @@ const StreamView = () => {
           >
             <Share2 size={18} color="#fff" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={() => setShowChat(!showChat)}
+            accessibilityLabel="Toggle chat"
+            testID="toggle-chat"
+          >
+            <MessageCircle size={22} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={() => setShowGenerateQuest(true)}
+            accessibilityLabel="Generate quest"
+            testID="generate-quest"
+          >
+            <Sparkles size={22} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.controlsRight}>
           <TouchableOpacity
-            style={[styles.endCallButton]}
+            style={styles.endCallButton}
             onPress={handleEndStream}
             accessibilityLabel="End stream"
             testID="end-stream"
           >
-            <PhoneOff size={24} color="#fff" />
+            <Square size={20} color="#fff" fill="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -424,6 +436,98 @@ const MapOverlay = ({ onClose }: { onClose: () => void }) => {
           testID="open-full-map"
         >
           <Text style={{ color: '#fff', fontWeight: '800' as const }}>Open Map</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const ChatOverlay = ({ onClose }: { onClose: () => void }) => {
+  const { theme } = useTheme();
+  const [messages] = useState<{ id: string; user: string; text: string }[]>([
+    { id: '1', user: 'User123', text: 'Hey! Great stream!' },
+    { id: '2', user: 'Viewer456', text: 'What quest are you on?' },
+  ]);
+
+  return (
+    <View style={overlayStyles.backdrop} pointerEvents="box-none">
+      <View style={[overlayStyles.chatSheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+        <View style={overlayStyles.sheetHeader}>
+          <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]}>Live Chat</Text>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close chat" style={overlayStyles.closeBtn}>
+            <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, marginTop: 12 }}>
+          {messages.map((msg) => (
+            <View key={msg.id} style={{ marginBottom: 8 }}>
+              <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '700' as const }}>{msg.user}</Text>
+              <Text style={{ color: theme.colors.text, fontSize: 13, marginTop: 2 }}>{msg.text}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary, fontSize: 11, marginTop: 8 }]}>Chat feature coming soon!</Text>
+      </View>
+    </View>
+  );
+};
+
+const GenerateQuestOverlay = ({ onClose }: { onClose: () => void }) => {
+  const { theme } = useTheme();
+  const { addCustomQuest } = useGame();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const questTitle = `Live Stream Challenge ${Date.now()}`;
+      
+      await addCustomQuest({
+        title: questTitle,
+        description: 'Complete this quest during the live stream',
+        minNoRequired: 5,
+      });
+      
+      if (Platform.OS === 'web') {
+        alert('Quest created successfully!');
+      } else {
+        Alert.alert('Success', 'Quest created successfully!');
+      }
+      onClose();
+    } catch (error) {
+      console.error('[Generate Quest] Error:', error);
+      if (Platform.OS === 'web') {
+        alert('Failed to create quest');
+      } else {
+        Alert.alert('Error', 'Failed to create quest');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <View style={overlayStyles.backdrop} pointerEvents="box-none">
+      <View style={[overlayStyles.sheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+        <View style={overlayStyles.sheetHeader}>
+          <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]}>Generate Quest</Text>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close" style={overlayStyles.closeBtn}>
+            <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary, marginTop: 8 }]}>Create a quest that viewers can see and participate in during your live stream.</Text>
+        <TouchableOpacity
+          onPress={handleGenerate}
+          disabled={isGenerating}
+          style={{ marginTop: 12, paddingVertical: 12, borderRadius: 12, backgroundColor: isGenerating ? '#6B7280' : theme.colors.primary, alignItems: 'center' }}
+          accessibilityLabel="Generate quest"
+          testID="generate-quest-button"
+        >
+          {isGenerating ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={{ color: '#fff', fontWeight: '800' as const }}>Create Quick Quest</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -557,6 +661,14 @@ const overlayStyles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
     maxHeight: '60%',
+  },
+  chatSheet: {
+    margin: 12,
+    marginBottom: 120,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    maxHeight: '50%',
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sheetTitle: { fontSize: 14, fontWeight: '900' as const },
@@ -812,7 +924,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#DC2626",
   },
   endCallButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
     backgroundColor: "#DC2626",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   endCallButtonLarge: {
     width: 72,
