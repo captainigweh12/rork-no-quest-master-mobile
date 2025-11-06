@@ -11,6 +11,11 @@ export async function getFriends(userId: string): Promise<Friend[]> {
   return await localStorageService.getFriends(userId);
 }
 
+export async function recommendFriends(userId: string, limit: number = 10): Promise<Friend[]> {
+  console.log('Recommending friends for user:', userId, 'limit:', limit);
+  return await localStorageService.getFriendRecommendations(userId, limit);
+}
+
 export async function sendFriendRequest(userId: string, friendId: string): Promise<void> {
   console.log('Sending friend request from', userId, 'to', friendId);
   await localStorageService.sendFriendRequest(userId, friendId);

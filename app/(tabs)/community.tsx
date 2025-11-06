@@ -152,8 +152,12 @@ export default function CommunityScreen() {
 
   const recommendedUsersQuery = useQuery({
     queryKey: ['recommendedUsers', user?.id],
-    queryFn: () => friendsService.searchUsers(''),
+    queryFn: async () => {
+      if (!user?.id) throw new Error('User not authenticated');
+      return await friendsService.recommendFriends(user.id, 10);
+    },
     enabled: !!user?.id && showAddFriend,
+    staleTime: 30000,
   });
 
   const recommendedUsers = useMemo(() => {
@@ -476,12 +480,14 @@ Provide a brief encouraging explanation of the skills they developed and why.`
               </>
             ) : (
               <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }} testID="recommended-header">
                   <Sparkles size={18} color={theme.colors.primary} />
                   <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Recommended for You</Text>
                 </View>
-                <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary, marginBottom: 16 }]}>Users with similar levels and active progress</Text>
-                {recommendedUsersQuery.isLoading ? (
+                <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary, marginBottom: 16 }]}>Smart suggestions based on mutual friends, level and activity</Text>
+                {recommendedUsersQuery.isError ? (
+                  <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Could not load recommendations. Pull to refresh.</Text>
+                ) : recommendedUsersQuery.isLoading ? (
                   <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
                 ) : recommendedUsers.length === 0 ? (
                   <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No recommendations available. Type to search users!</Text>

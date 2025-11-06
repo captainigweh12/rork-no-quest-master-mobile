@@ -591,6 +591,62 @@ export const localStorageService = {
     });
   },
 
+  async getFriendRecommendations(userId: string, limit: number = 10): Promise<Friend[]> {
+    try {
+      const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
+      const friendsMap = await getItem<Record<string, string[]>>(STORAGE_KEYS.FRIENDS) || {};
+      const posts = await getItem<import('@/types').CommunityPost[]>(STORAGE_KEYS.COMMUNITY_POSTS) || [];
+
+      const current = users.find(u => u.id === userId);
+      const existingFriends = new Set(friendsMap[userId] || []);
+
+      type Scored = { friend: Friend; score: number };
+      const scored: Scored[] = [];
+
+      const recentCutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      const recentPostByUser = new Set(
+        posts.filter(p => new Date(p.createdAt).getTime() >= recentCutoff).map(p => p.userId)
+      );
+
+      for (const u of users) {
+        if (!u || u.id === userId) continue;
+        if (existingFriends.has(u.id)) continue;
+
+        const mutual = (friendsMap[u.id] || []).filter(fid => existingFriends.has(fid)).length;
+        const levelDiff = Math.abs((current?.level ?? 1) - (u.level));
+        const levelProximity = Math.max(0, 10 - levelDiff);
+        const streakBoost = Math.min(u.streak, 30) * 0.2;
+        const pointsBoost = Math.min(Math.floor(u.totalPoints / 500), 6);
+        const sameLanguage = current?.preferredLanguage && u.preferredLanguage && current.preferredLanguage === u.preferredLanguage ? 2 : 0;
+        const recentActivity = recentPostByUser.has(u.id) ? 3 : 0;
+
+        const score = mutual * 3 + levelProximity + streakBoost + pointsBoost + sameLanguage + recentActivity;
+
+        const friend: Friend = {
+          id: u.id,
+          username: u.username || u.email,
+          fullName: u.fullName,
+          avatarUrl: u.avatarUrl,
+          level: u.level,
+          currentXp: u.currentXp,
+          xpToNextLevel: u.xpToNextLevel,
+          totalPoints: u.totalPoints,
+          totalRejections: u.totalRejections,
+          streak: u.streak,
+          friendshipStatus: 'pending',
+        };
+
+        scored.push({ friend, score });
+      }
+
+      scored.sort((a, b) => b.score - a.score);
+      return scored.slice(0, limit).map(s => s.friend);
+    } catch (e) {
+      console.error('[localStorage] getFriendRecommendations error', e);
+      return [];
+    }
+  },
+
   async verifyEmail(email: string, code: string) {
     console.log('[localStorage] Verifying email:', email);
     const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
