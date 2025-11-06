@@ -87,8 +87,12 @@ export default function CommunityScreen() {
 
   const searchUsersQuery = useQuery({
     queryKey: ['searchUsers', searchQuery],
-    queryFn: () => friendsService.searchUsers(searchQuery),
-    enabled: searchQuery.length > 2 && showAddFriend,
+    queryFn: async () => {
+      console.log('[Community] searchUsers queryFn', { searchQuery });
+      return await friendsService.searchUsers(searchQuery);
+    },
+    enabled: searchQuery.length >= 1 && showAddFriend,
+    staleTime: 15000,
   });
 
   const sendFriendRequestMutation = useMutation({
@@ -147,8 +151,26 @@ export default function CommunityScreen() {
   const searchResults = useMemo(() => {
     if (!searchUsersQuery.data) return [];
     const friendIds = new Set(friendsQuery.data?.map((f) => f.id) || []);
-    return searchUsersQuery.data.filter((searchUser) => searchUser.id !== user?.id && !friendIds.has(searchUser.id));
-  }, [searchUsersQuery.data, friendsQuery.data, user]);
+    const filtered = searchUsersQuery.data.filter((searchUser) => searchUser.id !== user?.id && !friendIds.has(searchUser.id));
+
+    const q = (searchQuery || '').toLowerCase();
+    const userLevel = profile?.level ?? 1;
+
+    return filtered
+      .map(u => ({
+        u,
+        startsWith: (u.username || '').toLowerCase().startsWith(q) || (u.fullName || '').toLowerCase().startsWith(q),
+        includes: (u.username || '').toLowerCase().includes(q) || (u.fullName || '').toLowerCase().includes(q),
+        levelDiff: Math.abs((u.level ?? 1) - userLevel),
+      }))
+      .sort((a, b) => {
+        if (a.startsWith !== b.startsWith) return a.startsWith ? -1 : 1;
+        if (a.includes !== b.includes) return a.includes ? -1 : 1;
+        if (a.levelDiff !== b.levelDiff) return a.levelDiff - b.levelDiff;
+        return (b.u.totalPoints ?? 0) - (a.u.totalPoints ?? 0);
+      })
+      .map(x => x.u);
+  }, [searchUsersQuery.data, friendsQuery.data, user, searchQuery, profile?.level]);
 
   const recommendedUsersQuery = useQuery({
     queryKey: ['recommendedUsers', user?.id],
@@ -324,6 +346,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
             <LinkIcon size={20} color={theme.colors.primary} />
           </Pressable>
           <Pressable
+            testID="add-friend-open"
             style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => setShowAddFriend(true)}
           >
@@ -433,7 +456,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
       >
         {showAddFriend ? (
           <>
-            {searchQuery.length >= 3 ? (
+            {searchQuery.length >= 1 ? (
               <>
                 <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Search Results</Text>
                 {searchUsersQuery.isLoading ? (
