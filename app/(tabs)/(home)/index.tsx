@@ -909,14 +909,14 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
         } else if (gesture.dx < -threshold) {
           handleSwipe('left');
         } else {
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start();
         }
       },
       onPanResponderTerminate: () => {
         if (index !== currentIndex) return;
         setIsPanning(false);
         pan.flattenOffset();
-        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
+        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: Platform.OS !== 'web' }).start();
       },
     })
   ).current;
@@ -970,30 +970,37 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
 
   const handleSwipe = useCallback((direction: 'left' | 'right') => {
     const toValue = direction === 'right' ? SCREEN_WIDTH * 1.2 : -SCREEN_WIDTH * 1.2;
+    const useNative = Platform.OS !== 'web';
+
+    const advance = direction === 'right' ? onSwipeRight() : onSwipeLeft();
 
     Animated.parallel([
       Animated.timing(pan, {
         toValue: { x: toValue, y: 0 },
         duration: 260,
-        useNativeDriver: true,
+        useNativeDriver: useNative,
       }),
       Animated.timing(opacity, {
         toValue: 0.4,
         duration: 260,
-        useNativeDriver: true,
+        useNativeDriver: useNative,
       }),
     ]).start(() => {
-      const advance = direction === 'right' ? onSwipeRight() : onSwipeLeft();
       if (!advance) {
         Animated.parallel([
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: useNative }),
+          Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: useNative }),
         ]).start();
+      } else {
+        pan.setValue({ x: 0, y: 0 });
+        opacity.setValue(1);
       }
     });
 
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      console.log('[QuestCard] Haptics skipped on web');
     }
   }, [pan, opacity, onSwipeRight, onSwipeLeft]);
 
