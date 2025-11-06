@@ -349,7 +349,7 @@ Provide a brief encouraging explanation of the skills they developed and why.`
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, zIndex: 1 }]}>
       <LinearGradient
         colors={[theme.colors.backgroundTertiary, theme.colors.background]}
         style={StyleSheet.absoluteFillObject}

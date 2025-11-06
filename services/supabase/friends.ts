@@ -47,47 +47,51 @@ export async function getFriends(userId: string): Promise<Friend[]> {
   console.log('[Friends] Getting friends for user:', userId);
   
   try {
-    const { data, error } = await supabase
+    // First get the friend IDs
+    const { data: friendships, error: friendsError } = await supabase
       .from('friends')
-      .select(`
-        friend_id,
-        status,
-        user_profiles!friends_friend_id_fkey (
-          id,
-          username,
-          full_name,
-          avatar_url,
-          level,
-          total_points,
-          streak
-        )
-      `)
+      .select('friend_id')
       .eq('user_id', userId)
       .eq('status', 'accepted');
 
-    if (error) {
-      console.error('[Friends] Get friends error:', error?.message ?? JSON.stringify(error));
-      throw new Error(error.message);
+    if (friendsError) {
+      console.error('[Friends] Get friends error:', friendsError?.message ?? JSON.stringify(friendsError));
+      throw new Error(friendsError.message);
     }
 
-    console.log('[Friends] Found', data?.length || 0, 'friends');
+    if (!friendships || friendships.length === 0) {
+      console.log('[Friends] No friends found');
+      return [];
+    }
 
-    return (data || []).map((friendship: any) => {
-      const profile = friendship.user_profiles;
-      return {
-        id: profile.id,
-        username: profile.username,
-        fullName: profile.full_name || '',
-        avatarUrl: profile.avatar_url,
-        level: profile.level || 1,
-        currentXp: 0,
-        xpToNextLevel: 100,
-        totalPoints: profile.total_points || 0,
-        totalRejections: 0,
-        streak: profile.streak || 0,
-        friendshipStatus: 'accepted' as const,
-      };
-    });
+    const friendIds = friendships.map((f: any) => f.friend_id);
+
+    // Then get the user profiles for those friends
+    const { data: profiles, error: profilesError } = await supabase
+      .from('user_profiles')
+      .select('id, username, full_name, avatar_url, level, total_points, streak')
+      .in('id', friendIds);
+
+    if (profilesError) {
+      console.error('[Friends] Get profiles error:', profilesError?.message ?? JSON.stringify(profilesError));
+      throw new Error(profilesError.message);
+    }
+
+    console.log('[Friends] Found', profiles?.length || 0, 'friends');
+
+    return (profiles || []).map((profile: any) => ({
+      id: profile.id,
+      username: profile.username,
+      fullName: profile.full_name || '',
+      avatarUrl: profile.avatar_url,
+      level: profile.level || 1,
+      currentXp: 0,
+      xpToNextLevel: 100,
+      totalPoints: profile.total_points || 0,
+      totalRejections: 0,
+      streak: profile.streak || 0,
+      friendshipStatus: 'accepted' as const,
+    }));
   } catch (error: any) {
     console.error('[Friends] getFriends error:', error?.message ?? JSON.stringify(error));
     throw error;

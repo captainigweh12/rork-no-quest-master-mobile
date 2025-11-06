@@ -498,7 +498,7 @@ export default function HomeScreen() {
       ) : null}
 
       {questMode && (isGeneratingQuest || activeQuests.length > 0) && (
-        <View style={styles.cardsContainer} testID="home-cards-container">
+        <View style={[styles.cardsContainer, { zIndex: 9999 }]} testID="home-cards-container">
           {isGeneratingQuest ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
