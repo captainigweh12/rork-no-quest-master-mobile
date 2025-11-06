@@ -89,7 +89,9 @@ export default function CommunityScreen() {
     queryKey: ['searchUsers', searchQuery],
     queryFn: async () => {
       console.log('[Community] searchUsers queryFn', { searchQuery });
-      return await friendsService.searchUsers(searchQuery);
+      const results = await friendsService.searchUsers(searchQuery);
+      console.log('[Community] searchUsers results count:', results.length);
+      return results;
     },
     enabled: searchQuery.length >= 1 && showAddFriend,
     staleTime: 15000,
@@ -100,7 +102,9 @@ export default function CommunityScreen() {
     queryFn: async () => {
       if (!searchQuery) return [] as Friend[];
       try {
-        return await friendsService.searchUsers(searchQuery);
+        const results = await friendsService.searchUsers(searchQuery);
+        console.log('[Community] inline suggestions count:', results.length);
+        return results;
       } catch (e: any) {
         console.error('[Community] inline suggestions error', e?.message || e);
         return [] as Friend[];
@@ -508,7 +512,10 @@ Provide a brief encouraging explanation of the skills they developed and why.`
                 {searchUsersQuery.isLoading ? (
                   <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
                 ) : searchResults.length === 0 ? (
-                  <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No users found</Text>
+                  <View style={{ paddingVertical: 20 }}>
+                    <Text style={[styles.emptyText, { color: theme.colors.textSecondary, marginBottom: 8 }]}>No users found matching &quot;{searchQuery}&quot;</Text>
+                    <Text style={[styles.emptyText, { color: theme.colors.textSecondary, fontSize: 14 }]}>Try searching with a different username</Text>
+                  </View>
                 ) : (
                   searchResults.map((searchUser) => (
                     <View key={searchUser.id} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  

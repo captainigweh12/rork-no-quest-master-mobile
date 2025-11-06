@@ -740,4 +740,128 @@ export const localStorageService = {
 
     return user;
   },
+
+  async seedDemoUsersIfNeeded() {
+    console.log('[localStorage] Checking if demo users need to be seeded...');
+    const users = await getItem<LocalUser[]>(STORAGE_KEYS.USERS) || [];
+    
+    const demoEmails = [
+      'alex@demo.com',
+      'jordan@demo.com',
+      'sam@demo.com',
+      'casey@demo.com',
+      'riley@demo.com'
+    ];
+    
+    const existingDemoUsers = users.filter(u => demoEmails.includes(u.email));
+    
+    if (existingDemoUsers.length >= 3) {
+      console.log('[localStorage] Demo users already exist');
+      return;
+    }
+    
+    const demoUsers: LocalUser[] = [
+      {
+        id: 'demo-1-' + Date.now(),
+        email: 'alex@demo.com',
+        password: 'demo123',
+        fullName: 'Alex Johnson',
+        username: 'alex_j',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=alex',
+        level: 5,
+        currentXp: 120,
+        xpToNextLevel: 600,
+        totalPoints: 2500,
+        totalRejections: 45,
+        streak: 12,
+        emailVerified: true,
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        relationshipStatus: 'single',
+        preferredLanguage: 'en',
+      },
+      {
+        id: 'demo-2-' + Date.now(),
+        email: 'jordan@demo.com',
+        password: 'demo123',
+        fullName: 'Jordan Smith',
+        username: 'jordan_s',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=jordan',
+        level: 3,
+        currentXp: 80,
+        xpToNextLevel: 300,
+        totalPoints: 1200,
+        totalRejections: 28,
+        streak: 7,
+        emailVerified: true,
+        createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+        relationshipStatus: 'single',
+        preferredLanguage: 'en',
+      },
+      {
+        id: 'demo-3-' + Date.now(),
+        email: 'sam@demo.com',
+        password: 'demo123',
+        fullName: 'Sam Williams',
+        username: 'sam_w',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=sam',
+        level: 7,
+        currentXp: 450,
+        xpToNextLevel: 700,
+        totalPoints: 4200,
+        totalRejections: 68,
+        streak: 21,
+        emailVerified: true,
+        createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+        relationshipStatus: 'single',
+        preferredLanguage: 'en',
+      },
+      {
+        id: 'demo-4-' + Date.now(),
+        email: 'casey@demo.com',
+        password: 'demo123',
+        fullName: 'Casey Brown',
+        username: 'casey_b',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=casey',
+        level: 4,
+        currentXp: 200,
+        xpToNextLevel: 400,
+        totalPoints: 1800,
+        totalRejections: 35,
+        streak: 9,
+        emailVerified: true,
+        createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+        relationshipStatus: 'married',
+        preferredLanguage: 'en',
+      },
+      {
+        id: 'demo-5-' + Date.now(),
+        email: 'riley@demo.com',
+        password: 'demo123',
+        fullName: 'Riley Davis',
+        username: 'riley_d',
+        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/png?seed=riley',
+        level: 6,
+        currentXp: 330,
+        xpToNextLevel: 600,
+        totalPoints: 3400,
+        totalRejections: 52,
+        streak: 15,
+        emailVerified: true,
+        createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+        relationshipStatus: 'single',
+        preferredLanguage: 'en',
+      },
+    ];
+    
+    for (const demoUser of demoUsers) {
+      const exists = users.find(u => u.email === demoUser.email);
+      if (!exists) {
+        users.push(demoUser);
+        console.log('[localStorage] Added demo user:', demoUser.username);
+      }
+    }
+    
+    await setItem(STORAGE_KEYS.USERS, users);
+    console.log('[localStorage] Demo users seeding complete');
+  },
 };

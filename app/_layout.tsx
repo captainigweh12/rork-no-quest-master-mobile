@@ -22,6 +22,7 @@ import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import TrpcProvider from "@/providers/TrpcProvider";
 import { getBaseUrl } from "@/lib/baseUrl";
+import { localStorageService } from "@/lib/localStorage";
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -45,6 +46,12 @@ function RootLayoutNav() {
       setIsHydited(true);
     }, 0);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    localStorageService.seedDemoUsersIfNeeded().catch(err => {
+      console.error('[APP] Failed to seed demo users:', err);
+    });
   }, []);
 
   useEffect(() => {
