@@ -2,6 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { StreamMessage } from '@/types';
 import {
   createStream,
@@ -15,6 +16,8 @@ import {
   subscribeToStreamViewers,
 } from '@/services/supabase/streams';
 
+export type StreamVisibility = 'public' | 'private' | 'group';
+
 export const [StreamProvider, useStream] = createContextHook(() => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -22,6 +25,10 @@ export const [StreamProvider, useStream] = createContextHook(() => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [messages, setMessages] = useState<StreamMessage[]>([]);
   const [viewerCount, setViewerCount] = useState(0);
+  const [visibility, setVisibility] = useState<StreamVisibility>('public');
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [shareLocation, setShareLocation] = useState<boolean>(false);
+  const [locationConsentAccepted, setLocationConsentAccepted] = useState<boolean>(false);
 
   const liveStreamsQuery = useQuery({
     queryKey: ['live-streams'],
@@ -121,6 +128,25 @@ export const [StreamProvider, useStream] = createContextHook(() => {
     };
   }, [activeStreamId]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const consent = await AsyncStorage.getItem('locationConsentAcceptedV1');
+        const savedVisibility = await AsyncStorage.getItem('streamVisibility');
+        const savedGroupId = await AsyncStorage.getItem('streamGroupId');
+        const savedShareLoc = await AsyncStorage.getItem('streamShareLocation');
+        if (consent) setLocationConsentAccepted(consent === '1');
+        if (savedVisibility === 'public' || savedVisibility === 'private' || savedVisibility === 'group') {
+          setVisibility(savedVisibility);
+        }
+        if (savedGroupId) setSelectedGroupId(savedGroupId);
+        if (savedShareLoc) setShareLocation(savedShareLoc === '1');
+      } catch (e) {
+        console.warn('[STREAM_CONTEXT] Failed to load persisted settings');
+      }
+    })();
+  }, []);
+
   const { mutateAsync: createStreamAsync } = createStreamMutation;
 
   const startStreaming = useCallback(
@@ -130,6 +156,9 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       questId?: string;
       questTitle?: string;
       category?: string;
+      visibility?: StreamVisibility;
+      groupId?: string | null;
+      shareLocation?: boolean;
     }) => {
       if (!user) {
         const error = new Error('User not authenticated');
@@ -137,10 +166,28 @@ export const [StreamProvider, useStream] = createContextHook(() => {
         throw error;
       }
 
-      console.log('[STREAM_CONTEXT] Starting stream:', data);
-      await createStreamAsync(data);
+      const nextVisibility = data.visibility ?? visibility;
+      const nextGroupId = data.groupId ?? selectedGroupId ?? null;
+      const nextShareLoc = data.shareLocation ?? shareLocation;
+      setVisibility(nextVisibility);
+      setSelectedGroupId(nextGroupId);
+      setShareLocation(nextShareLoc);
+      try {
+        await AsyncStorage.setItem('streamVisibility', nextVisibility);
+        await AsyncStorage.setItem('streamGroupId', nextGroupId ?? '');
+        await AsyncStorage.setItem('streamShareLocation', nextShareLoc ? '1' : '0');
+      } catch {}
+
+      console.log('[STREAM_CONTEXT] Starting stream:', { ...data, visibility: nextVisibility, groupId: nextGroupId, shareLocation: nextShareLoc });
+      await createStreamAsync({
+        title: data.title,
+        description: data.description,
+        questId: data.questId,
+        questTitle: data.questTitle,
+        category: data.category,
+      } as any);
     },
-    [user, createStreamAsync]
+    [user, createStreamAsync, visibility, selectedGroupId, shareLocation]
   );
 
   const { mutateAsync: endStreamAsync } = endStreamMutation;
@@ -185,6 +232,11 @@ export const [StreamProvider, useStream] = createContextHook(() => {
 
   const { mutateAsync: sendMessageAsync } = sendMessageMutation;
 
+  const acceptLocationConsent = useCallback(async () => {
+    setLocationConsentAccepted(true);
+    try { await AsyncStorage.setItem('locationConsentAcceptedV1', '1'); } catch {}
+  }, []);
+
   const sendMessage = useCallback(
     async (message: string) => {
       if (!activeStreamId) {
@@ -216,6 +268,14 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       isStopping: endStreamMutation.isPending,
       isJoining: joinStreamMutation.isPending,
       isLeaving: leaveStreamMutation.isPending,
+      visibility,
+      setVisibility,
+      selectedGroupId,
+      setSelectedGroupId,
+      shareLocation,
+      setShareLocation,
+      locationConsentAccepted,
+      acceptLocationConsent,
     }),
     [
       liveStreamsQuery.data,
@@ -234,6 +294,10 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       endStreamMutation.isPending,
       joinStreamMutation.isPending,
       leaveStreamMutation.isPending,
+      visibility,
+      selectedGroupId,
+      shareLocation,
+      locationConsentAccepted,
     ]
   );
 });

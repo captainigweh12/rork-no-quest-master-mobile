@@ -7,6 +7,9 @@ export async function createStream(data: {
   questId?: string;
   questTitle?: string;
   category?: string;
+  visibility?: 'public' | 'private' | 'group';
+  groupId?: string | null;
+  shareLocation?: boolean;
 }): Promise<LiveStream> {
   console.log('[STREAMS] Creating new stream:', data);
   

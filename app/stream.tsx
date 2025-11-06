@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { CameraView, useCameraPermissions, CameraType } from 'expo-camera';
@@ -18,9 +19,11 @@ import { useStream } from '@/contexts/StreamContext';
 import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Users, Send, Video, VideoOff, Server } from 'lucide-react-native';
+import { X, Users, Send, Video, VideoOff, Server, Globe, Lock } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { trpc } from '@/lib/trpc';
+import { useQuery } from '@tanstack/react-query';
+import { getUserTeams, type Team } from '@/services/supabase/teams';
 
 export default function StreamScreen() {
   const { theme } = useTheme();
@@ -41,6 +44,14 @@ export default function StreamScreen() {
     isStarting,
     isStopping,
     isJoining,
+    visibility,
+    setVisibility,
+    selectedGroupId,
+    setSelectedGroupId,
+    shareLocation,
+    setShareLocation,
+    locationConsentAccepted,
+    acceptLocationConsent,
   } = useStream();
   const { quests } = useGame();
   const [permission, requestPermission] = useCameraPermissions();
@@ -52,6 +63,18 @@ export default function StreamScreen() {
   const [joinHint, setJoinHint] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const styles = createStyles(theme.colors);
+
+  const teamsQuery = useQuery({
+    queryKey: ['teams-mini', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('No user');
+      return getUserTeams();
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  const [showConsentModal, setShowConsentModal] = useState<boolean>(false);
 
   const isBroadcaster = params.mode === 'broadcaster';
   const isViewer = params.mode === 'viewer' || !!params.streamId;
@@ -128,6 +151,9 @@ export default function StreamScreen() {
         questId: activeQuest?.id,
         questTitle: activeQuest?.title,
         category: activeQuest?.category,
+        visibility,
+        groupId: visibility === 'group' ? selectedGroupId ?? null : null,
+        shareLocation,
       });
 
       try {
@@ -226,6 +252,136 @@ export default function StreamScreen() {
             </Text>
           </View>
 
+          <View style={{ width: '100%', gap: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800' as const, color: theme.colors.text }}>Visibility</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={() => setVisibility('public')}
+                style={({ pressed }) => [{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: visibility === 'public' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                  opacity: pressed ? 0.9 : 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  justifyContent: 'center',
+                }]}
+                testID="vis-public"
+              >
+                <Globe size={18} color={visibility === 'public' ? theme.colors.primary : theme.colors.textSecondary} />
+                <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>Public</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setVisibility('private')}
+                style={({ pressed }) => [{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: visibility === 'private' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                  opacity: pressed ? 0.9 : 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  justifyContent: 'center',
+                }]}
+                testID="vis-private"
+              >
+                <Lock size={18} color={visibility === 'private' ? theme.colors.primary : theme.colors.textSecondary} />
+                <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>Private</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setVisibility('group')}
+                style={({ pressed }) => [{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: visibility === 'group' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                  opacity: pressed ? 0.9 : 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  justifyContent: 'center',
+                }]}
+                testID="vis-group"
+              >
+                <Users size={18} color={visibility === 'group' ? theme.colors.primary : theme.colors.textSecondary} />
+                <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>Group</Text>
+              </Pressable>
+            </View>
+
+            {visibility === 'group' && (
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '800' as const, color: theme.colors.textSecondary }}>Select group</Text>
+                <ScrollView style={{ maxHeight: 140 }} contentContainerStyle={{ gap: 8 }}>
+                  {(teamsQuery.data as Team[] | undefined)?.map((t) => (
+                    <Pressable
+                      key={t.id}
+                      onPress={() => setSelectedGroupId(t.id)}
+                      style={({ pressed }) => [{
+                        padding: 12,
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: selectedGroupId === t.id ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: theme.colors.backgroundTertiary,
+                        opacity: pressed ? 0.9 : 1,
+                      }]}
+                      testID={`group-pick-${t.id}`}
+                    >
+                      <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>{t.name}</Text>
+                    </Pressable>
+                  ))}
+                  {teamsQuery.isLoading && (
+                    <ActivityIndicator color={theme.colors.primary} />
+                  )}
+                  {!teamsQuery.isLoading && (!teamsQuery.data || (teamsQuery.data as Team[]).length === 0) && (
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>No groups found</Text>
+                  )}
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={{ marginTop: 8, gap: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800' as const, color: theme.colors.text }}>Location Sharing</Text>
+              <Pressable
+                onPress={() => {
+                  if (!shareLocation) {
+                    if (!locationConsentAccepted) {
+                      setShowConsentModal(true);
+                      return;
+                    }
+                  }
+                  setShareLocation(!shareLocation);
+                }}
+                style={({ pressed }) => [{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                  opacity: pressed ? 0.95 : 1,
+                }]}
+                testID="toggle-location"
+              >
+                <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>Share my location during live</Text>
+                <View style={{ width: 42, height: 26, borderRadius: 13, backgroundColor: shareLocation ? theme.colors.primary : theme.colors.backgroundTertiary, justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', transform: [{ translateX: shareLocation ? 16 : 0 }] }} />
+                </View>
+              </Pressable>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>If enabled, your approximate location may be visible to viewers in real time.</Text>
+            </View>
+          </View>
+
           <Pressable
             style={[
               styles.startButton,
@@ -245,6 +401,57 @@ export default function StreamScreen() {
             )}
           </Pressable>
         </View>
+
+        <Modal visible={showConsentModal} transparent animationType="fade" onRequestClose={() => setShowConsentModal(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ width: '100%', maxWidth: 420, backgroundColor: theme.colors.card, borderRadius: 16, overflow: 'hidden' }}>
+              <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+                <Text style={{ fontSize: 18, fontWeight: '900' as const, color: theme.colors.text }}>Location Sharing Consent</Text>
+              </View>
+              <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ padding: 18, gap: 10 }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>By enabling location sharing while live, you acknowledge:</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>• Your approximate real-time location may be visible to other users during your live stream.</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>• Sharing location carries risks, including unwanted contact or physical safety concerns. Only enable if you understand and accept these risks.</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>• You can disable location sharing at any time.</Text>
+                <Text style={{ color: theme.colors.textSecondary }}>• For web users, browser location permissions may be requested.</Text>
+              </ScrollView>
+              <View style={{ padding: 18, gap: 10 }}>
+                <Pressable
+                  onPress={() => {
+                    acceptLocationConsent();
+                    setShareLocation(true);
+                    setShowConsentModal(false);
+                  }}
+                  style={({ pressed }) => [{
+                    backgroundColor: theme.colors.primary,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    opacity: pressed ? 0.9 : 1,
+                  }]}
+                  testID="consent-accept"
+                >
+                  <Text style={{ color: '#fff', fontWeight: '900' as const }}>I Understand and Agree</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowConsentModal(false)}
+                  style={({ pressed }) => [{
+                    borderWidth: 2,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.backgroundTertiary,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    opacity: pressed ? 0.95 : 1,
+                  }]}
+                  testID="consent-decline"
+                >
+                  <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
