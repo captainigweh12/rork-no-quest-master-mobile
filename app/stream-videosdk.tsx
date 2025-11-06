@@ -356,12 +356,7 @@ const StreamView = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Center user avatar */}
-        <View style={styles.centerAvatarContainer}>
-          <View style={styles.centerAvatar}>
-            <Text style={styles.centerAvatarText}>{(user?.email?.[0] || 'U').toUpperCase()}</Text>
-          </View>
-        </View>
+
 
         {/* Bottom section with notification and viewers */}
         <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 16 }]}>
@@ -872,13 +867,15 @@ const overlayStyles = StyleSheet.create({
     maxHeight: '60%',
   },
   chatSheet: {
-    margin: 12,
-    marginBottom: 120,
+    position: 'absolute',
+    left: 16,
+    right: 90,
+    bottom: 120,
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    height: '65%',
-    maxHeight: 500,
+    height: 400,
+    maxHeight: '50%',
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sheetTitle: { fontSize: 14, fontWeight: '900' as const },
