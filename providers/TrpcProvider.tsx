@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, createTrpcClient } from "@/lib/trpc";
 import { View, Text, ActivityIndicator, Pressable, Platform } from "react-native";
-import { loadBaseUrlOverride, clearStaleUrlIfNeeded, getBaseUrl } from "@/lib/baseUrl";
+import { loadBaseUrlOverride, clearStaleUrlIfNeeded, getBaseUrl, setBaseUrlOverride, DEFAULT_RENDER_BASE_URL } from "@/lib/baseUrl";
 import React from "react";
 
 const queryClient = new QueryClient({
@@ -26,13 +26,20 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
         setIsSettingUrl(true);
         setError(null);
         await clearStaleUrlIfNeeded();
-        await loadBaseUrlOverride();
+        const persisted = await loadBaseUrlOverride();
+        const desired = DEFAULT_RENDER_BASE_URL;
+
+        if (persisted !== desired) {
+          console.log('[TrpcProvider] Forcing base URL override to Render:', desired);
+          await setBaseUrlOverride(desired);
+        }
+
         const url = getBaseUrl();
-        console.log("[TrpcProvider] Initialized with URL:", url);
+        console.log('[TrpcProvider] Initialized with URL:', url);
         if (mounted) setReadyBaseUrl(url);
       } catch (e) {
-        console.error("[TrpcProvider] Error initializing base URL:", e);
-        setError(e instanceof Error ? e.message : "Unknown error initializing tRPC");
+        console.error('[TrpcProvider] Error initializing base URL:', e);
+        setError(e instanceof Error ? e.message : 'Unknown error initializing tRPC');
       } finally {
         setIsSettingUrl(false);
       }

@@ -26,26 +26,14 @@ function isAndroid(): boolean {
   }
 }
 
+export const DEFAULT_RENDER_BASE_URL = 'https://rork-no-quest-master-mobile.onrender.com' as const;
+
 export function getDefaultBaseUrl(): string {
-  // Access process via globalThis to avoid "process is not defined" errors in some environments
   const explicit = (globalThis as any)?.process?.env?.EXPO_PUBLIC_RORK_API_BASE_URL;
   if (explicit && explicit.trim().length > 0) {
     return stripTrailingSlash(explicit);
   }
-
-  const hostUri = Constants?.expoConfig?.hostUri ?? (Constants as any)?.manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri) {
-    if (hostUri.includes(':')) {
-      return `http://${hostUri}`;
-    } else {
-      return `https://${hostUri}`;
-    }
-  }
-
-  if (isAndroid()) {
-    return 'http://10.0.2.2:8081';
-  }
-  return 'http://127.0.0.1:8081';
+  return stripTrailingSlash(DEFAULT_RENDER_BASE_URL);
 }
 
 const OVERRIDE_KEY = 'EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE';

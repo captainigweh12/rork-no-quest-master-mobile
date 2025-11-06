@@ -88,6 +88,23 @@ export default function StreamScreen() {
 
   useEffect(() => {
     console.log('[STREAM] Screen opened with params:', { streamId: paramsStreamId, mode: paramsMode });
+
+    try {
+      const { DEFAULT_RENDER_BASE_URL, setBaseUrlOverride, getBaseUrl } = require('@/lib/baseUrl');
+      const desired: string = DEFAULT_RENDER_BASE_URL;
+      const current: string = getBaseUrl();
+      if (current !== desired) {
+        console.log('[STREAM] Enforcing Render base URL for livestream:', desired);
+        setBaseUrlOverride(desired).then(() => {
+          const reinit = (globalThis as any).__RORK_INIT_BASE_URL__ as (() => Promise<void>) | undefined;
+          if (reinit) reinit();
+        }).catch((e: unknown) => {
+          console.error('[STREAM] Failed to enforce base URL on livestream open', e);
+        });
+      }
+    } catch (e) {
+      console.error('[STREAM] Error ensuring base URL on livestream open', e);
+    }
     
     if (authLoading) {
       console.log('[STREAM] Waiting for auth to complete...');
