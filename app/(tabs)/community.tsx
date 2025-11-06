@@ -107,7 +107,7 @@ export default function CommunityScreen() {
   const createInviteMutation = useMutation({
     mutationFn: () => friendsService.createFriendInvite(user!.id),
     onSuccess: async (invite) => {
-      const inviteLink = `rejectionhero://invite/${invite.inviteCode}`;
+      const inviteLink = `noquest://invite/${invite.inviteCode}`;
       try {
         await Share.share({
           message: `Join me on Rejection Hero! Use this link to add me as a friend: ${inviteLink}`,
