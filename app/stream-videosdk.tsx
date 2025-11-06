@@ -11,11 +11,13 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, CheckCircle2, XCircle } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, CheckCircle2, XCircle, Map as MapIcon, Square, LayoutList } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGame } from "@/contexts/GameContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const WebCameraPreview = () => {
   return (
@@ -146,6 +148,67 @@ const DiagnosticsBanner = React.memo(function DiagnosticsBanner() {
   );
 });
 
+const QuestLiveBanner = ({
+  onOpenQuest,
+  onOpenMap,
+}: { onOpenQuest: () => void; onOpenMap: () => void }) => {
+  const { quests, progressMap, recordQuestOutcome } = useGame();
+  const { theme } = useTheme();
+  const active = quests.find((q) => !q.completed);
+
+  if (!active) return null as any;
+  const progress = progressMap[active.id] ?? { noCount: 0, yesCount: 0 };
+  const minNo = active.minNoRequired ?? 0;
+  const pct = minNo > 0 ? Math.min(100, Math.round((progress.noCount / minNo) * 100)) : 0;
+
+  return (
+    <View style={[questStyles.bannerWrap]} testID="live-quest-banner">
+      <View
+        style={[
+          questStyles.banner,
+          { backgroundColor: theme.colors.glass, borderColor: theme.colors.border },
+        ]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={[questStyles.bannerTitle, { color: theme.colors.text }]} numberOfLines={1}>
+            Quest: {active.title}
+          </Text>
+          <View style={questStyles.progressRow}>
+            <View style={[questStyles.progressBar, { backgroundColor: theme.colors.backgroundTertiary }]}> 
+              <View style={[questStyles.progressFill, { width: `${pct}%`, backgroundColor: '#10B981' }]} />
+            </View>
+            <Text style={[questStyles.progressLabel, { color: theme.colors.textSecondary }]}>
+              NOs {progress.noCount}{minNo ? `/${minNo}` : ''}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          accessibilityLabel="Quest YES"
+          onPress={() => recordQuestOutcome(active.id, 'yes')}
+          style={[questStyles.actionBtn, { backgroundColor: '#EF4444' }]}
+          testID="live-quest-yes"
+        >
+          <Text style={questStyles.actionText}>YES</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityLabel="Quest NO"
+          onPress={() => recordQuestOutcome(active.id, 'no')}
+          style={[questStyles.actionBtn, { backgroundColor: '#10B981' }]}
+          testID="live-quest-no"
+        >
+          <Text style={questStyles.actionText}>NO</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onOpenQuest} style={[questStyles.iconBtn, { borderColor: theme.colors.border }]} testID="live-quest-open">
+          <LayoutList size={16} color={theme.colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onOpenMap} style={[questStyles.iconBtn, { borderColor: theme.colors.border }]} testID="live-quest-map">
+          <MapIcon size={16} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
 const StreamView = () => {
   const router = useRouter();
   const { meetingId } = useVideoSDK();
@@ -154,6 +217,8 @@ const StreamView = () => {
   const [cameraEnabled, setCameraEnabled] = useState<boolean>(true);
   const [cameraType, setCameraType] = useState<string>("front");
   const [viewerCount] = useState<number>(1);
+  const [showQuest, setShowQuest] = useState<boolean>(false);
+  const [showMap, setShowMap] = useState<boolean>(false);
 
   const handleToggleMic = () => {
     console.log("[VideoSDK] Toggling microphone");
@@ -220,6 +285,8 @@ const StreamView = () => {
           </View>
         </View>
 
+        <QuestLiveBanner onOpenQuest={() => setShowQuest(true)} onOpenMap={() => setShowMap(true)} />
+
         <View style={styles.meetingIdContainer}>
           <Text style={styles.meetingIdLabel}>Meeting ID: {meetingId}</Text>
           <TouchableOpacity onPress={handleCopyMeetingId}>
@@ -227,6 +294,9 @@ const StreamView = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {showQuest && <QuestOverlay onClose={() => setShowQuest(false)} />}
+      {showMap && <MapOverlay onClose={() => setShowMap(false)} />}
 
       <View style={styles.controls}>
         <TouchableOpacity
@@ -260,6 +330,44 @@ const StreamView = () => {
         >
           <PhoneOff size={28} color="#fff" />
         </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const QuestOverlay = ({ onClose }: { onClose: () => void }) => {
+  const { quests } = useGame();
+  const { theme } = useTheme();
+  const active = quests.find((q) => !q.completed);
+  if (!active) return null as any;
+  return (
+    <View style={overlayStyles.backdrop} pointerEvents="box-none">
+      <View style={[overlayStyles.sheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+        <View style={overlayStyles.sheetHeader}>
+          <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]} numberOfLines={1}>Quest</Text>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close quest" style={overlayStyles.closeBtn}>
+            <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={[overlayStyles.questTitle, { color: theme.colors.text }]}>{active.title}</Text>
+        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}>{active.description}</Text>
+      </View>
+    </View>
+  );
+};
+
+const MapOverlay = ({ onClose }: { onClose: () => void }) => {
+  const { theme } = useTheme();
+  return (
+    <View style={overlayStyles.backdrop} pointerEvents="box-none">
+      <View style={[overlayStyles.sheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+        <View style={overlayStyles.sheetHeader}>
+          <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]}>Quest Map</Text>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close map" style={overlayStyles.closeBtn}>
+            <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}>Coming soon: collaborative maps. For now this shows an overlay for the stream.</Text>
       </View>
     </View>
   );
@@ -352,6 +460,50 @@ export default function StreamVideoSDKScreen() {
     </SafeAreaView>
   );
 }
+
+const questStyles = StyleSheet.create({
+  bannerWrap: {
+    position: 'absolute',
+    top: 56,
+    left: 12,
+    right: 12,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  bannerTitle: { fontSize: 13, fontWeight: '800' as const },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  progressBar: { height: 6, flex: 1, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%' },
+  progressLabel: { fontSize: 11, fontWeight: '700' as const },
+  actionBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
+  actionText: { color: '#fff', fontWeight: '900' as const, fontSize: 12 },
+  iconBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
+});
+
+const overlayStyles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    margin: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetTitle: { fontSize: 14, fontWeight: '900' as const },
+  closeBtn: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  questTitle: { fontSize: 18, fontWeight: '900' as const, marginTop: 8 },
+  questDesc: { fontSize: 13, fontWeight: '600' as const, marginTop: 6 },
+});
 
 const styles = StyleSheet.create({
   container: {
