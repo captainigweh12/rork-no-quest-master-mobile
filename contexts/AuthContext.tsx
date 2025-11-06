@@ -6,6 +6,7 @@ import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session as SupabaseSession } from '@supabase/supabase-js';
+import { clearStaleUrlIfNeeded, getDefaultBaseUrl, setBaseUrlOverride } from '@/lib/baseUrl';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -131,6 +132,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .upsert(upsertPayload, { onConflict: 'id' })
         .select()
         .maybeSingle();
+
+      try {
+        await clearStaleUrlIfNeeded();
+        const detected = getDefaultBaseUrl();
+        await setBaseUrlOverride(detected);
+        console.log('🌍 Auto-set backend base URL for new account:', detected);
+      } catch (e) {
+        console.warn('⚠️ Failed to auto-set base URL for new account', e);
+      }
 
       if (upsertErr) {
         if (upsertErr.code === '23505') {
