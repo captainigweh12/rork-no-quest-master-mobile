@@ -880,15 +880,18 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
   const minNo = quest.minNoRequired ?? 0;
   const colors = theme.colors;
   const pan = useRef(new Animated.ValueXY()).current;
+  const [isPanning, setIsPanning] = useState(false);
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => index === currentIndex,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_evt, gesture) => {
         if (index !== currentIndex) return false;
-        return Math.abs(gesture.dx) > 8 || Math.abs(gesture.dy) > 8;
+        const shouldMove = Math.abs(gesture.dx) > 15;
+        return shouldMove;
       },
       onPanResponderGrant: () => {
         if (index !== currentIndex) return;
+        setIsPanning(true);
         pan.setOffset({ x: (pan.x as any)._value ?? 0, y: (pan.y as any)._value ?? 0 });
         pan.setValue({ x: 0, y: 0 });
       },
@@ -898,6 +901,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
       },
       onPanResponderRelease: (_evt, gesture) => {
         if (index !== currentIndex) return;
+        setIsPanning(false);
         pan.flattenOffset();
         const threshold = SCREEN_WIDTH * 0.25;
         if (gesture.dx > threshold) {
@@ -910,6 +914,7 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
       },
       onPanResponderTerminate: () => {
         if (index !== currentIndex) return;
+        setIsPanning(false);
         pan.flattenOffset();
         Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
       },
@@ -1083,37 +1088,6 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
           <ArrowLeft size={16} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' as const }}>Main</Text>
         </Pressable>
-        <Animated.View 
-          style={[
-            styles.overlay, 
-            styles.yesOverlay, 
-            { 
-              opacity: Animated.multiply(noOpacity, new Animated.Value(0.6)),
-            }
-          ]}
-          pointerEvents="none"
-        >
-          <View style={styles.overlayBadge}>
-            <Text style={styles.overlayTextBig}>YES</Text>
-            <Text style={[styles.overlaySubText, { color: '#EF4444' }]}>Try Again</Text>
-          </View>
-        </Animated.View>
-
-        <Animated.View 
-          style={[
-            styles.overlay, 
-            styles.noOverlay, 
-            { 
-              opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)),
-            }
-          ]}
-          pointerEvents="none"
-        >
-          <View style={styles.overlayBadge}>
-            <Text style={styles.overlayTextBig}>NO</Text>
-            <Text style={[styles.overlaySubText, { color: '#10B981' }]}>Success!</Text>
-          </View>
-        </Animated.View>
 
         <View style={styles.cardContent}>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>

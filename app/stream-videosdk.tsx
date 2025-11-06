@@ -15,6 +15,7 @@ import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Users, Copy, Check
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl } from "@/lib/baseUrl";
+import { useAuth } from "@/contexts/AuthContext";
 
 const WebCameraPreview = () => {
   return (
@@ -113,9 +114,15 @@ const CameraPreview = ({
 };
 
 const DiagnosticsBanner = React.memo(function DiagnosticsBanner() {
+  const { user } = useAuth();
   const { data, error, isLoading, refetch, isRefetching } = trpc.videosdk.checkConfig.useQuery(undefined, { staleTime: 1000 * 30 });
   const tokenProbe = trpc.videosdk.getToken.useQuery(undefined, { staleTime: 0, retry: 0 });
   const base = useMemo(() => `${getBaseUrl()}/api/trpc`, []);
+
+  // Only show banner for admins
+  if (!user?.isAdmin) {
+    return null;
+  }
 
   const ok = !!data?.configured && !error && !tokenProbe.error;
   return (
