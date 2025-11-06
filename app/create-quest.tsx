@@ -63,9 +63,9 @@ export default function CreateQuestScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
             if (router.canGoBack()) {
-              router.back();
+              router.replace('/(tabs)/(home)?focus=1' as any);
             } else {
-              router.push('/(tabs)/(home)' as any);
+              router.push('/(tabs)/(home)?focus=1' as any);
             }
             return 'Quest created successfully!';
           } catch (error) {
@@ -119,9 +119,9 @@ export default function CreateQuestScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
         if (router.canGoBack()) {
-          router.back();
+          router.replace('/(tabs)/(home)?focus=1' as any);
         } else {
-          router.push('/(tabs)/(home)' as any);
+          router.push('/(tabs)/(home)?focus=1' as any);
         }
       } catch (error) {
         console.error('Failed to generate quest:', error);
@@ -191,9 +191,9 @@ export default function CreateQuestScreen() {
         <Pressable 
           onPress={() => {
             if (router.canGoBack()) {
-              router.back();
+              router.replace('/(tabs)/(home)?focus=1' as any);
             } else {
-              router.push('/(tabs)/(home)' as any);
+              router.push('/(tabs)/(home)?focus=1' as any);
             }
           }} 
           style={styles.closeButton}
