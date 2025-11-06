@@ -13,8 +13,18 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-// Initialize Supabase client with service key for backend operations
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+// Lazy initialization of Supabase client - only create if credentials exist
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+function getSupabaseClient() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    throw new Error('Supabase credentials not configured');
+  }
+  if (!supabaseClient) {
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  }
+  return supabaseClient;
+}
 
 /**
  * Helper function to refresh YouTube access token
@@ -52,6 +62,7 @@ async function refreshAccessToken(refreshToken: string) {
  */
 async function getValidAccessToken(userId: string): Promise<string | null> {
   try {
+    const supabase = getSupabaseClient();
     const { data: tokenData, error } = await supabase
       .from('youtube_oauth_tokens')
       .select('*')
@@ -79,6 +90,7 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
       const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000);
 
       // Update token in database
+      const supabase = getSupabaseClient();
       await supabase
         .from('youtube_oauth_tokens')
         .update({
@@ -155,6 +167,7 @@ const youtubeRouter = createTRPCRouter({
         const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000);
 
         // Store tokens in database (upsert)
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('youtube_oauth_tokens')
           .upsert({
@@ -202,6 +215,7 @@ const youtubeRouter = createTRPCRouter({
     }))
     .query(async ({ input }) => {
       try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('youtube_oauth_tokens')
           .select('channel_id, channel_title, channel_url, expires_at')
@@ -248,6 +262,7 @@ const youtubeRouter = createTRPCRouter({
       console.log('[YouTube] Disconnecting account for user:', input.userId);
 
       try {
+        const supabase = getSupabaseClient();
         const { error } = await supabase
           .from('youtube_oauth_tokens')
           .delete()
@@ -538,6 +553,7 @@ const youtubeRouter = createTRPCRouter({
         }
 
         // Step 4: Store in database
+        const supabase = getSupabaseClient();
         const { error: dbError } = await supabase
           .from('live_streams')
           .insert({
@@ -611,6 +627,7 @@ const youtubeRouter = createTRPCRouter({
         }
 
         // Update database
+        const supabase = getSupabaseClient();
         await supabase
           .from('live_streams')
           .update({ is_live: true, started_at: new Date().toISOString() })
@@ -659,6 +676,7 @@ const youtubeRouter = createTRPCRouter({
         }
 
         // Update database
+        const supabase = getSupabaseClient();
         await supabase
           .from('live_streams')
           .update({ is_live: false, ended_at: new Date().toISOString() })
