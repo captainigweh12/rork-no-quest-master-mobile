@@ -45,6 +45,7 @@ export default function CreateQuestScreen() {
   }, []);
 
   const agentResult = useRorkAgent({
+    systemPrompt: `You are Ben, a friendly quest creator assistant. Keep it casual and conversational. Ask only ONE simple question at a time. Keep questions short - no more than 2 sentences. Never use bold text or asterisks. Wait for the user to answer before asking anything else. After you understand what they want, create the quest using the tool.`,
     tools: {
       createQuest: createRorkTool({
         description: 'Create a rejection quest for the user based on the conversation',
@@ -820,8 +821,8 @@ function createStyles(colors: any) {
       borderRadius: 24,
       width: '100%',
       maxWidth: 500,
-      height: '80%',
-      overflow: 'hidden',
+      maxHeight: '80%',
+      flex: 1,
     },
     chatMessages: {
       flex: 1,
