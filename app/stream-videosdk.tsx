@@ -404,7 +404,7 @@ export default function StreamVideoSDKScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Stack.Screen
           options={{
             title: "Live Stream",
@@ -420,13 +420,13 @@ export default function StreamVideoSDKScreen() {
             <Text style={styles.retryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (isLoadingToken || !token || !meetingId || isCreatingMeeting) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Stack.Screen
           options={{
             title: "Live Stream",
@@ -443,12 +443,12 @@ export default function StreamVideoSDKScreen() {
                 : "Initializing..."}
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           title: "Live Stream",
@@ -457,7 +457,7 @@ export default function StreamVideoSDKScreen() {
       />
       <DiagnosticsBanner />
       <StreamView />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -709,17 +709,17 @@ const styles = StyleSheet.create({
   diagRefreshText: { color: "#fff", fontSize: 12, fontWeight: "600" as const },
   controls: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 24,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     backgroundColor: "#000",
-    gap: 16,
+    gap: 12,
   },
   controlButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#4B5563",
     justifyContent: "center",
     alignItems: "center",
@@ -729,5 +729,13 @@ const styles = StyleSheet.create({
   },
   endCallButton: {
     backgroundColor: "#DC2626",
+  },
+  endCallButtonLarge: {
+    width: 72,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#DC2626",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
