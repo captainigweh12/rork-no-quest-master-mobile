@@ -95,6 +95,21 @@ export default function CommunityScreen() {
     staleTime: 15000,
   });
 
+  const suggestionsQuery = useQuery({
+    queryKey: ['friendSuggestionsInline', searchQuery],
+    queryFn: async () => {
+      if (!searchQuery) return [] as Friend[];
+      try {
+        return await friendsService.searchUsers(searchQuery);
+      } catch (e: any) {
+        console.error('[Community] inline suggestions error', e?.message || e);
+        return [] as Friend[];
+      }
+    },
+    enabled: !!searchQuery && !showAddFriend && tab === 'friends',
+    staleTime: 10000,
+  });
+
   const sendFriendRequestMutation = useMutation({
     mutationFn: (friendId: string) => friendsService.sendFriendRequest(user!.id, friendId),
     onSuccess: () => {
@@ -382,6 +397,37 @@ Provide a brief encouraging explanation of the skills they developed and why.`
           </Pressable>
         )}
       </View>
+
+      {!showAddFriend && tab === 'friends' && searchQuery.length >= 1 && (
+        <View style={{ paddingHorizontal: 20 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 4, gap: 8 }}
+            testID="inline-suggestions-row"
+          >
+            {(suggestionsQuery.data ?? []).slice(0, 10).map((u) => (
+              <Pressable
+                key={u.id}
+                onPress={() => {
+                  setShowAddFriend(true);
+                  setSearchQuery(u.username);
+                }}
+                style={[styles.suggestionChip, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}
+                testID={`suggestion-${u.id}`}
+              >
+                <Avatar name={u.fullName || u.username} imageUrl={u.avatarUrl} size={20} />
+                <Text style={[styles.suggestionText, { color: theme.colors.text }]}>{u.username}</Text>
+              </Pressable>
+            ))}
+            {suggestionsQuery.isLoading && (
+              <View style={[styles.suggestionChip, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}>                
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
 
       {tab === 'feed' ? (
         <FlatList
@@ -943,6 +989,19 @@ function createStyles(colors: any) {
     searchInput: {
       flex: 1,
       fontSize: 16,
+    },
+    suggestionChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    suggestionText: {
+      fontSize: 13,
+      fontWeight: '700' as const,
     },
     scrollView: {
       flex: 1,
