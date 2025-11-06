@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { AlertCircle, RefreshCw } from 'lucide-react-native';
 import { useSchema } from '@/contexts/SchemaContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Props {
   testID?: string;
@@ -9,12 +10,13 @@ interface Props {
 
 export default function MigrationBanner({ testID = 'migration-banner' }: Props) {
   const { hasSubscriptionTier, hasLevel, isChecking, refresh } = useSchema();
+  const insets = useSafeAreaInsets();
 
   const visible = useMemo(() => !hasSubscriptionTier || !hasLevel, [hasSubscriptionTier, hasLevel]);
   if (!visible) return null;
 
   return (
-    <View style={styles.container} testID={testID}>
+    <View style={[styles.container, { top: insets.top + 12 }]} testID={testID}>
       <View style={styles.row}>
         <AlertCircle size={18} color="#111827" />
         <Text style={styles.text} numberOfLines={2}>
@@ -39,7 +41,6 @@ export default function MigrationBanner({ testID = 'migration-banner' }: Props) 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: Platform.OS === 'web' ? 12 : 12,
     left: 12,
     right: 12,
     backgroundColor: '#FDE68A',

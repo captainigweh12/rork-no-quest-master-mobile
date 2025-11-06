@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LogBox, Pressable, View, Text } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GameProvider } from "@/contexts/GameContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -37,6 +38,7 @@ function RootLayoutNav() {
   const router = useRouter();
   const navigationRef = useRef<{ lastRoute: string | null }>({ lastRoute: null });
   const [isHydrated, setIsHydited] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -98,10 +100,12 @@ function RootLayoutNav() {
           (segments[0] === '(tabs)' && (segments.includes('(home)') && segments.includes('live')))
         );
         return __DEV__ && !isLiveScreen ? (
-          <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FFE8D9' }}>
-            <Text style={{ color: '#5C2D0C', fontSize: 12 }}>
-              tRPC Base: {getBaseUrl()}/api/trpc
-            </Text>
+          <View style={{ paddingTop: insets.top, backgroundColor: '#FFE8D9' }}>
+            <View style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ color: '#5C2D0C', fontSize: 12 }}>
+                tRPC Base: {getBaseUrl()}/api/trpc
+              </Text>
+            </View>
           </View>
         ) : null;
       })()}
