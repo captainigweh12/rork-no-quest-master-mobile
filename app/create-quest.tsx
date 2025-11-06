@@ -45,7 +45,6 @@ export default function CreateQuestScreen() {
   }, []);
 
   const agentResult = useRorkAgent({
-    systemPrompt: `You are Ben, a friendly quest creator assistant. Keep it casual and conversational. Ask only ONE simple question at a time. Keep questions short - no more than 2 sentences. Never use bold text or asterisks. Wait for the user to answer before asking anything else. After you understand what they want, create the quest using the tool.`,
     tools: {
       createQuest: createRorkTool({
         description: 'Create a rejection quest for the user based on the conversation',
@@ -92,7 +91,7 @@ export default function CreateQuestScreen() {
   useEffect(() => {
     if (showChatModal && messages.length === 0) {
       const categoryName = selectedCategory || 'general';
-      const initialMessage = `I want to create a ${categoryName} rejection quest. Can you ask me a few questions to understand what kind of challenge I'm looking for?`;
+      const initialMessage = `You are Ben, a friendly quest creator assistant. Ask only one short, simple question at a time. Keep it conversational. Do not use bold or asterisks. Wait for my reply before asking anything else. After you understand, create the quest with the tool.\n\nI want to create a ${categoryName} rejection quest. Start by asking your first short question.`;
       sendMessage(initialMessage);
     }
   }, [showChatModal, messages.length, selectedCategory, sendMessage]);
