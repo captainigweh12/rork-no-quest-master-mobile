@@ -1083,14 +1083,32 @@ function QuestCard({ quest, index, currentIndex, onSwipeLeft, onSwipeRight, onTi
           <ArrowLeft size={16} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' as const }}>Main</Text>
         </Pressable>
-        <Animated.View style={[styles.overlay, styles.yesOverlay, { opacity: Animated.multiply(noOpacity, new Animated.Value(0.6)) }]}>
+        <Animated.View 
+          style={[
+            styles.overlay, 
+            styles.yesOverlay, 
+            { 
+              opacity: Animated.multiply(noOpacity, new Animated.Value(0.6)),
+            }
+          ]}
+          pointerEvents="none"
+        >
           <View style={styles.overlayBadge}>
             <Text style={styles.overlayTextBig}>YES</Text>
             <Text style={[styles.overlaySubText, { color: '#EF4444' }]}>Try Again</Text>
           </View>
         </Animated.View>
 
-        <Animated.View style={[styles.overlay, styles.noOverlay, { opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)) }]}>
+        <Animated.View 
+          style={[
+            styles.overlay, 
+            styles.noOverlay, 
+            { 
+              opacity: Animated.multiply(yesOpacity, new Animated.Value(0.6)),
+            }
+          ]}
+          pointerEvents="none"
+        >
           <View style={styles.overlayBadge}>
             <Text style={styles.overlayTextBig}>NO</Text>
             <Text style={[styles.overlaySubText, { color: '#10B981' }]}>Success!</Text>
