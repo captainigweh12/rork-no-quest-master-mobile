@@ -6,7 +6,7 @@ import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session as SupabaseSession } from '@supabase/supabase-js';
-import { clearStaleUrlIfNeeded, getDefaultBaseUrl, setBaseUrlOverride } from '@/lib/baseUrl';
+import { clearStaleUrlIfNeeded, getDefaultBaseUrl, setBaseUrlOverride, loadBaseUrlOverride } from '@/lib/baseUrl';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -68,6 +68,44 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const runOneTimeBackfillForExistingUser = async (uid: string) => {
+    try {
+      console.log('🛠️ Running one-time backfill check for user:', uid);
+      const existingOverride = await loadBaseUrlOverride();
+      const detected = getDefaultBaseUrl();
+
+      if (!existingOverride || existingOverride.trim().length === 0) {
+        console.log('🧩 No override found. Applying detected base URL override for existing user:', detected);
+        await setBaseUrlOverride(detected);
+        console.log('✅ Base URL override set for existing user');
+      } else {
+        console.log('ℹ️ Override already present:', existingOverride);
+      }
+
+      const cleared = await clearStaleUrlIfNeeded();
+      if (cleared) {
+        console.log('🧹 Stale URL was cleared during backfill. Re-applying detected base URL:', detected);
+        await setBaseUrlOverride(detected);
+      }
+
+      const key = `BACKFILL_V1_DONE_${uid}`;
+      try {
+        const storage: any = (await import('@react-native-async-storage/async-storage')).default;
+        const done = await storage.getItem(key);
+        if (!done) {
+          await storage.setItem(key, '1');
+          console.log('🏁 Marked backfill as completed for user:', uid);
+        } else {
+          console.log('✅ Backfill previously completed for user:', uid);
+        }
+      } catch (e) {
+        console.warn('⚠️ Could not persist backfill completion flag. Non-fatal.', e);
+      }
+    } catch (e) {
+      console.warn('⚠️ One-time backfill encountered an issue (non-fatal):', e);
+    }
+  };
+
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
       console.log('👤 Loading user profile for:', supabaseUser.email);
@@ -115,6 +153,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           dailyChallengesUsed: profile.daily_challenges_used || 0,
           isAdmin,
         });
+        await runOneTimeBackfillForExistingUser(supabaseUser.id);
         return;
       }
 
