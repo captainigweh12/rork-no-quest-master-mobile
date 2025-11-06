@@ -16,7 +16,7 @@ import { JournalsProvider } from "@/contexts/JournalsContext";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { SchemaProvider } from '@/contexts/SchemaContext';
-import MigrationBanner from '@/components/MigrationBanner';
+
 import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
@@ -93,22 +93,7 @@ function RootLayoutNav() {
 
   return (
     <>
-      {(() => {
-        const isLiveScreen = Array.isArray(segments) && (
-          segments.includes('stream') ||
-          segments.includes('stream-videosdk') ||
-          (segments[0] === '(tabs)' && (segments.includes('(home)') && segments.includes('live')))
-        );
-        return __DEV__ && !isLiveScreen ? (
-          <View style={{ paddingTop: insets.top, backgroundColor: '#FFE8D9' }}>
-            <View style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
-              <Text style={{ color: '#5C2D0C', fontSize: 12 }}>
-                tRPC Base: {getBaseUrl()}/api/trpc
-              </Text>
-            </View>
-          </View>
-        ) : null;
-      })()}
+
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
@@ -275,7 +260,6 @@ export default function RootLayout() {
                       <JournalsProvider>
                         <CategoriesProvider>
                           <GestureHandlerRootView style={{ flex: 1 }}>
-                            <MigrationBanner />
                             <YouTubeProvider>
                               <StreamProvider>
                                 <VideoSDKContextProvider>
