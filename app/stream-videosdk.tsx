@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, Square, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Instagram } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl } from "@/lib/baseUrl";
@@ -218,6 +218,8 @@ const QuestLiveBanner = ({
 const StreamView = () => {
   const router = useRouter();
   const { meetingId } = useVideoSDK();
+  const { user } = useAuth();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   
   const [micEnabled, setMicEnabled] = useState<boolean>(true);
@@ -228,6 +230,10 @@ const StreamView = () => {
   const [showMap, setShowMap] = useState<boolean>(false);
   const [showChat, setShowChat] = useState<boolean>(false);
   const [showGenerateQuest, setShowGenerateQuest] = useState<boolean>(false);
+  const [recentViewers] = useState<Array<{id: string, username: string}>>([
+    { id: '1', username: 'mbull205' },
+    { id: '2', username: 'kingy2588' },
+  ]);
 
   const handleToggleMic = () => {
     console.log("[VideoSDK] Toggling microphone");
@@ -282,117 +288,135 @@ const StreamView = () => {
           onCameraTypeChange={handleFlipCamera}
         />
         
-        <View style={styles.streamInfo}>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
+        {/* Top bar with user profile, LIVE badge and close button */}
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.topBarLeft}>
+            <View style={styles.profilePic}>
+              <Text style={styles.profileInitial}>{(user?.email?.[0] || 'U').toUpperCase()}</Text>
+            </View>
+            <Text style={styles.username}>{user?.email?.split('@')[0] || 'user'}</Text>
+            <View style={styles.liveIndicatorNew}>
+              <Text style={styles.liveTextNew}>LIVE</Text>
+            </View>
           </View>
+          <TouchableOpacity 
+            onPress={handleEndStream}
+            style={styles.closeButton}
+            accessibilityLabel="Close stream"
+            testID="close-stream"
+          >
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Right side toolbar */}
+        <View style={styles.rightToolbar}>
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={handleFlipCamera}
+            accessibilityLabel="Flip camera"
+            testID="flip-camera"
+          >
+            <FlipHorizontal2 size={24} color="#fff" />
+          </TouchableOpacity>
           
-          <View style={styles.viewerBadge}>
-            <Users size={16} color="#fff" />
-            <Text style={styles.viewerText}>{viewerCount}</Text>
+          <TouchableOpacity
+            style={[styles.toolbarButton, !micEnabled && styles.toolbarButtonOff]}
+            onPress={handleToggleMic}
+            accessibilityLabel="Toggle microphone"
+            testID="toggle-mic"
+          >
+            {micEnabled ? (
+              <Mic size={24} color="#fff" />
+            ) : (
+              <MicOff size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.toolbarButton, !cameraEnabled && styles.toolbarButtonOff]}
+            onPress={handleToggleCamera}
+            accessibilityLabel="Toggle camera"
+            testID="toggle-camera"
+          >
+            {cameraEnabled ? (
+              <VideoOff size={24} color="#fff" />
+            ) : (
+              <VideoIcon size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={() => {}}
+            accessibilityLabel="Instagram share"
+            testID="instagram-share"
+          >
+            <Instagram size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Center user avatar */}
+        <View style={styles.centerAvatarContainer}>
+          <View style={styles.centerAvatar}>
+            <Text style={styles.centerAvatarText}>{(user?.email?.[0] || 'U').toUpperCase()}</Text>
           </View>
         </View>
 
-        <QuestLiveBanner onOpenQuest={() => setShowQuest(true)} onOpenMap={() => setShowMap(true)} />
+        {/* Bottom section with notification and viewers */}
+        <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 16 }]}>
+          {/* Notification banner */}
+          <View style={styles.notificationBanner}>
+            <View style={styles.notificationIcon}>
+              <Users size={16} color="#fff" />
+            </View>
+            <Text style={styles.notificationText}>We're telling your followers that you've started a live video.</Text>
+          </View>
+
+          {/* Recent viewers */}
+          <View style={styles.viewersSection}>
+            {recentViewers.map((viewer) => (
+              <View key={viewer.id} style={styles.viewerRow}>
+                <View style={styles.viewerAvatar}>
+                  <Text style={styles.viewerAvatarText}>{viewer.username[0].toUpperCase()}</Text>
+                </View>
+                <Text style={styles.viewerName}>{viewer.username} joined</Text>
+                <Text style={styles.waveEmoji}>👋</Text>
+                <Text style={styles.waveText}>Wave</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Bottom action bar */}
+          <View style={styles.bottomActionBar}>
+            <TouchableOpacity
+              style={styles.commentButton}
+              onPress={() => setShowChat(true)}
+              accessibilityLabel="Comment"
+              testID="comment-button"
+            >
+              <Text style={styles.commentButtonText}>Comment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionIcon}>
+              <MapIcon size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionIcon}>
+              <Sparkles size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionIcon}>
+              <Users size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionIcon}>
+              <Share2 size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {showQuest && <QuestOverlay onClose={() => setShowQuest(false)} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} />}
       {showChat && <ChatOverlay onClose={() => setShowChat(false)} />}
       {showGenerateQuest && <GenerateQuestOverlay onClose={() => setShowGenerateQuest(false)} />}
-
-      <View style={[styles.controls, { paddingBottom: Math.max(8, 8 + insets.bottom) }]}>
-
-        <View style={styles.controlsLeft}>
-          <TouchableOpacity
-            style={[styles.controlButton, !micEnabled && styles.controlButtonOff]}
-            onPress={handleToggleMic}
-            accessibilityLabel="Toggle microphone"
-            testID="toggle-mic"
-          >
-            {micEnabled ? (
-              <Mic size={22} color="#fff" />
-            ) : (
-              <MicOff size={22} color="#fff" />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.controlButton, !cameraEnabled && styles.controlButtonOff]}
-            onPress={handleToggleCamera}
-            accessibilityLabel="Toggle camera"
-            testID="toggle-camera"
-          >
-            {cameraEnabled ? (
-              <VideoIcon size={22} color="#fff" />
-            ) : (
-              <VideoOff size={22} color="#fff" />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.controlButton]}
-            onPress={() => setShowMap(true)}
-            accessibilityLabel="Open map"
-            testID="open-map"
-          >
-            <MapIcon size={22} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.controlsCenter}>
-          <TouchableOpacity
-            style={styles.shareBtn}
-            onPress={async () => {
-              try {
-                const text = `Join my live stream\nMeeting ID: ${meetingId}`;
-                if (Platform.OS === 'web') {
-                  await Clipboard.setStringAsync(text);
-                  alert('Share text copied to clipboard');
-                } else {
-                  await Share.share({ message: text, title: 'Join my live stream' });
-                }
-              } catch (e) {
-                console.log('[Share] Failed', e);
-              }
-            }}
-            accessibilityLabel="Share meeting"
-            testID="share-meeting"
-          >
-            <Share2 size={18} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={() => setShowChat(!showChat)}
-            accessibilityLabel="Toggle chat"
-            testID="toggle-chat"
-          >
-            <MessageCircle size={22} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={() => setShowGenerateQuest(true)}
-            accessibilityLabel="Generate quest"
-            testID="generate-quest"
-          >
-            <Sparkles size={22} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.controlsRight}>
-          <TouchableOpacity
-            style={styles.endCallButton}
-            onPress={handleEndStream}
-            accessibilityLabel="End stream"
-            testID="end-stream"
-          >
-            <Square size={20} color="#fff" fill="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
     </View>
   );
 };
@@ -799,7 +823,7 @@ export default function StreamVideoSDKScreen() {
       <Stack.Screen
         options={{
           title: "Live Stream",
-          headerShown: true,
+          headerShown: false,
         }}
       />
       <DiagnosticsBanner />
@@ -866,13 +890,13 @@ const overlayStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#000",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#000",
   },
   loadingText: {
     marginTop: 16,
@@ -885,7 +909,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#000",
   },
   errorText: {
     fontSize: 16,
@@ -907,7 +931,7 @@ const styles = StyleSheet.create({
   },
   meetingContainer: {
     flex: 1,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#000",
   },
   cameraContainer: {
     flex: 1,
@@ -946,6 +970,198 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600" as const,
+  },
+  topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    zIndex: 10,
+  },
+  topBarLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  profilePic: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E91E63",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  profileInitial: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700" as const,
+  },
+  username: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600" as const,
+  },
+  liveIndicatorNew: {
+    backgroundColor: "#E91E63",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  liveTextNew: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700" as const,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rightToolbar: {
+    position: "absolute",
+    top: 100,
+    right: 16,
+    gap: 24,
+    zIndex: 10,
+  },
+  toolbarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toolbarButtonOff: {
+    backgroundColor: "rgba(220, 38, 38, 0.6)",
+  },
+  centerAvatarContainer: {
+    position: "absolute",
+    top: "35%",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  centerAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#E91E63",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  centerAvatarText: {
+    color: "#fff",
+    fontSize: 32,
+    fontWeight: "700" as const,
+  },
+  bottomSection: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+  },
+  notificationBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  notificationIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationText: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "500" as const,
+  },
+  viewersSection: {
+    marginBottom: 12,
+    gap: 8,
+  },
+  viewerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  viewerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#6366F1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerAvatarText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700" as const,
+  },
+  viewerName: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600" as const,
+    flex: 1,
+  },
+  waveEmoji: {
+    fontSize: 14,
+  },
+  waveText: {
+    color: "#FFD700",
+    fontSize: 12,
+    fontWeight: "600" as const,
+  },
+  bottomActionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  commentButton: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  commentButtonText: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 14,
+    fontWeight: "500" as const,
+  },
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   streamInfo: {
     position: "absolute",
