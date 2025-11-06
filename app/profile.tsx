@@ -13,6 +13,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useJournals } from '@/contexts/JournalsContext';
 import { useQuery } from '@tanstack/react-query';
 import { getUserTeams, type Team } from '@/services/supabase/teams';
+import { useQuestCovers } from '@/services/questCovers';
 
 type ProfileTab = 'Quests' | 'Journals' | 'About';
 
@@ -45,6 +46,7 @@ export default function ProfileScreen() {
   };
 
   const { quests, profile } = useGame();
+  const { getCoverForId } = useQuestCovers(quests);
   const { journals } = useJournals();
 
   const achievements = useMemo<AchievementBadge[]>(() => {
@@ -160,9 +162,12 @@ export default function ProfileScreen() {
             <View>
               <SectionHeader title="Featured Quests" icon={<Swords size={18} color={theme.colors.text} />} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-                {quests.slice(0, 8).map((q) => (
-                  <QuestCard key={q.id} title={q.title} imageUrl={pickQuestImage(q)} themeColor={theme.colors.primary} />
-                ))}
+                {quests.slice(0, 8).map((q) => {
+                  const aiCover = q.completed ? getCoverForId(q.id) : null;
+                  return (
+                    <QuestCard key={q.id} title={q.title} imageUrl={aiCover ?? pickQuestImage(q)} themeColor={theme.colors.primary} />
+                  );
+                })}
               </ScrollView>
             </View>
           )}

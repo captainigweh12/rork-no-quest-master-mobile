@@ -1,6 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,18 +23,19 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
   const queryClient = useQueryClient();
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean>(false);
 
   const notificationsQuery = useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!user?.id) return [] as any[];
       return await notificationsService.getNotifications(user.id);
     },
     enabled: !!user?.id,
     refetchInterval: 10000,
   });
 
-  const unreadCount = (notificationsQuery.data || []).filter(n => !n.read).length;
+  const unreadCount = (notificationsQuery.data || []).filter((n: any) => !n.read).length;
 
   const registerForPushNotifications = useCallback(async (retryCount = 0) => {
     if (Platform.OS === 'web') {
@@ -86,6 +88,92 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
     }
   }, []);
 
+  const scheduleDailyQuestReminder = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      console.log('Scheduling not supported on web');
+      return;
+    }
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Time for today\'s Quest',
+          body: 'Open the app and get your next challenge.',
+        },
+        trigger: { type: 'calendar', hour: 9, minute: 0, repeats: true } as Notifications.CalendarTriggerInput,
+      });
+      setRemindersEnabled(true);
+      await AsyncStorage.setItem('questReminders', 'enabled');
+    } catch (e) {
+      console.error('Failed to schedule reminder', e);
+    }
+  }, []);
+
+  const disableDailyQuestReminder = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      console.log('Scheduling not supported on web');
+      setRemindersEnabled(false);
+      await AsyncStorage.setItem('questReminders', 'disabled');
+      return;
+    }
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      setRemindersEnabled(false);
+      await AsyncStorage.setItem('questReminders', 'disabled');
+    } catch (e) {
+      console.error('Failed to cancel reminders', e);
+    }
+  }, []);
+
+  const ensurePermissionsAndEnable = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('Not available on web', 'Quest reminders are available on the mobile app.');
+      return;
+    }
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      const res = await Notifications.requestPermissionsAsync();
+      if (res.status !== 'granted') {
+        Alert.alert('Enable Notifications', 'Please enable notifications in Settings to receive reminders.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]);
+        return;
+      }
+    }
+    await registerForPushNotifications();
+    await scheduleDailyQuestReminder();
+  }, [registerForPushNotifications, scheduleDailyQuestReminder]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('questReminders').then((v) => {
+      const enabled = v === 'enabled';
+      setRemindersEnabled(enabled);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      registerForPushNotifications();
+    }
+  }, [user?.id, registerForPushNotifications]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('Notification received:', notification);
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
+    });
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log('Notification response:', response);
+    });
+
+    return () => {
+      subscription.remove();
+      responseSubscription.remove();
+    };
+  }, [user?.id, queryClient]);
+
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
       await notificationsService.markNotificationAsRead(notificationId);
@@ -110,42 +198,15 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
       console.log('Local notifications not supported on web');
       return;
     }
-
     try {
       await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          data,
-        },
+        content: { title, body, data },
         trigger: null,
       });
     } catch (error) {
       console.error('Error sending local notification:', error);
     }
   }, []);
-
-  useEffect(() => {
-    if (user?.id) {
-      registerForPushNotifications();
-    }
-  }, [user?.id, registerForPushNotifications]);
-
-  useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
-    });
-
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response:', response);
-    });
-
-    return () => {
-      subscription.remove();
-      responseSubscription.remove();
-    };
-  }, [user?.id, queryClient]);
 
   return useMemo(
     () => ({
@@ -154,6 +215,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
       isLoading: notificationsQuery.isLoading,
       expoPushToken,
       permissionStatus,
+      remindersEnabled,
+      ensurePermissionsAndEnable,
+      disableDailyQuestReminder,
+      scheduleDailyQuestReminder,
       registerForPushNotifications,
       markAsRead,
       markAllAsRead,
@@ -166,6 +231,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
       notificationsQuery.isLoading,
       expoPushToken,
       permissionStatus,
+      remindersEnabled,
+      ensurePermissionsAndEnable,
+      disableDailyQuestReminder,
+      scheduleDailyQuestReminder,
       registerForPushNotifications,
       markAsRead,
       markAllAsRead,

@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { pickImage, takePhoto, generateAIAvatar, uploadAvatar } from '@/services/avatarService';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 
 const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
@@ -35,6 +36,7 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLocalization();
+  const { remindersEnabled, ensurePermissionsAndEnable, disableDailyQuestReminder, permissionStatus } = useNotifications();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [newUsername, setNewUsername] = useState('');
@@ -375,7 +377,18 @@ export default function AccountScreen() {
                 </Text>
               </View>
             </View>
-            <Switch value={false} trackColor={{ false: theme.colors.border, true: theme.colors.primary }} thumbColor="#FFFFFF" />
+            <Switch
+              value={remindersEnabled}
+              onValueChange={async (v) => {
+                if (v) {
+                  await ensurePermissionsAndEnable();
+                } else {
+                  await disableDailyQuestReminder();
+                }
+              }}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
           </View>
         </View>
 
