@@ -71,15 +71,22 @@ export default function HomeScreen() {
   const { isConnected: ytConnected, live: ytLive, goLive } = useYouTube();
   
   const allLiveStreams = useMemo(() => {
-    const streams = liveStreams.map((stream) => ({
-      id: stream.id,
-      title: stream.title,
-      streamerName: stream.streamerName,
-      viewers: stream.viewerCount,
-      thumbnail: stream.thumbnailUrl ?? 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop',
-      questTitle: stream.questTitle,
-      isWebRTC: true,
-    }));
+    const streams = liveStreams.map((stream) => {
+      const defaultThumbnail = 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop';
+      const thumbnail = stream.thumbnailUrl && stream.thumbnailUrl.trim() !== '' 
+        ? stream.thumbnailUrl 
+        : defaultThumbnail;
+      
+      return {
+        id: stream.id,
+        title: stream.title,
+        streamerName: stream.streamerName,
+        viewers: stream.viewerCount,
+        thumbnail,
+        questTitle: stream.questTitle,
+        isWebRTC: true,
+      };
+    });
 
     if (ytConnected && ytLive?.isLive && ytLive.videoId) {
       streams.push({

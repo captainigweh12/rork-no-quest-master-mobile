@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import type { LiveStream, StreamMessage } from '@/types';
 
+const DEFAULT_STREAM_THUMBNAIL = 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=1200&auto=format&fit=crop';
+
 export async function createStream(data: {
   title: string;
   description?: string;
@@ -13,6 +15,10 @@ export async function createStream(data: {
   thumbnailUrl?: string | null;
 }): Promise<LiveStream> {
   console.log('[STREAMS] Creating new stream:', data);
+  
+  const thumbnailUrl = data.thumbnailUrl && data.thumbnailUrl.trim() !== '' 
+    ? data.thumbnailUrl 
+    : DEFAULT_STREAM_THUMBNAIL;
   
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -30,7 +36,7 @@ export async function createStream(data: {
       quest_id: data.questId,
       quest_title: data.questTitle,
       category: data.category,
-      thumbnail_url: data.thumbnailUrl,
+      thumbnail_url: thumbnailUrl,
       is_live: true,
     })
     .select(`
