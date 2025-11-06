@@ -98,6 +98,55 @@ export async function getFriends(userId: string): Promise<Friend[]> {
   }
 }
 
+export async function getPendingFriendRequests(userId: string): Promise<Friend[]> {
+  console.log('[Friends] Getting pending outgoing requests for user:', userId);
+  try {
+    const { data: pending, error: pendingError } = await supabase
+      .from('friends')
+      .select('friend_id')
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+
+    if (pendingError) {
+      console.error('[Friends] Get pending error:', pendingError?.message ?? JSON.stringify(pendingError));
+      throw new Error(pendingError.message);
+    }
+
+    if (!pending || pending.length === 0) {
+      return [];
+    }
+
+    const friendIds = pending.map((p: any) => p.friend_id);
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from('user_profiles')
+      .select('id, username, full_name, avatar_url, level, total_points, streak')
+      .in('id', friendIds);
+
+    if (profilesError) {
+      console.error('[Friends] Get pending profiles error:', profilesError?.message ?? JSON.stringify(profilesError));
+      throw new Error(profilesError.message);
+    }
+
+    return (profiles || []).map((profile: any) => ({
+      id: profile.id,
+      username: profile.username,
+      fullName: profile.full_name || '',
+      avatarUrl: profile.avatar_url,
+      level: profile.level || 1,
+      currentXp: 0,
+      xpToNextLevel: 100,
+      totalPoints: profile.total_points || 0,
+      totalRejections: 0,
+      streak: profile.streak || 0,
+      friendshipStatus: 'pending' as const,
+    }));
+  } catch (error: any) {
+    console.error('[Friends] getPendingFriendRequests error:', error?.message ?? JSON.stringify(error));
+    throw error;
+  }
+}
+
 export async function recommendFriends(userId: string, limit: number = 10): Promise<Friend[]> {
   console.log('[Friends] Recommending friends for user:', userId, 'limit:', limit);
   

@@ -85,6 +85,21 @@ export default function CommunityScreen() {
     staleTime: 30000,
   });
 
+  const pendingRequestsQuery = useQuery({
+    queryKey: ['pendingFriends', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('User not authenticated');
+      try {
+        return await friendsService.getPendingFriendRequests(user.id);
+      } catch (error: any) {
+        console.error('Error getting pending friends:', error?.message || JSON.stringify(error));
+        throw new Error(error?.message || 'Failed to load pending requests');
+      }
+    },
+    enabled: !!user?.id && tab === 'friends' && !showAddFriend,
+    staleTime: 15000,
+  });
+
   const searchUsersQuery = useQuery({
     queryKey: ['searchUsers', searchQuery],
     queryFn: async () => {
@@ -118,6 +133,7 @@ export default function CommunityScreen() {
     mutationFn: (friendId: string) => friendsService.sendFriendRequest(user!.id, friendId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingFriends'] });
       Alert.alert('Success', 'Friend request sent!');
       setShowAddFriend(false);
       setSearchQuery('');
@@ -619,6 +635,32 @@ Provide a brief encouraging explanation of the skills they developed and why.`
           </>
         ) : (
           <>
+            {pendingRequestsQuery.data && pendingRequestsQuery.data.length > 0 ? (
+              <>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Pending Requests</Text>
+                <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>These requests are waiting to be accepted</Text>
+                {pendingRequestsQuery.data.map((p) => (
+                  <View key={`pending-${p.id}`} style={[styles.friendCard, { backgroundColor: theme.colors.card }]}>                  
+                    <View style={styles.friendHeader}>
+                      <Avatar name={p.fullName || p.username} imageUrl={p.avatarUrl} size={56} />
+                      <View style={styles.friendInfo}>
+                        <View style={styles.friendNameRow}>
+                          <Text style={[styles.friendName, { color: theme.colors.text }]}>{p.username}</Text>
+                          <View style={[styles.recommendBadge, { backgroundColor: theme.colors.warning + '20' }]}>                          
+                            <Text style={[styles.recommendText, { color: theme.colors.warning }]}>Pending</Text>
+                          </View>
+                        </View>
+                        <View style={styles.statsRow}>
+                          <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>Lv {p.level}</Text>
+                          <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>💎 {p.totalPoints}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : null}
+
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Your Friends</Text>
             <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>              {filteredFriends.length} friends
             </Text>
