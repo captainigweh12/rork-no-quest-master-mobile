@@ -53,7 +53,6 @@
         "INTERNET",
         "RECORD_AUDIO"
       ],
-      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -94,12 +93,9 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
-          "sounds": [
-            "./assets/sounds/notification_sound.wav"
-          ],
           "enableBackgroundRemoteNotifications": true
         }
       ],
