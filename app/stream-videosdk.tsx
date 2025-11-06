@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -8,16 +8,21 @@ import {
   Platform,
   Alert,
   Share,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, Square, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, Square, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/contexts/GameContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useStream } from "@/contexts/StreamContext";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const WebCameraPreview = () => {
@@ -442,33 +447,213 @@ const MapOverlay = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
+const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🎉', '👏', '💯', '🙌', '✨', '🚀', '💪', '🎯', '⭐'];
+
 const ChatOverlay = ({ onClose }: { onClose: () => void }) => {
   const { theme } = useTheme();
-  const [messages] = useState<{ id: string; user: string; text: string }[]>([
-    { id: '1', user: 'User123', text: 'Hey! Great stream!' },
-    { id: '2', user: 'Viewer456', text: 'What quest are you on?' },
-  ]);
+  const { user } = useAuth();
+  const { messages, sendMessage } = useStream();
+  const [inputText, setInputText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!inputText.trim() || isSending) return;
+    
+    const messageToSend = inputText.trim();
+    setInputText('');
+    setIsSending(true);
+    setShowEmojiPicker(false);
+    Keyboard.dismiss();
+    
+    try {
+      await sendMessage(messageToSend);
+      console.log('[Chat] Message sent:', messageToSend);
+    } catch (error) {
+      console.error('[Chat] Failed to send message:', error);
+      if (Platform.OS === 'web') {
+        alert('Failed to send message');
+      } else {
+        Alert.alert('Error', 'Failed to send message');
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setInputText(prev => prev + emoji);
+  };
 
   return (
-    <View style={overlayStyles.backdrop} pointerEvents="box-none">
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={overlayStyles.backdrop}
+      pointerEvents="box-none"
+    >
       <View style={[overlayStyles.chatSheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
         <View style={overlayStyles.sheetHeader}>
           <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]}>Live Chat</Text>
-          <TouchableOpacity onPress={onClose} accessibilityLabel="Close chat" style={overlayStyles.closeBtn}>
-            <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close chat" style={overlayStyles.closeBtn} testID="close-chat">
+            <Text style={{ color: theme.colors.text, fontWeight: '800' as const, fontSize: 24 }}>×</Text>
           </TouchableOpacity>
         </View>
-        <View style={{ flex: 1, marginTop: 12 }}>
-          {messages.map((msg) => (
-            <View key={msg.id} style={{ marginBottom: 8 }}>
-              <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '700' as const }}>{msg.user}</Text>
-              <Text style={{ color: theme.colors.text, fontSize: 13, marginTop: 2 }}>{msg.text}</Text>
+        
+        <ScrollView 
+          ref={scrollRef}
+          style={{ flex: 1, marginTop: 12 }}
+          contentContainerStyle={{ paddingBottom: 8 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {messages.length === 0 ? (
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 24 }}>
+              <MessageCircle size={32} color={theme.colors.textSecondary} />
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+                No messages yet. Be the first to chat!
+              </Text>
             </View>
-          ))}
+          ) : (
+            messages.map((msg, idx) => {
+              const isOwn = msg.userId === user?.id;
+              return (
+                <View key={msg.id || idx} style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                    <View style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: isOwn ? theme.colors.primary : theme.colors.backgroundTertiary,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' as const }}>
+                        {(msg.username || 'User')[0].toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ color: isOwn ? theme.colors.primary : theme.colors.text, fontSize: 12, fontWeight: '700' as const }}>
+                          {msg.username || 'Anonymous'}
+                        </Text>
+                        {isOwn && (
+                          <View style={{ backgroundColor: theme.colors.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' as const }}>YOU</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={{ color: theme.colors.text, fontSize: 14, marginTop: 2, lineHeight: 20 }}>
+                        {msg.message}
+                      </Text>
+                      {msg.createdAt && (
+                        <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginTop: 2 }}>
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+
+        {showEmojiPicker && (
+          <View style={{ 
+            flexDirection: 'row', 
+            flexWrap: 'wrap', 
+            gap: 8, 
+            paddingVertical: 12,
+            paddingHorizontal: 8,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+            backgroundColor: theme.colors.backgroundSecondary,
+          }}>
+            {EMOJIS.map((emoji) => (
+              <TouchableOpacity
+                key={emoji}
+                onPress={() => handleEmojiSelect(emoji)}
+                style={{
+                  padding: 8,
+                  borderRadius: 8,
+                  backgroundColor: theme.colors.card,
+                }}
+                testID={`emoji-${emoji}`}
+              >
+                <Text style={{ fontSize: 24 }}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          gap: 8, 
+          marginTop: 12,
+          paddingTop: 12,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.border,
+        }}>
+          <TouchableOpacity
+            onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+            style={{ 
+              padding: 8, 
+              borderRadius: 8,
+              backgroundColor: showEmojiPicker ? theme.colors.primary : theme.colors.backgroundTertiary,
+            }}
+            testID="toggle-emoji-picker"
+          >
+            <Smile size={20} color={showEmojiPicker ? '#fff' : theme.colors.text} />
+          </TouchableOpacity>
+          
+          <TextInput
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Type a message..."
+            placeholderTextColor={theme.colors.textSecondary}
+            style={{
+              flex: 1,
+              backgroundColor: theme.colors.backgroundTertiary,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              color: theme.colors.text,
+              fontSize: 14,
+              maxHeight: 100,
+            }}
+            multiline
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            blurOnSubmit={false}
+            testID="chat-input"
+          />
+          
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!inputText.trim() || isSending}
+            style={{ 
+              padding: 10, 
+              borderRadius: 12,
+              backgroundColor: inputText.trim() && !isSending ? theme.colors.primary : theme.colors.backgroundTertiary,
+            }}
+            testID="send-message"
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Send size={20} color={inputText.trim() ? '#fff' : theme.colors.textSecondary} />
+            )}
+          </TouchableOpacity>
         </View>
-        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary, fontSize: 11, marginTop: 8 }]}>Chat feature coming soon!</Text>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -668,7 +853,8 @@ const overlayStyles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    maxHeight: '50%',
+    height: '65%',
+    maxHeight: 500,
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sheetTitle: { fontSize: 14, fontWeight: '900' as const },
