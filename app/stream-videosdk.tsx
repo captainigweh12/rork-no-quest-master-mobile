@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Instagram } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Instagram, Tv } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl, DEFAULT_RENDER_BASE_URL, setBaseUrlOverride } from "@/lib/baseUrl";
@@ -24,6 +24,7 @@ import { useGame } from "@/contexts/GameContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useStream } from "@/contexts/StreamContext";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isLiveStreamConfigured, configureLiveStreaming } from "@/lib/liveConfig";
 
 const WebCameraPreview = () => {
   return (
@@ -764,6 +765,19 @@ export default function StreamVideoSDKScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [isCreatingMeeting, setIsCreatingMeeting] = useState<boolean>(false);
+  const [checkingConfig, setCheckingConfig] = useState<boolean>(true);
+  const [needsConfig, setNeedsConfig] = useState<boolean>(false);
+  const [isConfiguringLive, setIsConfiguringLive] = useState<boolean>(false);
+
+  // Check if live streaming is configured on mount
+  useEffect(() => {
+    const checkConfig = async () => {
+      const configured = await isLiveStreamConfigured();
+      setNeedsConfig(!configured);
+      setCheckingConfig(false);
+    };
+    checkConfig();
+  }, []);
 
   useEffect(() => {
     const initMeeting = async () => {
@@ -787,6 +801,90 @@ export default function StreamVideoSDKScreen() {
 
     initMeeting();
   }, [token, meetingId, isCreatingMeeting, createNewMeeting]);
+
+  // Show configuration prompt if needed
+  if (checkingConfig) {
+    return (
+      <View style={[styles.container, { paddingBottom: Math.max(0, insets.bottom - 4) } ]}>
+        <Stack.Screen
+          options={{
+            title: "Live Stream",
+            headerShown: true,
+          }}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={styles.loadingText}>Checking configuration...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (needsConfig) {
+    return (
+      <View style={[styles.container, { paddingBottom: Math.max(0, insets.bottom - 4) } ]}>
+        <Stack.Screen
+          options={{
+            title: "Live Stream",
+            headerShown: true,
+          }}
+        />
+        <View style={styles.configPromptContainer}>
+          <Tv size={80} color="#5b8cde" strokeWidth={2} />
+          <Text style={styles.configPromptTitle}>Configure Live Streaming</Text>
+          <Text style={styles.configPromptText}>
+            Before you can start a live stream, you need to configure your streaming connection. 
+            This will set up the backend URL and clear any stale configurations.
+          </Text>
+          <TouchableOpacity
+            style={[styles.configureButtonLarge, isConfiguringLive && styles.configureButtonDisabled]}
+            onPress={async () => {
+              setIsConfiguringLive(true);
+              try {
+                const result = await configureLiveStreaming();
+                if (result.success) {
+                  setNeedsConfig(false);
+                  if (Platform.OS === 'web') {
+                    alert('Live streaming configured successfully!');
+                  } else {
+                    Alert.alert('Success', 'Live streaming configured successfully!');
+                  }
+                } else {
+                  if (Platform.OS === 'web') {
+                    alert(result.error || 'Failed to configure live streaming');
+                  } else {
+                    Alert.alert('Error', result.error || 'Failed to configure live streaming');
+                  }
+                }
+              } catch (error) {
+                if (Platform.OS === 'web') {
+                  alert('An unexpected error occurred');
+                } else {
+                  Alert.alert('Error', 'An unexpected error occurred');
+                }
+              } finally {
+                setIsConfiguringLive(false);
+              }
+            }}
+            disabled={isConfiguringLive}
+            activeOpacity={0.8}
+          >
+            {isConfiguringLive ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.configureButtonText}>Configure Now</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   if (error) {
     return (
@@ -1357,5 +1455,58 @@ const styles = StyleSheet.create({
     backgroundColor: "#DC2626",
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  configPromptContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+    backgroundColor: "#000",
+  },
+  configPromptTitle: {
+    fontSize: 28,
+    fontWeight: "700" as const,
+    color: "#fff",
+    marginTop: 24,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  configPromptText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.7)",
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  configureButtonLarge: {
+    backgroundColor: "#6366F1",
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    minWidth: 200,
+    alignItems: "center",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  configureButtonDisabled: {
+    opacity: 0.6,
+  },
+  configureButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700" as const,
+  },
+  backButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.6)",
+    fontWeight: "600" as const,
   },
 });

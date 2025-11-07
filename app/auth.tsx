@@ -16,10 +16,11 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CheckCircle } from 'lucide-react-native';
+import { CheckCircle, Tv } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import { isLiveStreamConfigured, configureLiveStreaming } from '@/lib/liveConfig';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -34,6 +35,9 @@ export default function AuthScreen() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  const [showConfigureLive, setShowConfigureLive] = useState(false);
+  const [isConfiguringLive, setIsConfiguringLive] = useState(false);
+  const [liveConfigured, setLiveConfigured] = useState(false);
 
   // If already authenticated, skip this screen.
   useEffect(() => {
@@ -41,6 +45,15 @@ export default function AuthScreen() {
       router.replace('/(tabs)/(home)');
     }
   }, [session?.user, router]);
+
+  // Check if live streaming is already configured
+  useEffect(() => {
+    const checkLiveConfig = async () => {
+      const configured = await isLiveStreamConfigured();
+      setLiveConfigured(configured);
+    };
+    checkLiveConfig();
+  }, []);
 
   const handleSubmit = async () => {
     if (!email || !password || (mode === 'signup' && !username)) {
@@ -107,11 +120,21 @@ export default function AuthScreen() {
           }
         } else {
           console.log('✅ Sign up successful!');
-          setShowSuccess(true);
-          setTimeout(() => {
-            setShowSuccess(false);
-            router.replace('/(tabs)/(home)');
-          }, 1200);
+          // Check if live streaming needs configuration
+          const configured = await isLiveStreamConfigured();
+          if (!configured) {
+            setShowSuccess(true);
+            setTimeout(() => {
+              setShowSuccess(false);
+              setShowConfigureLive(true);
+            }, 1200);
+          } else {
+            setShowSuccess(true);
+            setTimeout(() => {
+              setShowSuccess(false);
+              router.replace('/(tabs)/(home)');
+            }, 1200);
+          }
         }
       }
     } catch (error: any) {
@@ -182,7 +205,59 @@ export default function AuthScreen() {
                 />
               </View>
 
-              {showSuccess ? (
+              {showConfigureLive ? (
+                <View style={styles.successContainer}>
+                  <Tv size={80} color="#5b8cde" strokeWidth={2} />
+                  <Text style={styles.successText}>Configure Live Streaming</Text>
+                  <Text style={styles.successSubtext}>
+                    Set up your live streaming connection to start broadcasting
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.configureButton, isConfiguringLive && styles.configureButtonDisabled]}
+                    onPress={async () => {
+                      setIsConfiguringLive(true);
+                      try {
+                        const result = await configureLiveStreaming();
+                        if (result.success) {
+                          setLiveConfigured(true);
+                          Alert.alert(
+                            'Success',
+                            'Live streaming configured successfully!',
+                            [{ text: 'OK', onPress: () => router.replace('/(tabs)/(home)') }]
+                          );
+                        } else {
+                          Alert.alert('Error', result.error || 'Failed to configure live streaming');
+                        }
+                      } catch (error) {
+                        Alert.alert('Error', 'An unexpected error occurred');
+                      } finally {
+                        setIsConfiguringLive(false);
+                      }
+                    }}
+                    disabled={isConfiguringLive}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={['#ff8a4c', '#5b8cde']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.configureGradient}
+                    >
+                      {isConfiguringLive ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.configureText}>Configure Live Streaming</Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.skipButton}
+                    onPress={() => router.replace('/(tabs)/(home)')}
+                  >
+                    <Text style={styles.skipButtonText}>Skip for now</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : showSuccess ? (
                 <View style={styles.successContainer}>
                   <CheckCircle size={80} color="#4caf50" strokeWidth={2} />
                   <Text style={styles.successText}>Welcome Hero!</Text>
@@ -375,7 +450,26 @@ const styles = StyleSheet.create({
   switchModeLink: { fontSize: 14, color: '#5b8cde', fontWeight: '700' as const },
   successContainer: { alignItems: 'center', paddingVertical: 60 },
   successText: { fontSize: 28, fontWeight: '700' as const, color: '#fff', marginTop: 24, marginBottom: 8 },
-  successSubtext: { fontSize: 16, color: 'rgba(255, 255, 255, 0.7)', textAlign: 'center' },
+  successSubtext: { fontSize: 16, color: 'rgba(255, 255, 255, 0.7)', textAlign: 'center', marginBottom: 24, paddingHorizontal: 20 },
+  configureButton: {
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#5b8cde',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+    width: '100%',
+  },
+  configureButtonDisabled: { opacity: 0.6 },
+  configureGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 32 },
+  configureText: { fontSize: 18, fontWeight: '700' as const, color: '#fff' },
+  skipButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+  },
+  skipButtonText: { fontSize: 14, color: 'rgba(255, 255, 255, 0.6)', fontWeight: '600' as const },
   dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.2)' },
   dividerText: { marginHorizontal: 16, fontSize: 14, color: 'rgba(255, 255, 255, 0.5)', fontWeight: '600' as const },
