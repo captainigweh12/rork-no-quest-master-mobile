@@ -36,6 +36,12 @@ async function cleanupCorruptedData(): Promise<void> {
           continue;
         }
         
+        if (typeof value !== 'string') {
+          console.warn(`[STORAGE] Found non-string value for key: ${key}`);
+          corruptedKeys.push(key);
+          continue;
+        }
+        
         if (value.trim().length === 0) {
           console.warn(`[STORAGE] Found empty value for key: ${key}`);
           corruptedKeys.push(key);
@@ -43,9 +49,14 @@ async function cleanupCorruptedData(): Promise<void> {
         }
         
         // Try to parse the JSON to detect corruption
-        JSON.parse(value);
-      } catch {
-        console.warn(`[STORAGE] Found corrupted data for key: ${key}`);
+        try {
+          JSON.parse(value);
+        } catch (parseError) {
+          console.warn(`[STORAGE] Found corrupted data for key: ${key}`);
+          corruptedKeys.push(key);
+        }
+      } catch (error) {
+        console.error(`[STORAGE] Error checking key: ${key}`, error);
         corruptedKeys.push(key);
       }
     }
