@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Quest, QuestDifficulty, UserProfile } from '@/types';
-import { generateQuest } from '@/services/questAI';
+import { generateQuest, type CategoryId } from '@/services/questAI';
 import { useAuth } from '@/contexts/AuthContext';
 
 const INITIAL_PROFILE: UserProfile = {
@@ -228,7 +228,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
   );
 
   const addAIQuest = useCallback(
-    async (difficulty: QuestDifficulty, isSuperQuest = false, previousQuest?: Quest, categoryId?: import('@/services/questAI').CategoryId) => {
+    async (difficulty: QuestDifficulty, isSuperQuest = false, previousQuest?: Quest, categoryId?: CategoryId) => {
       console.log(`Generating AI quest with difficulty: ${difficulty}, isSuperQuest: ${isSuperQuest}`);
       try {
         const rankTitles = [
