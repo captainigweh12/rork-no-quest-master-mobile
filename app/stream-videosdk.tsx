@@ -413,7 +413,22 @@ const StreamView = () => {
             >
               <Sparkles size={20} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIcon}>
+            <TouchableOpacity 
+              style={styles.actionIcon}
+              onPress={async () => {
+                try {
+                  const shareContent = {
+                    message: `Join my live stream! Meeting ID: ${meetingId || 'Live now'}`,
+                    url: meetingId ? `noquest://stream/${meetingId}` : 'noquest://stream',
+                  };
+                  await Share.share(shareContent);
+                } catch (error) {
+                  console.error('[Share] Error sharing stream:', error);
+                }
+              }}
+              accessibilityLabel="Share stream"
+              testID="share-stream"
+            >
               <Share2 size={20} color="#fff" />
             </TouchableOpacity>
           </View>

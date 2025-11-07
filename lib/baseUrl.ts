@@ -1,8 +1,6 @@
 /// <reference lib="es2015" />
 // @ts-ignore: runtime dependency; types may not be present in this analysis environment
 import Constants from 'expo-constants';
-// @ts-ignore: runtime dependency; types may not be present in this analysis environment
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { guardedStorage, isStorageReady } from './storage';
 
 function stripTrailingSlash(url: string): string {
@@ -141,9 +139,8 @@ export function isStaleUrl(url: string | undefined): boolean {
  */
 export async function clearStaleUrlIfNeeded(): Promise<boolean> {
   try {
-    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).getItem === 'function';
-    if (!hasStorage) {
-      console.warn('[baseUrl] AsyncStorage not available, skipping stale URL check');
+    if (!isStorageReady()) {
+      console.warn('[baseUrl] Storage not ready, skipping stale URL check');
       return false;
     }
 

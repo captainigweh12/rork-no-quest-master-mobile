@@ -54,9 +54,11 @@ export function useAppInit() {
         // This happens automatically via .env files
         console.log('[APP_INIT] Environment loaded ✓');
 
-        // Step 3: Initialize base URL (this will now safely access storage)
-        console.log('[APP_INIT] Step 3: Initializing base URL...');
-        const baseUrl = await getBaseUrl();
+        // Step 3: Load base URL override from storage
+        console.log('[APP_INIT] Step 3: Loading base URL from storage...');
+        const { loadBaseUrlOverride, getBaseUrl } = await import('@/lib/baseUrl');
+        await loadBaseUrlOverride();
+        const baseUrl = getBaseUrl();
         console.log('[APP_INIT] Base URL ready:', baseUrl, '✓');
 
         if (!mounted) return;

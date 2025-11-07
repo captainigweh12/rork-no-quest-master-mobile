@@ -61,7 +61,7 @@ export interface Friend {
   totalRejections: number;
   streak: number;
   activeQuest?: string;
-  friendshipStatus?: 'pending' | 'accepted' | 'rejected';
+  friendshipStatus?: 'pending' | 'accepted' | 'rejected' | 'incoming';
 }
 
 export interface RejectionLocation {
