@@ -54,9 +54,14 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
 
         const raw = await Promise.race([dataPromise, timeoutPromise]);
         if (raw) {
-          const parsed = JSON.parse(raw) as string[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setSelectedIdsState(parsed);
+          try {
+            const parsed = JSON.parse(raw) as string[];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setSelectedIdsState(parsed);
+            }
+          } catch (parseError) {
+            console.error('[CategoriesContext] Invalid JSON in storage, clearing corrupted data:', parseError);
+            await AsyncStorage.removeItem('categories:selected');
           }
         }
       } catch (e) {

@@ -119,18 +119,33 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (savedProfile) {
         console.log('[GameContext] Loading saved profile');
-        const parsed = JSON.parse(savedProfile);
-        setProfile(parsed);
+        try {
+          const parsed = JSON.parse(savedProfile);
+          setProfile(parsed);
+        } catch (parseError) {
+          console.error('[GameContext] Invalid JSON in profile storage, clearing corrupted data:', parseError);
+          await AsyncStorage.removeItem('profile');
+        }
       }
       if (savedQuests) {
         console.log('[GameContext] Loading saved quests');
-        const parsed = JSON.parse(savedQuests);
-        setQuests(parsed);
+        try {
+          const parsed = JSON.parse(savedQuests);
+          setQuests(parsed);
+        } catch (parseError) {
+          console.error('[GameContext] Invalid JSON in quests storage, clearing corrupted data:', parseError);
+          await AsyncStorage.removeItem('quests');
+        }
       }
       if (savedProgress) {
         console.log('[GameContext] Loading saved quest progress');
-        const parsed = JSON.parse(savedProgress);
-        setProgressMap(parsed);
+        try {
+          const parsed = JSON.parse(savedProgress);
+          setProgressMap(parsed);
+        } catch (parseError) {
+          console.error('[GameContext] Invalid JSON in progress storage, clearing corrupted data:', parseError);
+          await AsyncStorage.removeItem('questProgress');
+        }
       }
       console.log('[GameContext] ✅ Game data loaded successfully');
     } catch (error) {

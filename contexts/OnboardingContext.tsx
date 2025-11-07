@@ -37,8 +37,13 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
         const raw = await Promise.race([storagePromise, timeoutPromise]);
         
         if (raw) {
-          const parsed = JSON.parse(raw as string) as OnboardingPreferences;
-          setPrefs({ ...DEFAULT_PREFS, ...parsed });
+          try {
+            const parsed = JSON.parse(raw as string) as OnboardingPreferences;
+            setPrefs({ ...DEFAULT_PREFS, ...parsed });
+          } catch (parseError) {
+            console.error('[OnboardingContext] Invalid JSON in storage, clearing corrupted data:', parseError);
+            await AsyncStorage.removeItem('onboarding');
+          }
         }
       } catch (e) {
         console.log('Using default onboarding prefs:', e instanceof Error ? e.message : 'unknown error');
