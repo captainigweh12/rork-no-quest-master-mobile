@@ -56,7 +56,16 @@ const STORAGE_KEYS = {
 async function getItem<T>(key: string): Promise<T | null> {
   try {
     const item = await AsyncStorage.getItem(key);
-    return item ? JSON.parse(item) : null;
+    if (!item) return null;
+    
+    try {
+      return JSON.parse(item);
+    } catch (parseError) {
+      console.error(`JSON parse error for ${key}. Value:`, item);
+      console.error(`Parse error:`, parseError);
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
   } catch (error) {
     console.error(`Error getting ${key}:`, error);
     return null;
