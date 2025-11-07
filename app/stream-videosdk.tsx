@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Tv } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Tv, ListChecks } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl, DEFAULT_RENDER_BASE_URL, setBaseUrlOverride } from "@/lib/baseUrl";
@@ -404,14 +404,29 @@ const StreamView = () => {
             >
               <Text style={styles.commentButtonText}>Comment</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIcon}>
+            <TouchableOpacity 
+              style={[styles.actionIcon, showQuest ? styles.actionIconActive : null]}
+              onPress={() => setShowQuest((p) => !p)}
+              accessibilityLabel={showQuest ? "Hide quest" : "Show quest"}
+              testID="toggle-quest"
+            >
+              <LayoutList size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionIcon}
+              onPress={() => setShowMap(true)}
+              accessibilityLabel="Open map"
+              testID="open-map"
+            >
               <MapIcon size={20} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIcon}>
+            <TouchableOpacity 
+              style={styles.actionIcon}
+              onPress={() => setShowGenerateQuest(true)}
+              accessibilityLabel="Generate quest"
+              testID="open-generate-quest"
+            >
               <Sparkles size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionIcon}>
-              <Users size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionIcon}>
               <Share2 size={20} color="#fff" />
@@ -432,18 +447,29 @@ const QuestOverlay = ({ onClose }: { onClose: () => void }) => {
   const { quests } = useGame();
   const { theme } = useTheme();
   const active = quests.find((q) => !q.completed);
+  const [expanded, setExpanded] = React.useState<boolean>(false);
   if (!active) return null as any;
   return (
     <View style={overlayStyles.backdrop} pointerEvents="box-none">
       <View style={[overlayStyles.sheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
         <View style={overlayStyles.sheetHeader}>
           <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]} numberOfLines={1}>Quest</Text>
-          <TouchableOpacity onPress={onClose} accessibilityLabel="Close quest" style={overlayStyles.closeBtn}>
+          <TouchableOpacity onPress={onClose} accessibilityLabel="Close quest" style={overlayStyles.closeBtn} testID="close-quest">
             <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[overlayStyles.questTitle, { color: theme.colors.text }]}>{active.title}</Text>
-        <Text style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}>{active.description}</Text>
+        <TouchableOpacity onPress={() => setExpanded((e) => !e)} activeOpacity={0.8} testID="quest-expand-toggle">
+          <Text style={[overlayStyles.questTitle, { color: theme.colors.text }]}>{active.title}</Text>
+          <Text 
+            style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}
+            numberOfLines={expanded ? undefined : 3}
+          >
+            {active.description}
+          </Text>
+          <Text style={{ color: theme.colors.primary, fontWeight: '800' as const, marginTop: 6 }}>
+            {expanded ? 'See less' : 'See more'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -1268,6 +1294,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  actionIconActive: {
+    backgroundColor: "rgba(59, 130, 246, 0.45)",
+    borderColor: "rgba(59, 130, 246, 0.6)",
   },
   streamInfo: {
     position: "absolute",
