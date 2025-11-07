@@ -185,7 +185,7 @@ const QuestLiveBanner = ({
               <View style={[questStyles.progressFill, { width: `${pct}%`, backgroundColor: '#10B981' }]} />
             </View>
             <Text style={[questStyles.progressLabel, { color: theme.colors.textSecondary }]}>
-              NOs {progress.noCount}{minNo ? `/${minNo}` : ''}
+              Yes {progress.yesCount} • No {progress.noCount}{minNo ? `/${minNo}` : ''}
             </Text>
           </View>
         </View>
@@ -439,13 +439,13 @@ const StreamView = () => {
       {showQuest && <QuestOverlay onClose={() => setShowQuest(false)} />}
       {showMap && <MapOverlay onClose={() => setShowMap(false)} />}
       {showChat && <ChatOverlay onClose={() => setShowChat(false)} />}
-      {showGenerateQuest && <GenerateQuestOverlay onClose={() => setShowGenerateQuest(false)} />}
+      {showGenerateQuest && <GenerateQuestOverlay onClose={() => setShowGenerateQuest(false)} onCreated={() => setShowQuest(true)} />}
     </View>
   );
 };
 
 const QuestOverlay = ({ onClose }: { onClose: () => void }) => {
-  const { quests } = useGame();
+  const { quests, progressMap, recordQuestOutcome } = useGame();
   const { theme } = useTheme();
   const active = quests.find((q) => !q.completed);
   const [expanded, setExpanded] = React.useState<boolean>(false);
@@ -471,6 +471,19 @@ const QuestOverlay = ({ onClose }: { onClose: () => void }) => {
             {expanded ? 'See less' : 'See more'}
           </Text>
         </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+          <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.colors.backgroundTertiary }}>
+            <Text style={{ color: theme.colors.textSecondary, fontWeight: '800' as const }}>
+              Yes {(progressMap[active.id]?.yesCount ?? 0)} • No {(progressMap[active.id]?.noCount ?? 0)}{(active.minNoRequired ?? 0) ? `/${active.minNoRequired}` : ''}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => recordQuestOutcome(active.id, 'yes')} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#EF4444' }} testID="overlay-quest-yes">
+            <Text style={{ color: '#fff', fontWeight: '900' as const }}>YES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => recordQuestOutcome(active.id, 'no')} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#10B981' }} testID="overlay-quest-no">
+            <Text style={{ color: '#fff', fontWeight: '900' as const }}>NO</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -715,7 +728,7 @@ const ChatOverlay = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-const GenerateQuestOverlay = ({ onClose }: { onClose: () => void }) => {
+const GenerateQuestOverlay = ({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) => {
   const { theme } = useTheme();
   const { addCustomQuest } = useGame();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -723,14 +736,14 @@ const GenerateQuestOverlay = ({ onClose }: { onClose: () => void }) => {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const questTitle = `Live Stream Challenge ${Date.now()}`;
+      const questTitle = `Ask boldly on live stream (${Date.now()})`;
       
       await addCustomQuest({
         title: questTitle,
         description: 'Complete this quest during the live stream',
         minNoRequired: 5,
       });
-      
+      if (onCreated) onCreated();
       if (Platform.OS === 'web') {
         alert('Quest created successfully!');
       } else {
