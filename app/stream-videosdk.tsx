@@ -366,6 +366,15 @@ const StreamView = () => {
               <VideoIcon size={24} color="#fff" />
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.toolbarButton, showQuest ? styles.toolbarButtonActive : null]}
+            onPress={() => setShowQuest((p) => !p)}
+            accessibilityLabel={showQuest ? "Hide quest" : "Show quest"}
+            testID="toggle-quest"
+          >
+            <LayoutList size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
 
 
@@ -403,14 +412,6 @@ const StreamView = () => {
               testID="comment-button"
             >
               <Text style={styles.commentButtonText}>Comment</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionIcon, showQuest ? styles.actionIconActive : null]}
-              onPress={() => setShowQuest((p) => !p)}
-              accessibilityLabel={showQuest ? "Hide quest" : "Show quest"}
-              testID="toggle-quest"
-            >
-              <LayoutList size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionIcon}
@@ -1174,6 +1175,9 @@ const styles = StyleSheet.create({
   },
   toolbarButtonOff: {
     backgroundColor: "rgba(220, 38, 38, 0.6)",
+  },
+  toolbarButtonActive: {
+    backgroundColor: "rgba(59, 130, 246, 0.45)",
   },
   centerAvatarContainer: {
     position: "absolute",
