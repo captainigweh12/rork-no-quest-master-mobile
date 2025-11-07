@@ -251,10 +251,6 @@ const StreamView = () => {
   const [showMap, setShowMap] = useState<boolean>(false);
   const [showChat, setShowChat] = useState<boolean>(false);
   const [showGenerateQuest, setShowGenerateQuest] = useState<boolean>(false);
-  const [recentViewers] = useState<Array<{id: string, username: string}>>([
-    { id: '1', username: 'mbull205' },
-    { id: '2', username: 'kingy2588' },
-  ]);
 
   const handleToggleMic = () => {
     console.log("[VideoSDK] Toggling microphone");
@@ -389,19 +385,7 @@ const StreamView = () => {
             <Text style={styles.notificationText}>We're telling your followers that you've started a live video.</Text>
           </View>
 
-          {/* Recent viewers */}
-          <View style={styles.viewersSection}>
-            {recentViewers.map((viewer) => (
-              <View key={viewer.id} style={styles.viewerRow}>
-                <View style={styles.viewerAvatar}>
-                  <Text style={styles.viewerAvatarText}>{viewer.username[0].toUpperCase()}</Text>
-                </View>
-                <Text style={styles.viewerName}>{viewer.username} joined</Text>
-                <Text style={styles.waveEmoji}>👋</Text>
-                <Text style={styles.waveText}>Wave</Text>
-              </View>
-            ))}
-          </View>
+
 
           {/* Bottom action bar */}
           <View style={styles.bottomActionBar}>
@@ -622,6 +606,7 @@ const ChatOverlay = ({ onClose }: { onClose: () => void }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     setTimeout(() => {
@@ -661,9 +646,18 @@ const ChatOverlay = ({ onClose }: { onClose: () => void }) => {
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={overlayStyles.backdrop}
-      pointerEvents="box-none"
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <View style={[overlayStyles.chatSheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
+      <View 
+        style={[
+          overlayStyles.chatSheet, 
+          { 
+            backgroundColor: theme.colors.card, 
+            borderColor: theme.colors.border,
+            bottom: insets.bottom + 80,
+          }
+        ]}
+      >
         <View style={overlayStyles.sheetHeader}>
           <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]}>Live Chat</Text>
           <TouchableOpacity onPress={onClose} accessibilityLabel="Close chat" style={overlayStyles.closeBtn} testID="close-chat">
@@ -1117,12 +1111,10 @@ const overlayStyles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 90,
-    bottom: 120,
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    height: 400,
-    maxHeight: '50%',
+    maxHeight: 400,
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sheetTitle: { fontSize: 14, fontWeight: '900' as const },
