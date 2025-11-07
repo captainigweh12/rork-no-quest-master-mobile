@@ -42,12 +42,12 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const navigationRef = useRef<{ lastRoute: string | null }>({ lastRoute: null });
-  const [isHydrated, setIsHydited] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsHydited(true);
+      setIsHydrated(true);
     }, 0);
     return () => clearTimeout(timer);
   }, []);
