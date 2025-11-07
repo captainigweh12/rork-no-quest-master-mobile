@@ -93,9 +93,6 @@
           "icon": "./assets/images/icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
-          "sounds": [
-            "./local/assets/notification_sound.wav"
-          ],
           "enableBackgroundRemoteNotifications": true
         }
       ],
@@ -127,10 +124,12 @@
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/c23bcbuqrsjmkdoaxiu6y"
+      "enabled": false,
+      "checkOnLaunch": "NEVER",
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "appVersion"
     }
   }
 }
