@@ -58,16 +58,23 @@ async function getItem<T>(key: string): Promise<T | null> {
     const item = await AsyncStorage.getItem(key);
     if (!item) return null;
     
+    if (item.trim().length === 0) {
+      console.warn(`[localStorage] Empty value for key: ${key}, removing...`);
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
+    
     try {
       return JSON.parse(item);
     } catch (parseError) {
-      console.error(`JSON parse error for ${key}. Value:`, item);
-      console.error(`Parse error:`, parseError);
+      console.error(`[localStorage] JSON parse error for key: ${key}`);
+      console.error(`[localStorage] Invalid value (first 100 chars):`, item.substring(0, 100));
+      console.error(`[localStorage] Parse error:`, parseError);
       await AsyncStorage.removeItem(key);
       return null;
     }
   } catch (error) {
-    console.error(`Error getting ${key}:`, error);
+    console.error(`[localStorage] Error getting ${key}:`, error);
     return null;
   }
 }

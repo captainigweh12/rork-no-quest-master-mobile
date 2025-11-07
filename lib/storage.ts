@@ -13,6 +13,56 @@ let storageAvailable = false;
 let initializationPromise: Promise<void> | null = null;
 
 /**
+ * Clean up corrupted data from AsyncStorage
+ * Scans all keys and removes any with invalid JSON
+ */
+async function cleanupCorruptedData(): Promise<void> {
+  try {
+    console.log('[STORAGE] Scanning for corrupted data...');
+    const allKeys = await AsyncStorage.getAllKeys();
+    
+    if (!allKeys || allKeys.length === 0) {
+      console.log('[STORAGE] No keys found to scan');
+      return;
+    }
+
+    const corruptedKeys: string[] = [];
+    
+    for (const key of allKeys) {
+      try {
+        const value = await AsyncStorage.getItem(key);
+        
+        if (value === null || value === undefined) {
+          continue;
+        }
+        
+        if (value.trim().length === 0) {
+          console.warn(`[STORAGE] Found empty value for key: ${key}`);
+          corruptedKeys.push(key);
+          continue;
+        }
+        
+        // Try to parse the JSON to detect corruption
+        JSON.parse(value);
+      } catch {
+        console.warn(`[STORAGE] Found corrupted data for key: ${key}`);
+        corruptedKeys.push(key);
+      }
+    }
+    
+    if (corruptedKeys.length > 0) {
+      console.log(`[STORAGE] Removing ${corruptedKeys.length} corrupted keys:`, corruptedKeys);
+      await AsyncStorage.multiRemove(corruptedKeys);
+      console.log('[STORAGE] ✓ Corrupted data cleaned up');
+    } else {
+      console.log('[STORAGE] ✓ No corrupted data found');
+    }
+  } catch (error) {
+    console.error('[STORAGE] Error during cleanup:', error);
+  }
+}
+
+/**
  * Initialize app storage
  * Performs any cleanup, migrations, or setup needed before allowing storage access
  */
@@ -57,8 +107,10 @@ export async function initAppStorage(): Promise<void> {
         console.warn('[STORAGE] In-memory mode: changes will NOT persist across app restarts.');
       }
       
-      // Perform any necessary migrations or cleanup here
-      // For example, you could check version and migrate data
+      // Clean up any corrupted data from storage
+      if (storageAvailable) {
+        await cleanupCorruptedData();
+      }
       
       console.log('[STORAGE] Initialization complete');
       storageReady = true;
