@@ -16,21 +16,12 @@ export interface LiveStreamConfig {
  */
 export async function isLiveStreamConfigured(): Promise<boolean> {
   try {
-<<<<<<< HEAD
     if (!isStorageReady()) {
       console.warn('[liveConfig] Storage not ready, returning false');
       return false;
     }
     
     const config = await guardedStorage.getItem(LIVE_CONFIG_KEY);
-=======
-    if (!AsyncStorage || typeof AsyncStorage.getItem !== 'function') {
-      console.warn('[liveConfig] AsyncStorage not available');
-      return false;
-    }
-    
-    const config = await AsyncStorage.getItem(LIVE_CONFIG_KEY);
->>>>>>> efd90b4d69049d2be28a3d5950ae365ffe4f5dee
     if (!config) return false;
     
     const parsed: LiveStreamConfig = JSON.parse(config);
@@ -48,8 +39,8 @@ export async function configureLiveStreaming(): Promise<{ success: boolean; erro
   try {
     console.log('[liveConfig] 🔧 Starting live streaming configuration...');
     
-    if (!AsyncStorage || typeof AsyncStorage.setItem !== 'function') {
-      throw new Error('AsyncStorage not available');
+    if (!isStorageReady()) {
+      throw new Error('Storage not ready');
     }
     
     // Step 1: Clear any stale URLs
@@ -107,15 +98,7 @@ export async function configureLiveStreaming(): Promise<{ success: boolean; erro
  */
 export async function resetLiveStreamConfig(): Promise<void> {
   try {
-<<<<<<< HEAD
     await guardedStorage.removeItem(LIVE_CONFIG_KEY);
-=======
-    if (!AsyncStorage || typeof AsyncStorage.removeItem !== 'function') {
-      console.warn('[liveConfig] AsyncStorage not available');
-      return;
-    }
-    await AsyncStorage.removeItem(LIVE_CONFIG_KEY);
->>>>>>> efd90b4d69049d2be28a3d5950ae365ffe4f5dee
     console.log('[liveConfig] 🔄 Live streaming configuration reset');
   } catch (error) {
     console.error('[liveConfig] Error resetting configuration:', error);
@@ -127,20 +110,12 @@ export async function resetLiveStreamConfig(): Promise<void> {
  */
 export async function getLiveStreamConfig(): Promise<LiveStreamConfig | null> {
   try {
-<<<<<<< HEAD
     if (!isStorageReady()) {
       console.warn('[liveConfig] Storage not ready');
       return null;
     }
     
     const config = await guardedStorage.getItem(LIVE_CONFIG_KEY);
-=======
-    if (!AsyncStorage || typeof AsyncStorage.getItem !== 'function') {
-      console.warn('[liveConfig] AsyncStorage not available');
-      return null;
-    }
-    const config = await AsyncStorage.getItem(LIVE_CONFIG_KEY);
->>>>>>> efd90b4d69049d2be28a3d5950ae365ffe4f5dee
     if (!config) return null;
     return JSON.parse(config);
   } catch (error) {
