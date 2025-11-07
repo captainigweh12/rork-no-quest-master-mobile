@@ -24,8 +24,14 @@ export async function isLiveStreamConfigured(): Promise<boolean> {
     const config = await guardedStorage.getItem(LIVE_CONFIG_KEY);
     if (!config) return false;
     
-    const parsed: LiveStreamConfig = JSON.parse(config);
-    return parsed.configured === true && parsed.version === LIVE_CONFIG_VERSION;
+    try {
+      const parsed: LiveStreamConfig = JSON.parse(config);
+      return parsed.configured === true && parsed.version === LIVE_CONFIG_VERSION;
+    } catch (parseError) {
+      console.error('[liveConfig] Invalid JSON in storage, clearing corrupted data:', parseError);
+      await guardedStorage.removeItem(LIVE_CONFIG_KEY);
+      return false;
+    }
   } catch (error) {
     console.error('[liveConfig] Error checking configuration:', error);
     return false;
@@ -117,7 +123,14 @@ export async function getLiveStreamConfig(): Promise<LiveStreamConfig | null> {
     
     const config = await guardedStorage.getItem(LIVE_CONFIG_KEY);
     if (!config) return null;
-    return JSON.parse(config);
+    
+    try {
+      return JSON.parse(config);
+    } catch (parseError) {
+      console.error('[liveConfig] Invalid JSON in storage, clearing corrupted data:', parseError);
+      await guardedStorage.removeItem(LIVE_CONFIG_KEY);
+      return null;
+    }
   } catch (error) {
     console.error('[liveConfig] Error getting configuration:', error);
     return null;
