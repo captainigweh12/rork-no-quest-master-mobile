@@ -1,3 +1,6 @@
+// Polyfills must be imported first to support Node.js modules in React Native
+import 'react-native-url-polyfill/auto';
+
 import { useEffect, useState, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -256,6 +259,7 @@ function RootLayoutNav() {
 
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const { isInitializing, isReady, error } = useAppInit();
+  const [showError, setShowError] = useState(false);
 
   // Show loading screen during initialization
   if (isInitializing) {
@@ -266,9 +270,43 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Show error if initialization failed (but still render app)
+  // Show error if initialization failed
+  if (error && showError) {
+    console.error('[APP] Initialization error:', error);
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 20 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#000' }}>
+          Initialization Error
+        </Text>
+        <Text style={{ textAlign: 'center', marginBottom: 20, color: '#666' }}>
+          Unable to initialize the app. Please check your internet connection and try again.
+        </Text>
+        <Text style={{ fontSize: 12, color: '#999', marginBottom: 20, textAlign: 'center' }}>
+          {error.message}
+        </Text>
+        <Pressable
+          onPress={() => {
+            setShowError(false);
+            // Force a reload by resetting the app
+            SplashScreen.hideAsync().catch(() => {});
+          }}
+          style={{
+            backgroundColor: '#007AFF',
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 16 }}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // Log errors but continue (set timeout to show error UI if app doesn't load)
   if (error) {
     console.error('[APP] Initialization error (continuing anyway):', error);
+    setTimeout(() => setShowError(true), 5000); // Show error after 5s if app hasn't loaded
   }
 
   // Only render children when ready
