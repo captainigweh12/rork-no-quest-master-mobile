@@ -445,32 +445,139 @@ const StreamView = () => {
 };
 
 const QuestOverlay = ({ onClose }: { onClose: () => void }) => {
-  const { quests } = useGame();
+  const { quests, progressMap, recordQuestOutcome } = useGame();
   const { theme } = useTheme();
   const active = quests.find((q) => !q.completed);
   const [expanded, setExpanded] = React.useState<boolean>(false);
+  const [timeRemaining, setTimeRemaining] = React.useState<string>('');
+  
+  React.useEffect(() => {
+    if (!active?.timerEndAt) return;
+    
+    const updateTimer = () => {
+      const endTime = new Date(active.timerEndAt!).getTime();
+      const now = Date.now();
+      const diff = Math.max(0, endTime - now);
+      
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      
+      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    };
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [active?.timerEndAt]);
+  
   if (!active) return null as any;
+  
+  const progress = progressMap[active.id] ?? { noCount: 0, yesCount: 0 };
+  const minNo = active.minNoRequired ?? 0;
+  const progressPct = minNo > 0 ? Math.min(100, Math.round((progress.noCount / minNo) * 100)) : 0;
+  
   return (
     <View style={overlayStyles.backdrop} pointerEvents="box-none">
       <View style={[overlayStyles.sheet, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}> 
         <View style={overlayStyles.sheetHeader}>
           <Text style={[overlayStyles.sheetTitle, { color: theme.colors.text }]} numberOfLines={1}>Quest</Text>
           <TouchableOpacity onPress={onClose} accessibilityLabel="Close quest" style={overlayStyles.closeBtn} testID="close-quest">
-            <Text style={{ color: theme.colors.text, fontWeight: '800' as const }}>×</Text>
+            <Text style={{ color: theme.colors.text, fontWeight: '800' as const, fontSize: 24 }}>×</Text>
           </TouchableOpacity>
         </View>
+        
         <TouchableOpacity onPress={() => setExpanded((e) => !e)} activeOpacity={0.8} testID="quest-expand-toggle">
           <Text style={[overlayStyles.questTitle, { color: theme.colors.text }]}>{active.title}</Text>
           <Text 
             style={[overlayStyles.questDesc, { color: theme.colors.textSecondary }]}
-            numberOfLines={expanded ? undefined : 3}
+            numberOfLines={expanded ? undefined : 2}
           >
             {active.description}
           </Text>
-          <Text style={{ color: theme.colors.primary, fontWeight: '800' as const, marginTop: 6 }}>
-            {expanded ? 'See less' : 'See more'}
-          </Text>
+          {expanded && (
+            <Text style={{ color: theme.colors.primary, fontWeight: '700' as const, marginTop: 6, fontSize: 13 }}>
+              See less
+            </Text>
+          )}
         </TouchableOpacity>
+
+        {/* Progress Section */}
+        <View style={{ marginTop: 16, gap: 12 }}>
+          {/* Progress Bar */}
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' as const }}>
+                Progress
+              </Text>
+              <Text style={{ color: theme.colors.text, fontSize: 12, fontWeight: '700' as const }}>
+                {progress.noCount}/{minNo} No's
+              </Text>
+            </View>
+            <View style={{ height: 8, backgroundColor: theme.colors.backgroundTertiary, borderRadius: 4, overflow: 'hidden' }}>
+              <View style={{ height: '100%', width: `${progressPct}%`, backgroundColor: '#10B981', borderRadius: 4 }} />
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={() => recordQuestOutcome(active.id, 'no')}
+              style={{
+                flex: 1,
+                backgroundColor: '#10B981',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              testID="quest-overlay-no"
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' as const }}>NO</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '600' as const, marginTop: 2 }}>
+                {progress.noCount} recorded
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => recordQuestOutcome(active.id, 'yes')}
+              style={{
+                flex: 1,
+                backgroundColor: '#EF4444',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              testID="quest-overlay-yes"
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' as const }}>YES</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '600' as const, marginTop: 2 }}>
+                {progress.yesCount} received
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Time Remaining */}
+          {active.timerEndAt && timeRemaining && (
+            <View style={{ 
+              backgroundColor: theme.colors.backgroundSecondary, 
+              paddingVertical: 10, 
+              paddingHorizontal: 12, 
+              borderRadius: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 12, fontWeight: '600' as const }}>
+                Time Remaining:
+              </Text>
+              <Text style={{ color: theme.colors.primary, fontSize: 14, fontWeight: '800' as const }}>
+                {timeRemaining}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
