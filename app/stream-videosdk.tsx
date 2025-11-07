@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { useVideoSDK } from "@/contexts/VideoSDKContext";
-import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Instagram, Tv } from "lucide-react-native";
+import { Mic, MicOff, Video as VideoIcon, VideoOff, X, Users, CheckCircle2, XCircle, Map as MapIcon, LayoutList, Share2, MessageCircle, Sparkles, Send, Smile, FlipHorizontal2, PhoneOff, Tv } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { trpc } from "@/lib/trpc";
 import { getBaseUrl, DEFAULT_RENDER_BASE_URL, setBaseUrlOverride } from "@/lib/baseUrl";
@@ -365,15 +365,6 @@ const StreamView = () => {
             ) : (
               <VideoIcon size={24} color="#fff" />
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.toolbarButton}
-            onPress={() => {}}
-            accessibilityLabel="Instagram share"
-            testID="instagram-share"
-          >
-            <Instagram size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
