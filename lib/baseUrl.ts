@@ -52,12 +52,13 @@ export async function loadBaseUrlOverride(): Promise<string | undefined> {
         return (globalThis as any).__RORK_BASE_URL_OVERRIDE;
       }
     } else {
+      console.warn('[baseUrl] AsyncStorage not available, using in-memory override');
       // Fall back to any in-memory global override if AsyncStorage isn't available.
       const g = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
       if (g && g.trim().length > 0) return stripTrailingSlash(g);
     }
   } catch (e) {
-    // ignore and fallthrough
+    console.warn('[baseUrl] Error loading base URL override:', e);
   }
   (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
   return undefined;
@@ -72,6 +73,8 @@ export async function setBaseUrlOverride(url?: string | undefined): Promise<void
     if (!url) {
       if (hasStorage) {
         await (AsyncStorage as any).removeItem(OVERRIDE_KEY);
+      } else {
+        console.warn('[baseUrl] AsyncStorage not available, clearing in-memory override only');
       }
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
       return;
@@ -79,10 +82,12 @@ export async function setBaseUrlOverride(url?: string | undefined): Promise<void
     const stripped = stripTrailingSlash(url.trim());
     if (hasStorage) {
       await (AsyncStorage as any).setItem(OVERRIDE_KEY, stripped);
+    } else {
+      console.warn('[baseUrl] AsyncStorage not available, using in-memory override only');
     }
     (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripped;
   } catch (e) {
-    // ignore storage errors
+    console.warn('[baseUrl] Error setting base URL override:', e);
   }
 }
 
@@ -120,11 +125,13 @@ export async function clearBaseUrlOverride(): Promise<void> {
     const hasStorage = AsyncStorage && typeof (AsyncStorage as any).removeItem === 'function';
     if (hasStorage) {
       await (AsyncStorage as any).removeItem(OVERRIDE_KEY);
+    } else {
+      console.warn('[baseUrl] AsyncStorage not available, clearing in-memory override only');
     }
     (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
     console.log(`🌐 Using default Base URL: ${getDefaultBaseUrl()}`);
   } catch (e) {
-    // ignore storage errors
+    console.warn('[baseUrl] Error clearing base URL override:', e);
   }
 }
 
@@ -157,6 +164,12 @@ export function isStaleUrl(url: string | undefined): boolean {
  */
 export async function clearStaleUrlIfNeeded(): Promise<boolean> {
   try {
+    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).getItem === 'function';
+    if (!hasStorage) {
+      console.warn('[baseUrl] AsyncStorage not available, skipping stale URL check');
+      return false;
+    }
+    
     const currentOverride = await loadBaseUrlOverride();
     
     if (isStaleUrl(currentOverride)) {

@@ -27,32 +27,53 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
         setIsSettingUrl(true);
         setError(null);
         
+        // Add delay to ensure AsyncStorage is fully initialized
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Step 1: Clear stale URLs
         console.log('[TrpcProvider] 🧹 Checking for stale URLs...');
-        await clearStaleUrlIfNeeded();
+        try {
+          await clearStaleUrlIfNeeded();
+        } catch (err) {
+          console.warn('[TrpcProvider] ⚠️ Could not clear stale URLs (non-critical):', err);
+        }
         
         // Step 2: Ensure correct base URL is set
-        const persisted = await loadBaseUrlOverride();
+        let persisted: string | undefined;
+        try {
+          persisted = await loadBaseUrlOverride();
+        } catch (err) {
+          console.warn('[TrpcProvider] ⚠️ Could not load base URL override:', err);
+          persisted = undefined;
+        }
+        
         const desired = DEFAULT_RENDER_BASE_URL;
 
         if (persisted !== desired) {
           console.log('[TrpcProvider] 🌐 Forcing base URL override to Render:', desired);
-          await setBaseUrlOverride(desired);
+          try {
+            await setBaseUrlOverride(desired);
+          } catch (err) {
+            console.warn('[TrpcProvider] ⚠️ Could not set base URL override:', err);
+          }
         }
 
         // Step 3: Auto-configure live streaming if not already configured
-        const liveConfigured = await isLiveStreamConfigured();
-        if (!liveConfigured) {
-          console.log('[TrpcProvider] 🎥 Auto-configuring live streaming...');
-          const result = await configureLiveStreaming();
-          if (result.success) {
-            console.log('[TrpcProvider] ✅ Live streaming auto-configured successfully');
+        try {
+          const liveConfigured = await isLiveStreamConfigured();
+          if (!liveConfigured) {
+            console.log('[TrpcProvider] 🎥 Auto-configuring live streaming...');
+            const result = await configureLiveStreaming();
+            if (result.success) {
+              console.log('[TrpcProvider] ✅ Live streaming auto-configured successfully');
+            } else {
+              console.warn('[TrpcProvider] ⚠️ Live streaming auto-configuration failed:', result.error);
+            }
           } else {
-            console.warn('[TrpcProvider] ⚠️ Live streaming auto-configuration failed:', result.error);
-            // Don't fail the entire initialization - user can configure manually later
+            console.log('[TrpcProvider] ✅ Live streaming already configured');
           }
-        } else {
-          console.log('[TrpcProvider] ✅ Live streaming already configured');
+        } catch (err) {
+          console.warn('[TrpcProvider] ⚠️ Live streaming configuration check failed (non-critical):', err);
         }
 
         const url = getBaseUrl();
@@ -60,9 +81,15 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
         if (mounted) setReadyBaseUrl(url);
       } catch (e) {
         console.error('[TrpcProvider] ❌ Error initializing base URL:', e);
-        setError(e instanceof Error ? e.message : 'Unknown error initializing tRPC');
+        // Instead of failing, use default URL
+        console.log('[TrpcProvider] 🔄 Falling back to default URL...');
+        if (mounted) {
+          setReadyBaseUrl(DEFAULT_RENDER_BASE_URL);
+        }
       } finally {
-        setIsSettingUrl(false);
+        if (mounted) {
+          setIsSettingUrl(false);
+        }
       }
     }
     initBaseUrl();
