@@ -125,17 +125,7 @@
       }
     },
     "updates": {
-      "enabled": false,
-      "checkOnLaunch": "NEVER",
-      "fallbackToCacheTimeout": 0,
-      "url": "<UNKNOWN>",
-      "requestHeaders": {},
-      "checkAutomatically": "ALWAYS",
-      "useEmbeddedUpdate": true,
-      "codeSigningCertificate": "<UNKNOWN>",
-      "codeSigningMetadata": "<UNKNOWN>",
-      "assetPatternsToBeBundled": [],
-      "disableAntiBrickingMeasures": false
+      "enabled": false
     },
     "runtimeVersion": {
       "policy": "appVersion"
