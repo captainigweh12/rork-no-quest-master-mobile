@@ -144,20 +144,11 @@ export default function CreateQuestScreen() {
   }, [chatInput, sendMessage]);
 
   const handleCreateCustom = useCallback(() => {
-    const raw = customTitle.trim();
-    if (!raw) {
+    if (!customTitle.trim()) {
       return;
     }
 
     try {
-      const toAction = (t: string): string => {
-        const trimmed = t.replace(/[.!?]+$/g, '').trim();
-        const verbs = ['ask', 'request', 'call', 'pitch', 'post', 'visit', 'email', 'dm', 'message', 'offer', 'invite', 'introduce'];
-        const first = trimmed.split(/\s+/)[0]?.toLowerCase() ?? '';
-        const title = verbs.includes(first) ? trimmed : `Ask ${trimmed}`;
-        return title.charAt(0).toUpperCase() + title.slice(1);
-      };
-
       const durationInMinutes = {
         minutes: parseInt(durationAmount) || 1,
         hours: (parseInt(durationAmount) || 1) * 60,
@@ -165,9 +156,9 @@ export default function CreateQuestScreen() {
       }[durationUnit];
 
       addCustomQuest({
-        title: toAction(raw),
+        title: customTitle,
         description: customDescription,
-        minNoRequired: Math.max(1, parseInt(customMinNo) || 3),
+        minNoRequired: parseInt(customMinNo) || 3,
         durationMinutes: durationInMinutes,
       });
 
