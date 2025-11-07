@@ -5,13 +5,15 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useGame } from '@/contexts/GameContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, User, Award, Target, TrendingUp, Heart, Camera, Upload, Sparkles, Edit3, Moon, Sun, Bell, Shield, Globe, ChevronRight, Crown, Wrench } from 'lucide-react-native';
+import { X, User, Award, Target, TrendingUp, Heart, Camera, Upload, Sparkles, Edit3, Moon, Sun, Bell, Shield, Globe, ChevronRight, Crown, Wrench, Video } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { pickImage, takePhoto, generateAIAvatar, uploadAvatar } from '@/services/avatarService';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEFAULT_RENDER_BASE_URL, setBaseUrlOverride } from '@/lib/baseUrl';
 
 const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
@@ -36,7 +38,7 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLocalization();
-  const { remindersEnabled, ensurePermissionsAndEnable, disableDailyQuestReminder, permissionStatus } = useNotifications();
+  const { remindersEnabled, ensurePermissionsAndEnable, disableDailyQuestReminder } = useNotifications();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [newUsername, setNewUsername] = useState('');
@@ -51,6 +53,45 @@ export default function AccountScreen() {
   const styles = createStyles(theme.colors);
 
   const selectedLanguage = LANGUAGES.find(lang => lang.code === (user?.preferredLanguage || 'en')) || LANGUAGES[0];
+
+  const [liveEnabled, setLiveEnabled] = useState<boolean>(false);
+  const [enablingLive, setEnablingLive] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('liveFeaturesEnabled');
+        if (!mounted) return;
+        setLiveEnabled(raw === 'true');
+      } catch (e) {
+        console.log('[Account] Failed to load liveFeaturesEnabled');
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const handleEnableLive = async () => {
+    if (liveEnabled || enablingLive) return;
+    setEnablingLive(true);
+    try {
+      await setBaseUrlOverride(DEFAULT_RENDER_BASE_URL);
+      await AsyncStorage.setItem('liveFeaturesEnabled', 'true');
+      setLiveEnabled(true);
+      const reinit = (globalThis as any).__RORK_INIT_BASE_URL__ as (() => Promise<void>) | undefined;
+      if (reinit) {
+        await reinit();
+      }
+      if (Platform.OS === 'web') {
+        try { (window as any).location?.reload?.(); } catch {}
+      }
+      Alert.alert('Live Enabled', 'Live features have been enabled and backend URL configured.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to enable live features');
+    } finally {
+      setEnablingLive(false);
+    }
+  };
 
   const handleRelationshipStatusChange = async (status: 'single' | 'married') => {
     if (isUpdating) return;
@@ -278,14 +319,12 @@ export default function AccountScreen() {
           <View style={styles.relationshipButtons}>
             <Pressable onPress={() => handleRelationshipStatusChange('single')} disabled={isUpdating}
               style={[styles.relationshipButton, user?.relationshipStatus === 'single' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.backgroundSecondary }]}>
-              <Text style={[styles.relationshipButtonText, user?.relationshipStatus === 'single' ? { color: '#FFFFFF' } : { color: theme.colors.textSecondary }]}>
-                {t('profile.single')}
+              <Text style={[styles.relationshipButtonText, user?.relationshipStatus === 'single' ? { color: '#FFFFFF' } : { color: theme.colors.textSecondary }]}>                {t('profile.single')}
               </Text>
             </Pressable>
             <Pressable onPress={() => handleRelationshipStatusChange('married')} disabled={isUpdating}
               style={[styles.relationshipButton, user?.relationshipStatus === 'married' ? { backgroundColor: theme.colors.primary } : { backgroundColor: theme.colors.backgroundSecondary }]}>
-              <Text style={[styles.relationshipButtonText, user?.relationshipStatus === 'married' ? { color: '#FFFFFF' } : { color: theme.colors.textSecondary }]}>
-                {t('profile.married')}
+              <Text style={[styles.relationshipButtonText, user?.relationshipStatus === 'married' ? { color: '#FFFFFF' } : { color: theme.colors.textSecondary }]}>                {t('profile.married')}
               </Text>
             </Pressable>
           </View>
@@ -340,8 +379,7 @@ export default function AccountScreen() {
               {themeMode === 'dark' ? <Moon size={20} color={theme.colors.text} /> : <Sun size={20} color={theme.colors.text} />}
               <View>
                 <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.theme')}</Text>
-                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {themeMode === 'dark' ? t('settings.darkMode') : t('settings.lightMode')}
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>                  {themeMode === 'dark' ? t('settings.darkMode') : t('settings.lightMode')}
                 </Text>
               </View>
             </View>
@@ -356,13 +394,34 @@ export default function AccountScreen() {
               <Globe size={20} color={theme.colors.text} />
               <View>
                 <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.language')}</Text>
-                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {selectedLanguage.nativeName}
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>                  {selectedLanguage.nativeName}
                 </Text>
               </View>
             </View>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </Pressable>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Live Features</Text>
+          <View style={styles.settingRow} testID="enable-live-row">
+            <View style={styles.settingLeft}>
+              <Video size={20} color={theme.colors.text} />
+              <View>
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Enable Live</Text>
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>Configure backend and unlock livestream features</Text>
+              </View>
+            </View>
+            {liveEnabled ? (
+              <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: theme.colors.success + '20' }} testID="live-enabled-badge">
+                <Text style={{ color: theme.colors.success, fontWeight: '800' }}>Enabled</Text>
+              </View>
+            ) : (
+              <Pressable onPress={handleEnableLive} disabled={enablingLive} style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.primary, minWidth: 110 }]} testID="enable-live-button">
+                {enablingLive ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Enable</Text>}
+              </Pressable>
+            )}
+          </View>
         </View>
 
         <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
@@ -372,8 +431,7 @@ export default function AccountScreen() {
               <Bell size={20} color={theme.colors.text} />
               <View>
                 <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.questReminders')}</Text>
-                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {t('settings.questRemindersDesc')}
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>                  {t('settings.questRemindersDesc')}
                 </Text>
               </View>
             </View>
@@ -399,8 +457,7 @@ export default function AccountScreen() {
               <Shield size={20} color={theme.colors.text} />
               <View>
                 <Text style={[styles.settingLabel, { color: theme.colors.text }]}>{t('settings.safetyGuidelines')}</Text>
-                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
-                  {t('settings.safetyGuidelinesDesc')}
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>                  {t('settings.safetyGuidelinesDesc')}
                 </Text>
               </View>
             </View>
