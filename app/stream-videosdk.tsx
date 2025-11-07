@@ -718,24 +718,19 @@ const ChatOverlay = ({ onClose }: { onClose: () => void }) => {
 const GenerateQuestOverlay = ({ onClose }: { onClose: () => void }) => {
   const { theme } = useTheme();
   const { addCustomQuest } = useGame();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const questTitle = 'Live Stream Challenge';
-      const actionStatements = [
-        'Ask viewers to follow your stream',
-        'Request viewers to share stream with friends',
-        'Invite viewers to join your community',
-        'Challenge viewers to complete their own quests',
-        'Ask for feedback on your content'
-      ];
-      const description = actionStatements.join('\n• ');
+      const questTitle = 'Ask 5 People Out for Coffee';
+      const rawDescription = 'Invite five new people for coffee politely and note responses';
+      const words = rawDescription.split(' ').filter(Boolean);
+      const limitedDesc = words.slice(0, 15).join(' ');
       
       await addCustomQuest({
         title: questTitle,
-        description: '• ' + description,
+        description: limitedDesc,
         minNoRequired: 5,
         durationMinutes: 30,
       });
