@@ -384,6 +384,8 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
     enabled: !!state?.channelUrl && !!getYouTubeApiKey(),
     staleTime: 30_000,
     refetchInterval: 30_000,
+    retry: false,
+    retryOnMount: false,
   });
 
   return useMemo(() => ({

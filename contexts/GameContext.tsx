@@ -95,38 +95,48 @@ export const [GameProvider, useGame] = createContextHook(() => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (!isLoading) {
+      console.log('[GameContext] Loaded with', quests.length, 'quests and profile level', profile.level);
+    }
+  }, [isLoading, quests.length, profile.level]);
+
   const loadData = async () => {
     try {
-      console.log('Loading game data...');
+      console.log('[GameContext] Loading game data...');
       
       const timeoutPromise = new Promise<[string | null, string | null, string | null]>((_, reject) => {
-        setTimeout(() => reject(new Error('Game data load timeout')), 1000);
+        setTimeout(() => reject(new Error('Game data load timeout')), 2000);
       });
 
       const dataPromise = Promise.all([
-        AsyncStorage.getItem('profile').catch(() => null),
-        AsyncStorage.getItem('quests').catch(() => null),
-        AsyncStorage.getItem('questProgress').catch(() => null),
+        AsyncStorage.getItem('profile').catch((e) => { console.warn('[GameContext] Failed to load profile:', e); return null; }),
+        AsyncStorage.getItem('quests').catch((e) => { console.warn('[GameContext] Failed to load quests:', e); return null; }),
+        AsyncStorage.getItem('questProgress').catch((e) => { console.warn('[GameContext] Failed to load progress:', e); return null; }),
       ]);
 
       const [savedProfile, savedQuests, savedProgress] = await Promise.race([dataPromise, timeoutPromise]);
 
       if (savedProfile) {
-        console.log('Loading saved profile');
-        setProfile(JSON.parse(savedProfile));
+        console.log('[GameContext] Loading saved profile');
+        const parsed = JSON.parse(savedProfile);
+        setProfile(parsed);
       }
       if (savedQuests) {
-        console.log('Loading saved quests');
-        setQuests(JSON.parse(savedQuests));
+        console.log('[GameContext] Loading saved quests');
+        const parsed = JSON.parse(savedQuests);
+        setQuests(parsed);
       }
       if (savedProgress) {
-        console.log('Loading saved quest progress');
-        setProgressMap(JSON.parse(savedProgress));
+        console.log('[GameContext] Loading saved quest progress');
+        const parsed = JSON.parse(savedProgress);
+        setProgressMap(parsed);
       }
-      console.log('Game data loaded successfully');
+      console.log('[GameContext] ✅ Game data loaded successfully');
     } catch (error) {
-      console.log('Using initial game data:', error instanceof Error ? error.message : 'unknown error');
+      console.warn('[GameContext] Using initial game data:', error instanceof Error ? error.message : 'unknown error');
     } finally {
+      console.log('[GameContext] Initialization complete');
       setIsLoading(false);
     }
   };

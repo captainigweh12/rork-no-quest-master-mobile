@@ -52,10 +52,12 @@ export default function HomeScreen() {
       return getUserTeams();
     },
     enabled: !!user?.id && hasFeature('teamDashboard'),
+    retry: false,
+    staleTime: 60000,
   });
 
-  const activeQuests = quests.filter(q => !q.completed);
-  const startedQuests = activeQuests.filter(q => q.timerEndAt);
+  const activeQuests = useMemo(() => quests.filter(q => !q.completed), [quests]);
+  const startedQuests = useMemo(() => activeQuests.filter(q => q.timerEndAt), [activeQuests]);
 
   useEffect(() => {
     const shouldFocus = params?.focus === '1' || params?.focus === 'true';
@@ -66,9 +68,12 @@ export default function HomeScreen() {
     }
   }, [params?.focus, activeQuests.length]);
 
-  const styles = createStyles(theme.colors);
+  const styles = useMemo(() => createStyles(theme.colors), [theme.colors]);
   const categoriesHorizontal = useMemo(() => (catsLoading ? [] : selected).slice(0, 12), [catsLoading, selected]);
-  const { isConnected: ytConnected, live: ytLive, goLive } = useYouTube();
+  const ytContext = useYouTube();
+  const ytConnected = ytContext?.isConnected ?? false;
+  const ytLive = ytContext?.live;
+  const goLive = ytContext?.goLive ?? (() => {});
   
   const allLiveStreams = useMemo(() => {
     const streams = liveStreams.map((stream) => {
