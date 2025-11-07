@@ -6,15 +6,6 @@ import { loadBaseUrlOverride, clearStaleUrlIfNeeded, getBaseUrl, setBaseUrlOverr
 import { configureLiveStreaming, isLiveStreamConfigured } from "@/lib/liveConfig";
 import React from "react";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    },
-  },
-});
-
 export default function TrpcProvider({ children }: { children: ReactNode }) {
   const [isSettingUrl, setIsSettingUrl] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,21 +64,38 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Create a new QueryClient whenever base URL changes to prevent cache pollution
+  const queryClient = useMemo(() => {
+    if (!readyBaseUrl) return null;
+    console.log("[TrpcProvider] 🔄 Creating new QueryClient for base URL:", readyBaseUrl);
+    return new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: 2,
+          retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        },
+      },
+    });
+  }, [readyBaseUrl]);
+
   const trpcClient = useMemo(() => {
     if (!readyBaseUrl) return null;
     console.log("[TrpcProvider] 🔧 Creating tRPC client for:", `${readyBaseUrl}/api/trpc`);
     return createTrpcClient({ baseUrl: readyBaseUrl });
   }, [readyBaseUrl]);
+  
+  // Use base URL as key to force provider remount on URL change
+  const providerKey = readyBaseUrl ? `trpc-${readyBaseUrl}` : 'trpc-loading';
 
   // Prefetch VideoSDK token after client is ready for smoother streaming experience
   useEffect(() => {
-    if (!trpcClient) return;
+    if (!trpcClient || !queryClient) return;
     
     const prefetchToken = async () => {
       try {
         console.log('[TrpcProvider] 🎬 Prefetching VideoSDK token...');
         // Using queryClient to prefetch - this will cache the token
-        await queryClient.prefetchQuery({
+        await queryClient!.prefetchQuery({
           queryKey: ['videosdk', 'getToken'],
           queryFn: async () => {
             const client = createTrpcClient({ baseUrl: readyBaseUrl! });
@@ -106,7 +114,7 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
     // Prefetch after a short delay to not block initial render
     const timeoutId = setTimeout(prefetchToken, 1000);
     return () => clearTimeout(timeoutId);
-  }, [trpcClient, readyBaseUrl]);
+  }, [trpcClient, queryClient, readyBaseUrl]);
 
   if (isSettingUrl || !trpcClient) {
     return (
@@ -143,9 +151,12 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Key forces complete provider remount when base URL changes, clearing all caches
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </trpc.Provider>
+    <QueryClientProvider client={queryClient!} key={providerKey}>
+      <trpc.Provider client={trpcClient} queryClient={queryClient!}>
+        {children}
+      </trpc.Provider>
+    </QueryClientProvider>
   );
 }

@@ -3,6 +3,7 @@
 import Constants from 'expo-constants';
 // @ts-ignore: runtime dependency; types may not be present in this analysis environment
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { guardedStorage, isStorageReady } from './storage';
 
 function stripTrailingSlash(url: string): string {
   // Avoid depending on newer lib definitions in environments where lib DOM/ES may be missing.
@@ -43,21 +44,24 @@ const OVERRIDE_KEY = 'EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE';
  */
 export async function loadBaseUrlOverride(): Promise<string | undefined> {
   try {
-    // Guard access to AsyncStorage — in some runtimes the module may be missing or not initialized.
-    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).getItem === 'function';
-    if (hasStorage) {
-      const val = await (AsyncStorage as any).getItem(OVERRIDE_KEY);
-      if (val && val.trim().length > 0) {
-        (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripTrailingSlash(val.trim());
-        return (globalThis as any).__RORK_BASE_URL_OVERRIDE;
-      }
-    } else {
-      // Fall back to any in-memory global override if AsyncStorage isn't available.
+    // Use guarded storage to prevent premature access
+    if (!isStorageReady()) {
+      console.warn('[baseUrl] Storage not ready, returning in-memory override if available');
       const g = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
       if (g && g.trim().length > 0) return stripTrailingSlash(g);
+      return undefined;
+    }
+    
+    const val = await guardedStorage.getItem(OVERRIDE_KEY);
+    if (val && val.trim().length > 0) {
+      (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripTrailingSlash(val.trim());
+      return (globalThis as any).__RORK_BASE_URL_OVERRIDE;
     }
   } catch (e) {
-    // ignore and fallthrough
+    console.warn('[baseUrl] Error loading override:', e);
+    // Fall back to in-memory override
+    const g = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
+    if (g && g.trim().length > 0) return stripTrailingSlash(g);
   }
   (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
   return undefined;
@@ -68,21 +72,16 @@ export async function loadBaseUrlOverride(): Promise<string | undefined> {
  */
 export async function setBaseUrlOverride(url?: string | undefined): Promise<void> {
   try {
-    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).setItem === 'function';
     if (!url) {
-      if (hasStorage) {
-        await (AsyncStorage as any).removeItem(OVERRIDE_KEY);
-      }
+      await guardedStorage.removeItem(OVERRIDE_KEY);
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
       return;
     }
     const stripped = stripTrailingSlash(url.trim());
-    if (hasStorage) {
-      await (AsyncStorage as any).setItem(OVERRIDE_KEY, stripped);
-    }
+    await guardedStorage.setItem(OVERRIDE_KEY, stripped);
     (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripped;
   } catch (e) {
-    // ignore storage errors
+    console.warn('[baseUrl] Error setting override:', e);
   }
 }
 
@@ -117,14 +116,11 @@ declare global {
 
 export async function clearBaseUrlOverride(): Promise<void> {
   try {
-    const hasStorage = AsyncStorage && typeof (AsyncStorage as any).removeItem === 'function';
-    if (hasStorage) {
-      await (AsyncStorage as any).removeItem(OVERRIDE_KEY);
-    }
+    await guardedStorage.removeItem(OVERRIDE_KEY);
     (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
     console.log(`🌐 Using default Base URL: ${getDefaultBaseUrl()}`);
   } catch (e) {
-    // ignore storage errors
+    console.warn('[baseUrl] Error clearing override:', e);
   }
 }
 

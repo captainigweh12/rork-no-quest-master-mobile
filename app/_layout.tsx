@@ -23,6 +23,7 @@ import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import TrpcProvider from "@/providers/TrpcProvider";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { localStorageService } from "@/lib/localStorage";
+import { useAppInit } from "@/hooks/useAppInit";
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -253,38 +254,61 @@ function RootLayoutNav() {
   );
 }
 
+function AppInitializer({ children }: { children: React.ReactNode }) {
+  const { isInitializing, isReady, error } = useAppInit();
+
+  // Show loading screen during initialization
+  if (isInitializing) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 16, color: '#666' }}>Initializing app...</Text>
+      </View>
+    );
+  }
+
+  // Show error if initialization failed (but still render app)
+  if (error) {
+    console.error('[APP] Initialization error (continuing anyway):', error);
+  }
+
+  // Only render children when ready
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   return (
-    <TrpcProvider>
-      <AuthProvider>
-        <SchemaProvider>
-          <SubscriptionProvider>
-            <LocalizationProvider>
-              <ThemeProvider>
-                <OnboardingProvider>
-                  <NotificationsProvider>
-                    <GameProvider>
-                      <JournalsProvider>
-                        <CategoriesProvider>
-                          <GestureHandlerRootView style={{ flex: 1 }}>
-                            <YouTubeProvider>
-                              <StreamProvider>
-                                <VideoSDKContextProvider>
-                                  <RootLayoutNav />
-                                </VideoSDKContextProvider>
-                              </StreamProvider>
-                            </YouTubeProvider>
-                          </GestureHandlerRootView>
-                        </CategoriesProvider>
-                      </JournalsProvider>
-                    </GameProvider>
-                  </NotificationsProvider>
-                </OnboardingProvider>
-              </ThemeProvider>
-            </LocalizationProvider>
-          </SubscriptionProvider>
-        </SchemaProvider>
-      </AuthProvider>
-    </TrpcProvider>
+    <AppInitializer>
+      <TrpcProvider>
+        <AuthProvider>
+          <SchemaProvider>
+            <SubscriptionProvider>
+              <LocalizationProvider>
+                <ThemeProvider>
+                  <OnboardingProvider>
+                    <NotificationsProvider>
+                      <GameProvider>
+                        <JournalsProvider>
+                          <CategoriesProvider>
+                            <GestureHandlerRootView style={{ flex: 1 }}>
+                              <YouTubeProvider>
+                                <StreamProvider>
+                                  <VideoSDKContextProvider>
+                                    <RootLayoutNav />
+                                  </VideoSDKContextProvider>
+                                </StreamProvider>
+                              </YouTubeProvider>
+                            </GestureHandlerRootView>
+                          </CategoriesProvider>
+                        </JournalsProvider>
+                      </GameProvider>
+                    </NotificationsProvider>
+                  </OnboardingProvider>
+                </ThemeProvider>
+              </LocalizationProvider>
+            </SubscriptionProvider>
+          </SchemaProvider>
+        </AuthProvider>
+      </TrpcProvider>
+    </AppInitializer>
   );
 }

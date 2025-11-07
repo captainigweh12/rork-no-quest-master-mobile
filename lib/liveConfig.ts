@@ -1,5 +1,5 @@
 /// <reference lib="es2015" />
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { guardedStorage, isStorageReady } from './storage';
 import { setBaseUrlOverride, clearStaleUrlIfNeeded, DEFAULT_RENDER_BASE_URL } from './baseUrl';
 
 const LIVE_CONFIG_KEY = 'LIVE_STREAM_CONFIGURED';
@@ -16,7 +16,12 @@ export interface LiveStreamConfig {
  */
 export async function isLiveStreamConfigured(): Promise<boolean> {
   try {
-    const config = await AsyncStorage.getItem(LIVE_CONFIG_KEY);
+    if (!isStorageReady()) {
+      console.warn('[liveConfig] Storage not ready, returning false');
+      return false;
+    }
+    
+    const config = await guardedStorage.getItem(LIVE_CONFIG_KEY);
     if (!config) return false;
     
     const parsed: LiveStreamConfig = JSON.parse(config);
@@ -52,7 +57,7 @@ export async function configureLiveStreaming(): Promise<{ success: boolean; erro
       version: LIVE_CONFIG_VERSION,
     };
     
-    await AsyncStorage.setItem(LIVE_CONFIG_KEY, JSON.stringify(config));
+    await guardedStorage.setItem(LIVE_CONFIG_KEY, JSON.stringify(config));
     console.log('[liveConfig] ✅ Live streaming configuration complete!');
     
     // Step 4: Trigger base URL re-initialization if available
@@ -77,7 +82,7 @@ export async function configureLiveStreaming(): Promise<{ success: boolean; erro
  */
 export async function resetLiveStreamConfig(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(LIVE_CONFIG_KEY);
+    await guardedStorage.removeItem(LIVE_CONFIG_KEY);
     console.log('[liveConfig] 🔄 Live streaming configuration reset');
   } catch (error) {
     console.error('[liveConfig] Error resetting configuration:', error);
@@ -89,7 +94,12 @@ export async function resetLiveStreamConfig(): Promise<void> {
  */
 export async function getLiveStreamConfig(): Promise<LiveStreamConfig | null> {
   try {
-    const config = await AsyncStorage.getItem(LIVE_CONFIG_KEY);
+    if (!isStorageReady()) {
+      console.warn('[liveConfig] Storage not ready');
+      return null;
+    }
+    
+    const config = await guardedStorage.getItem(LIVE_CONFIG_KEY);
     if (!config) return null;
     return JSON.parse(config);
   } catch (error) {
