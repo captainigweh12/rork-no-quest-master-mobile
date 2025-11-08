@@ -2,7 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { typedStorage, isStorageReady } from '@/lib/storage';
 import type { StreamMessage } from '@/types';
 import {
   createStream,
@@ -129,20 +129,28 @@ export const [StreamProvider, useStream] = createContextHook(() => {
   }, [activeStreamId]);
 
   useEffect(() => {
+    if (!isStorageReady()) {
+      console.log('[STREAM_CONTEXT] Waiting for storage to be ready...');
+      return;
+    }
+
     (async () => {
       try {
-        const consent = await AsyncStorage.getItem('locationConsentAcceptedV1');
-        const savedVisibility = await AsyncStorage.getItem('streamVisibility');
-        const savedGroupId = await AsyncStorage.getItem('streamGroupId');
-        const savedShareLoc = await AsyncStorage.getItem('streamShareLocation');
+        console.log('[STREAM_CONTEXT] Loading persisted settings...');
+        const consent = await typedStorage.getJSON<string>('locationConsentAcceptedV1', '');
+        const savedVisibility = await typedStorage.getJSON<string>('streamVisibility', '');
+        const savedGroupId = await typedStorage.getJSON<string>('streamGroupId', '');
+        const savedShareLoc = await typedStorage.getJSON<string>('streamShareLocation', '');
+        
         if (consent) setLocationConsentAccepted(consent === '1');
         if (savedVisibility === 'public' || savedVisibility === 'private' || savedVisibility === 'group') {
-          setVisibility(savedVisibility);
+          setVisibility(savedVisibility as StreamVisibility);
         }
         if (savedGroupId) setSelectedGroupId(savedGroupId);
         if (savedShareLoc) setShareLocation(savedShareLoc === '1');
+        console.log('[STREAM_CONTEXT] ✓ Settings loaded');
       } catch (e) {
-        console.warn('[STREAM_CONTEXT] Failed to load persisted settings');
+        console.warn('[STREAM_CONTEXT] Failed to load persisted settings:', e);
       }
     })();
   }, []);
@@ -174,10 +182,12 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       setSelectedGroupId(nextGroupId);
       setShareLocation(nextShareLoc);
       try {
-        await AsyncStorage.setItem('streamVisibility', nextVisibility);
-        await AsyncStorage.setItem('streamGroupId', nextGroupId ?? '');
-        await AsyncStorage.setItem('streamShareLocation', nextShareLoc ? '1' : '0');
-      } catch {}
+        await typedStorage.setJSON('streamVisibility', nextVisibility);
+        await typedStorage.setJSON('streamGroupId', nextGroupId ?? '');
+        await typedStorage.setJSON('streamShareLocation', nextShareLoc ? '1' : '0');
+      } catch (e) {
+        console.warn('[STREAM_CONTEXT] Failed to save settings:', e);
+      }
 
       console.log('[STREAM_CONTEXT] Starting stream:', { ...data, visibility: nextVisibility, groupId: nextGroupId, shareLocation: nextShareLoc });
       await createStreamAsync({
@@ -236,7 +246,11 @@ export const [StreamProvider, useStream] = createContextHook(() => {
 
   const acceptLocationConsent = useCallback(async () => {
     setLocationConsentAccepted(true);
-    try { await AsyncStorage.setItem('locationConsentAcceptedV1', '1'); } catch {}
+    try { 
+      await typedStorage.setJSON('locationConsentAcceptedV1', '1'); 
+    } catch (e) {
+      console.warn('[STREAM_CONTEXT] Failed to save location consent:', e);
+    }
   }, []);
 
   const sendMessage = useCallback(
@@ -300,6 +314,7 @@ export const [StreamProvider, useStream] = createContextHook(() => {
       selectedGroupId,
       shareLocation,
       locationConsentAccepted,
+      acceptLocationConsent,
     ]
   );
 });

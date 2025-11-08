@@ -1,9 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Quest, QuestDifficulty, UserProfile } from '@/types';
 import { generateQuest, type CategoryId } from '@/services/questAI';
 import { useAuth } from '@/contexts/AuthContext';
+import { typedStorage, isStorageReady } from '@/lib/storage';
 
 const INITIAL_PROFILE: UserProfile = {
   name: 'Hero',
@@ -103,53 +103,37 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
   const loadData = async () => {
     try {
+      if (!isStorageReady()) {
+        console.log('[GameContext] ⏳ Waiting for storage to be ready...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (!isStorageReady()) {
+          console.warn('[GameContext] ⚠️ Storage not ready, using initial data');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       console.log('[GameContext] Loading game data...');
       
-      const timeoutPromise = new Promise<[string | null, string | null, string | null]>((_, reject) => {
-        setTimeout(() => reject(new Error('Game data load timeout')), 2000);
-      });
+      const savedProfile = await typedStorage.getJSON<UserProfile>('profile', INITIAL_PROFILE);
+      const savedQuests = await typedStorage.getJSON<Quest[]>('quests', INITIAL_QUESTS);
+      const savedProgress = await typedStorage.getJSON<Record<string, { noCount: number; yesCount: number; startedAt: string }>>('questProgress', {});
 
-      const dataPromise = Promise.all([
-        AsyncStorage.getItem('profile').catch((e) => { console.warn('[GameContext] Failed to load profile:', e); return null; }),
-        AsyncStorage.getItem('quests').catch((e) => { console.warn('[GameContext] Failed to load quests:', e); return null; }),
-        AsyncStorage.getItem('questProgress').catch((e) => { console.warn('[GameContext] Failed to load progress:', e); return null; }),
-      ]);
-
-      const [savedProfile, savedQuests, savedProgress] = await Promise.race([dataPromise, timeoutPromise]);
-
-      if (savedProfile) {
-        console.log('[GameContext] Loading saved profile');
-        try {
-          const parsed = JSON.parse(savedProfile);
-          setProfile(parsed);
-        } catch (parseError) {
-          console.error('[GameContext] Invalid JSON in profile storage, clearing corrupted data:', parseError);
-          await AsyncStorage.removeItem('profile');
-        }
+      if (savedProfile && savedProfile !== INITIAL_PROFILE) {
+        console.log('[GameContext] ✓ Loaded saved profile');
+        setProfile(savedProfile);
       }
-      if (savedQuests) {
-        console.log('[GameContext] Loading saved quests');
-        try {
-          const parsed = JSON.parse(savedQuests);
-          setQuests(parsed);
-        } catch (parseError) {
-          console.error('[GameContext] Invalid JSON in quests storage, clearing corrupted data:', parseError);
-          await AsyncStorage.removeItem('quests');
-        }
+      if (savedQuests && savedQuests.length > 0 && savedQuests !== INITIAL_QUESTS) {
+        console.log('[GameContext] ✓ Loaded saved quests');
+        setQuests(savedQuests);
       }
-      if (savedProgress) {
-        console.log('[GameContext] Loading saved quest progress');
-        try {
-          const parsed = JSON.parse(savedProgress);
-          setProgressMap(parsed);
-        } catch (parseError) {
-          console.error('[GameContext] Invalid JSON in progress storage, clearing corrupted data:', parseError);
-          await AsyncStorage.removeItem('questProgress');
-        }
+      if (savedProgress && Object.keys(savedProgress).length > 0) {
+        console.log('[GameContext] ✓ Loaded saved quest progress');
+        setProgressMap(savedProgress);
       }
       console.log('[GameContext] ✅ Game data loaded successfully');
     } catch (error) {
-      console.warn('[GameContext] Using initial game data:', error instanceof Error ? error.message : 'unknown error');
+      console.warn('[GameContext] ⚠️ Using initial game data:', error instanceof Error ? error.message : 'unknown error');
     } finally {
       console.log('[GameContext] Initialization complete');
       setIsLoading(false);
@@ -163,13 +147,13 @@ export const [GameProvider, useGame] = createContextHook(() => {
       newProgress?: Record<string, { noCount: number; yesCount: number; startedAt: string }>
     ) => {
       try {
-        console.log('Saving game data...');
-        await AsyncStorage.setItem('profile', JSON.stringify(newProfile));
-        await AsyncStorage.setItem('quests', JSON.stringify(newQuests));
-        await AsyncStorage.setItem('questProgress', JSON.stringify(newProgress ?? progressMap));
-        console.log('Game data saved successfully');
+        console.log('[GameContext] Saving game data...');
+        await typedStorage.setJSON('profile', newProfile);
+        await typedStorage.setJSON('quests', newQuests);
+        await typedStorage.setJSON('questProgress', newProgress ?? progressMap);
+        console.log('[GameContext] ✓ Game data saved successfully');
       } catch (error) {
-        console.error('Error saving game data:', error);
+        console.error('[GameContext] ⚠️ Error saving game data:', error);
       }
     },
     [progressMap]
@@ -263,7 +247,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         const questWithSource = { ...newQuest, source: 'ai' as const };
         const updatedQuests = [questWithSource, ...quests];
         setQuests(updatedQuests);
-        await AsyncStorage.setItem('quests', JSON.stringify(updatedQuests));
+        await typedStorage.setJSON('quests', updatedQuests);
 
         console.log('AI quest added successfully:', questWithSource);
         return questWithSource;
@@ -366,8 +350,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
       const updatedQuests = quests.map((q) => q.id === questId ? { ...q, timerEndAt } : q);
       setQuests(updatedQuests);
       
-      AsyncStorage.setItem('questProgress', JSON.stringify(updated)).catch((e) => console.error('Failed to init progress', e));
-      AsyncStorage.setItem('quests', JSON.stringify(updatedQuests)).catch((e) => console.error('Failed to save quest timer', e));
+      typedStorage.setJSON('questProgress', updated).catch((e) => console.error('[GameContext] Failed to init progress', e));
+      typedStorage.setJSON('quests', updatedQuests).catch((e) => console.error('[GameContext] Failed to save quest timer', e));
     }
   }, [progressMap, quests]);
 
@@ -383,7 +367,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       },
     };
     setProgressMap(updated);
-    AsyncStorage.setItem('questProgress', JSON.stringify(updated)).catch((e) => console.error('Failed to persist progress', e));
+    typedStorage.setJSON('questProgress', updated).catch((e) => console.error('[GameContext] Failed to persist progress', e));
 
     const quest = quests.find((q) => q.id === questId);
     if (quest && outcome === 'no' && typeof quest.minNoRequired === 'number') {
