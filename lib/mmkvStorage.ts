@@ -6,12 +6,13 @@
  * Provides the same interface as AsyncStorage for easy migration.
  */
 
-import { MMKV } from 'react-native-mmkv';
+import * as MMKVModule from 'react-native-mmkv';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 100;
 
-let storage: MMKV | null = null;
+// In v4, MMKV provides direct methods on the module
+let storage: any = null;
 let storageReady = false;
 let storageAvailable = false;
 let initializationPromise: Promise<void> | null = null;
@@ -23,11 +24,18 @@ async function initializeStorage(): Promise<void> {
   try {
     console.log('[MMKV] Initializing storage...');
     
-    // Create MMKV instance with encryption for security
-    storage = new MMKV({
-      id: 'app-storage',
-      encryptionKey: 'rork-quest-storage-key-v1',
-    });
+    // For react-native-mmkv v4, the module itself provides the methods
+    // Use the module directly
+    storage = MMKVModule;
+    
+    // Test if it works
+    if (typeof storage.set === 'function') {
+      storage.set('test-key', 'test-value');
+      storage.delete('test-key');
+      console.log('[MMKV] Storage test successful');
+    } else {
+      throw new Error('MMKV methods not available');
+    }
     
     console.log('[MMKV] Storage initialized successfully');
     storageAvailable = true;

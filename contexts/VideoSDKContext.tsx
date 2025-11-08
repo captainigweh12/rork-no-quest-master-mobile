@@ -18,9 +18,12 @@ export const [VideoSDKContextProvider, useVideoSDK] =
   createContextHook<VideoSDKContextType>(() => {
     const [meetingId, setMeetingIdState] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [shouldFetch, setShouldFetch] = useState(false);
 
-    // Use tRPC React Query hooks with enhanced retry logic
+    // Use tRPC React Query hooks with LAZY initialization
+    // Only fetch token when user actually needs to start/join a stream
     const tokenQuery = trpc.videosdk.getToken.useQuery(undefined, {
+      enabled: shouldFetch, // Only fetch when explicitly requested  
       staleTime: 1000 * 60 * 60, // 1 hour
       retry: (failureCount, error) => {
         // Retry up to 3 times with exponential backoff
@@ -102,6 +105,13 @@ export const [VideoSDKContextProvider, useVideoSDK] =
 
     const createNewMeeting = useCallback(async () => {
       console.log("[VideoSDK Context] createNewMeeting called");
+      
+      // Enable fetching if not already enabled
+      if (!shouldFetch) {
+        console.log("[VideoSDK Context] Enabling token fetch...");
+        setShouldFetch(true);
+      }
+      
       if (!tokenQuery.data?.token) {
         console.log("[VideoSDK Context] No token available yet, waiting for query...");
         return;
@@ -109,7 +119,7 @@ export const [VideoSDKContextProvider, useVideoSDK] =
 
       console.log("[VideoSDK Context] Creating meeting with token...");
       await createMeetingMutation.mutateAsync({ token: tokenQuery.data.token });
-    }, [tokenQuery.data?.token, createMeetingMutation]);
+    }, [shouldFetch, tokenQuery.data?.token, createMeetingMutation]);
 
     const setMeetingId = useCallback((id: string) => {
       console.log("[VideoSDK Context] Setting meeting ID manually:", id);
@@ -127,6 +137,7 @@ export const [VideoSDKContextProvider, useVideoSDK] =
     const retryTokenFetch = useCallback(() => {
       console.log("[VideoSDK Context] Manual retry requested");
       setError(null);
+      setShouldFetch(true); // Enable fetching
       tokenQuery.refetch();
     }, [tokenQuery]);
 
