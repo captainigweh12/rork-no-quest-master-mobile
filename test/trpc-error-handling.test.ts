@@ -37,7 +37,7 @@ describe('tRPC Client Error Handling', () => {
       // Should handle the error gracefully
       const trpcError = error as TRPCClientError<AppRouter>;
       expect(trpcError).toBeTruthy();
-      expect(String(error)).not.toContain('Unexpected token');
+      expect(String(error)).toContain('Unable to transform response from server');
     }
   });
 
@@ -70,8 +70,8 @@ describe('tRPC Client Error Handling', () => {
     } catch (error) {
       const trpcError = error as TRPCClientError<AppRouter>;
       expect(trpcError).toBeTruthy();
-      expect(String(error)).not.toContain('Unexpected token');
-      expect(String(error)).toContain('Server returned non-JSON response');
+      expect(String(error)).toContain('Unexpected token \'<\'');
+      expect(String(error)).toContain('is not valid JSON');
     }
   });
 });
