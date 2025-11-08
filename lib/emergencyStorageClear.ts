@@ -44,7 +44,7 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
     }
 
     console.log(`[EMERGENCY] Scanning ${allKeys.length} keys...`);
-    const corruptedKeys: string[] = [];
+    const corruptedKeys = new Set<string>();
     
     // Scan each key for corruption
     for (const key of allKeys) {
@@ -59,14 +59,14 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
         // Check if it's a string
         if (typeof value !== 'string') {
           console.warn(`[EMERGENCY] ⚠️ Key "${key}" has non-string value`);
-          corruptedKeys.push(key);
+          corruptedKeys.add(key);
           continue;
         }
         
         // Check for empty strings
         if (value.trim().length === 0) {
           console.warn(`[EMERGENCY] ⚠️ Key "${key}" has empty value`);
-          corruptedKeys.push(key);
+          corruptedKeys.add(key);
           continue;
         }
         
@@ -77,24 +77,32 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
           // Valid JSON - this key is fine
         } catch (parseError: any) {
           console.warn(`[EMERGENCY] ⚠️ Key "${key}" has invalid JSON:`, parseError.message);
-          console.warn(`[EMERGENCY]    Value preview: ${value.substring(0, 50)}...`);
-          corruptedKeys.push(key);
+          console.warn(`[EMERGENCY]    Value preview: ${value.substring(0, 100)}`);
+          corruptedKeys.add(key);
+        }
+        
+        // Additional check: keys starting with "obj" or "arr" or other weird prefixes
+        // These are often corrupted values from failed JSON stringification
+        if (value.startsWith('obj') || value.startsWith('arr') || value.startsWith('[object') || value.startsWith('undefined') || value.startsWith('null') || value === 'NaN') {
+          console.warn(`[EMERGENCY] ⚠️ Key "${key}" has suspicious value pattern`);
+          corruptedKeys.add(key);
         }
       } catch (error: any) {
         console.error(`[EMERGENCY] ❌ Error scanning key "${key}":`, error.message);
         // If we can't even read it, mark for removal
-        corruptedKeys.push(key);
+        corruptedKeys.add(key);
       }
     }
     
     // Remove all corrupted keys
-    if (corruptedKeys.length > 0) {
-      console.log(`[EMERGENCY] 🧹 Removing ${corruptedKeys.length} corrupted keys:`);
-      for (const key of corruptedKeys) {
+    const corruptedKeysArray = Array.from(corruptedKeys);
+    if (corruptedKeysArray.length > 0) {
+      console.log(`[EMERGENCY] 🧹 Removing ${corruptedKeysArray.length} corrupted keys:`);
+      for (const key of corruptedKeysArray) {
         console.log(`[EMERGENCY]    - ${key}`);
       }
       
-      await AsyncStorage.multiRemove(corruptedKeys);
+      await AsyncStorage.multiRemove(corruptedKeysArray);
       console.log('[EMERGENCY] ✅ Corrupted data removed successfully');
     } else {
       console.log('[EMERGENCY] ✅ No corrupted data found');

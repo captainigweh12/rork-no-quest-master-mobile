@@ -51,8 +51,15 @@ async function cleanupCorruptedData(): Promise<void> {
         // Try to parse the JSON to detect corruption
         try {
           JSON.parse(value);
-        } catch (parseError) {
+        } catch {
           console.warn(`[STORAGE] Found corrupted data for key: ${key}`);
+          console.warn(`[STORAGE] Value preview: ${value.substring(0, 100)}`);
+          corruptedKeys.push(key);
+        }
+        
+        // Check for suspicious patterns that indicate corruption
+        if (value.startsWith('obj') || value.startsWith('arr') || value.startsWith('[object') || value.startsWith('undefined') || value === 'NaN') {
+          console.warn(`[STORAGE] Found suspicious pattern for key: ${key}`);
           corruptedKeys.push(key);
         }
       } catch (error) {
