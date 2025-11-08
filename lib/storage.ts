@@ -526,7 +526,7 @@ export const batchStorage = {
       
       for (const [key, value] of pairs) {
         const parsed = safeJSON.parse(value, defaults[key]);
-        result[key] = parsed;
+        (result as any)[key] = parsed;
       }
       
       return result;
