@@ -39,8 +39,8 @@ describe('tRPC Response Handling', () => {
     try {
       const client = createTrpcClient({ baseUrl: 'http://test-url', customFetch: mockFetch });
       // @ts-ignore - we know this doesn't exist but it's fine for testing
-      await client.example.hi.mutate({ name: 'test' });
-      expect.fail('Should have thrown an error');
+  await client.example.hi.mutate({ name: 'test' });
+  throw new Error('Should have thrown an error');
     } catch (error) {
       expect(error).toBeTruthy();
       const errorStr = String(error);

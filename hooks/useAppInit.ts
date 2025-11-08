@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { emergencyClearCorruptedStorage } from '@/lib/emergencyStorageClear';
 import { initAppStorage, isStorageReady, isStorageAvailable } from '@/lib/storage';
 import { getBaseUrl } from '@/lib/baseUrl';
 
@@ -36,6 +37,15 @@ export function useAppInit() {
     async function initialize() {
       try {
         console.log('[APP_INIT] Starting initialization sequence...');
+
+        // Step 0: Emergency clear of corrupted storage (MUST run first)
+        console.log('[APP_INIT] Step 0: Emergency clearing corrupted storage...');
+        try {
+          await emergencyClearCorruptedStorage();
+          console.log('[APP_INIT] Emergency clear complete ✓');
+        } catch (clearError) {
+          console.error('[APP_INIT] Emergency clear failed (continuing anyway):', clearError);
+        }
 
         // Step 1: Initialize storage system
         console.log('[APP_INIT] Step 1: Initializing storage...');

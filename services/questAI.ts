@@ -34,13 +34,30 @@ export interface GenerateQuestParams {
   };
   excludeTitles?: string[];
   categoryId?: CategoryId;
+  userLocation?: {
+    latitude: number;
+    longitude: number;
+  };
+  source?: 'livestream' | 'maps' | 'manual';
 }
 
-interface QuestTemplate {
+interface RejectionQuestTemplate {
   title: string;
-  description: string;
+  actionStatement: string; // Clear call to action
   icon: string;
-  descriptionTemplate?: (count: number) => string;
+  getDescription: (params: {
+    count: number;
+    level: number;
+    intensity: 'mild' | 'moderate' | 'bold' | 'extreme';
+  }) => string;
+  requiresLocation?: boolean; // For map-based quests
+  timerMinutes?: number; // Countdown timer in minutes
+  intensityScaling: {
+    mild: number; // Level 1-5
+    moderate: number; // Level 6-10
+    bold: number; // Level 11-20
+    extreme: number; // Level 21+
+  };
 }
 
 const iconOptions = [
@@ -81,632 +98,503 @@ function calculateXP(difficulty: QuestDifficulty, level: number, isSuperQuest: b
   return Math.round(baseXP[difficulty] * multiplier);
 }
 
-const questTemplatesSingle: QuestTemplate[] = [
-  {
-    title: 'Ask Someone Out',
-    description: 'Ask someone you\'re interested in out for coffee or a date',
-    icon: 'coffee',
-    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} you're interested in out for coffee or a date. Each person counts as one attempt.`,
-  },
-  {
-    title: 'Ask for Phone Numbers',
-    description: 'Get phone numbers from people you find interesting',
-    icon: 'message-circle',
-    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} for their phone number. Approach them with genuine interest and confidence.`,
-  },
-  {
-    title: 'Compliment Strangers',
-    description: 'Give genuine compliments to strangers',
-    icon: 'flame',
-    descriptionTemplate: (count: number) => `Give ${count} genuine ${count === 1 ? 'compliment' : 'compliments'} to ${count === 1 ? 'a stranger' : 'different strangers'}. Be authentic and specific about what you appreciate.`,
-  },
-  {
-    title: 'Request Store Discounts',
-    description: 'Ask for discounts on regular-priced items',
-    icon: 'target',
-    descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'store' : 'different stores'} and ask for a discount on a regular-priced item. Be polite and confident.`,
-  },
-  {
-    title: 'Invite to Activities',
-    description: 'Invite people to join you for activities',
-    icon: 'trending-up',
-    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to join you for a specific activity you enjoy. Be clear about what you're inviting them to.`,
-  },
-];
+function getIntensityForLevel(level: number): 'mild' | 'moderate' | 'bold' | 'extreme' {
+  if (level <= 5) return 'mild';
+  if (level <= 10) return 'moderate';
+  if (level <= 20) return 'bold';
+  return 'extreme';
+}
 
-const questTemplatesMarried: QuestTemplate[] = [
-  {
-    title: 'Bold Partner Requests',
-    description: 'Ask your partner for things they usually say no to',
-    icon: 'coffee',
-    descriptionTemplate: (count: number) => `Ask your partner to do ${count} ${count === 1 ? 'thing' : 'different things'} they usually say no to. Be bold and vulnerable with your requests.`,
-  },
-  {
-    title: 'Quality Time Requests',
-    description: 'Request device-free quality time',
-    icon: 'message-circle',
-    descriptionTemplate: (count: number) => `Ask your partner ${count} ${count === 1 ? 'time' : 'times'} to put away devices for quality time. Suggest specific activities for each request.`,
-  },
-  {
-    title: 'New Experiences Together',
-    description: 'Suggest new activities or hobbies',
-    icon: 'flame',
-    descriptionTemplate: (count: number) => `Suggest ${count} new ${count === 1 ? 'activity or hobby' : 'activities or hobbies'} to try with your partner. Be specific about what you want to try.`,
-  },
-  {
-    title: 'Ask for Help',
-    description: 'Request help with things you usually handle alone',
-    icon: 'target',
-    descriptionTemplate: (count: number) => `Ask for help with ${count} ${count === 1 ? 'task' : 'tasks'} you usually handle alone. Be vulnerable and specific about what you need.`,
-  },
-  {
-    title: 'Express Your Needs',
-    description: 'Share emotional needs or desires',
-    icon: 'trending-up',
-    descriptionTemplate: (count: number) => `Share ${count} emotional ${count === 1 ? 'need or desire' : 'needs or desires'} with your partner. Be honest and vulnerable.`,
-  },
-];
+function getTimerForDifficulty(difficulty: QuestDifficulty, source?: string): number {
+  // Countdown timers based on difficulty (in minutes)
+  const baseTimers: Record<QuestDifficulty, number> = {
+    easy: 30,     // 30 minutes
+    medium: 45,   // 45 minutes
+    hard: 60,     // 1 hour
+    extreme: 90,  // 1.5 hours
+  };
+  
+  // Livestream quests get shorter timers for immediacy
+  if (source === 'livestream') {
+    return Math.round(baseTimers[difficulty] * 0.5);
+  }
+  
+  return baseTimers[difficulty];
+}
 
-const categoryTemplates: Record<CategoryId, QuestTemplate[]> = {
-  business: [
-    { 
-      title: 'Pitch Product Ideas', 
-      description: 'Share product concepts and ask for feedback', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Pitch your product idea to ${count} ${count === 1 ? 'person' : 'people'} and ask for feedback or a pre-order. Be clear and concise.` 
-    },
-    { 
-      title: 'Cold Email Clients', 
-      description: 'Reach out to potential clients', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Send ${count} cold ${count === 1 ? 'email' : 'emails'} to potential clients with a clear ask. Personalize each message.` 
-    },
-    { 
-      title: 'Request Testimonials', 
-      description: 'Ask for testimonials from past clients', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Request ${count === 1 ? 'a testimonial' : `${count} testimonials`} from past clients or colleagues. Be specific about what you need.` 
-    },
-    { 
-      title: 'Post on LinkedIn', 
-      description: 'Publish value-packed posts', 
-      icon: 'trending-up', 
-      descriptionTemplate: (count: number) => `Publish ${count} value-packed ${count === 1 ? 'post' : 'posts'} on LinkedIn and ask for input. Share insights from your experience.` 
-    },
-  ],
-  'door-knocking': [
-    { 
-      title: 'Knock and Pitch', 
-      description: 'Visit homes and pitch your product/service', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Knock on ${count} ${count === 1 ? 'door' : 'doors'} and pitch your product or service. Stay confident through rejections.` 
-    },
-    { 
-      title: 'Offer Free Trials', 
-      description: 'Offer trial services at the doorstep', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'home' : 'homes'} and offer a free trial of your service. Practice handling objections.` 
-    },
-    { 
-      title: 'Ask for Referrals', 
-      description: 'Request referrals from homeowners', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'homeowner' : 'homeowners'} for referrals to neighbors or friends who might be interested. Some will say no.` 
-    },
-    { 
-      title: 'Schedule Follow-ups', 
-      description: 'Book callbacks with potential customers', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Knock on doors and schedule ${count} follow-up ${count === 1 ? 'appointment' : 'appointments'}. Not everyone will agree.` 
-    },
-  ],
-  'cold-calling': [
-    { 
-      title: 'Make Cold Calls', 
-      description: 'Call potential customers directly', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Make ${count} cold ${count === 1 ? 'call' : 'calls'} to potential customers. Practice your pitch and handle rejections professionally.` 
-    },
-    { 
-      title: 'Pitch Decision Makers', 
-      description: 'Call and pitch to key decision-makers', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Call ${count} ${count === 1 ? 'decision-maker' : 'decision-makers'} and pitch your solution. Be prepared for gatekeepers and objections.` 
-    },
-    { 
-      title: 'Follow Up with Leads', 
-      description: 'Call back interested prospects', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Follow up with ${count} ${count === 1 ? 'lead' : 'leads'} from previous calls. Some won't answer or will say no.` 
-    },
-    { 
-      title: 'Handle Objections', 
-      description: 'Call and overcome customer objections', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Make ${count} ${count === 1 ? 'call' : 'calls'} where you focus on handling objections. Turn rejections into learning opportunities.` 
-    },
-  ],
-  marketing: [
-    { 
-      title: 'Create Social Campaigns', 
-      description: 'Run promotional campaigns on social media', 
-      icon: 'trending-up', 
-      descriptionTemplate: (count: number) => `Create and launch ${count} social media ${count === 1 ? 'campaign' : 'campaigns'} promoting your product. Ask for feedback.` 
-    },
-    { 
-      title: 'Pitch at Events', 
-      description: 'Network and pitch at local events', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Attend ${count} local ${count === 1 ? 'event' : 'events'} and pitch your service to ${count === 1 ? 'attendees' : 'different attendees'}. Face potential rejections head-on.` 
-    },
-    { 
-      title: 'Create Promotional Content', 
-      description: 'Produce and share marketing materials', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Create ${count} ${count === 1 ? 'piece' : 'pieces'} of promotional content and ask ${count === 1 ? 'someone' : 'people'} to share it. Not everyone will.` 
-    },
-    { 
-      title: 'Partner Outreach', 
-      description: 'Reach out to potential partners', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Contact ${count} potential ${count === 1 ? 'partner' : 'partners'} to collaborate on marketing. Be ready for rejections.` 
-    },
-  ],
+// REJECTION COACH TEMPLATES - Action-oriented, focused on getting NO's
+const rejectionCoachTemplates: Record<CategoryId, RejectionQuestTemplate[]> = {
   dating: [
-    { 
-      title: 'Coffee Invitations', 
-      description: 'Invite strangers for coffee', 
-      icon: 'coffee', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} out for coffee. Be polite and genuine with each approach.` 
+    {
+      title: 'Ask For Coffee Dates',
+      actionStatement: 'Approach and invite to coffee',
+      icon: 'coffee',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const opener = intensity === 'extreme' ? 'Walk up to them boldly and say' : 
+                      intensity === 'bold' ? 'Confidently approach and ask' :
+                      intensity === 'moderate' ? 'Go up to them and invite' : 
+                      'Politely ask';
+        return `${opener}: "Would you like to grab coffee with me?" Target: Get ${count} NO's from ${count} different people. Remember: A "yes" doesn't count - only rejections build your courage.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
     },
-    { 
-      title: 'Compliment People', 
-      description: 'Give genuine compliments', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Give ${count} genuine ${count === 1 ? 'compliment to someone' : 'compliments to different people'}. Be specific and authentic.` 
+    {
+      title: 'Request Phone Numbers',
+      actionStatement: 'Ask for their number directly',
+      icon: 'message-circle',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const approach = intensity === 'extreme' ? 'Be direct and bold' : 
+                        intensity === 'bold' ? 'Ask confidently' :
+                        intensity === 'moderate' ? 'Request politely' : 
+                        'Ask if you can';
+        return `${approach}: "Can I get your number?" Do this with ${count} people you find attractive. Goal: ${count} NO's. Each rejection is a win!`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 8, extreme: 12 },
     },
-    { 
-      title: 'Start Conversations', 
-      description: 'Talk to new people in real life', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Start ${count === 1 ? 'a conversation' : `${count} conversations`} with ${count === 1 ? 'a stranger' : 'strangers'} in real life. Keep it going for at least 2 minutes.` 
+    {
+      title: 'Give Hair Compliments',
+      actionStatement: 'Compliment strangers on their hair',
+      icon: 'flame',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const style = intensity === 'extreme' ? 'Walk up to complete strangers' : 
+                     intensity === 'bold' ? 'Approach people you don\'t know' :
+                     intensity === 'moderate' ? 'Go up to strangers' : 
+                     'Find people';
+        return `${style} and say: "I love your hair - it looks amazing!" Target ${count} people. They might ignore you or walk away - that's your ${count} NO's. Keep going!`;
+      },
+      intensityScaling: { mild: 5, moderate: 7, bold: 10, extreme: 15 },
     },
-    { 
-      title: 'Make Bold Asks', 
-      description: 'Make asks that might get rejected', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Make ${count} bold ${count === 1 ? 'ask' : 'asks'} that might get rejected. Step outside your comfort zone.` 
+    {
+      title: 'Invite To Activities',
+      actionStatement: 'Ask strangers to join your plans',
+      icon: 'target',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const invite = intensity === 'extreme' ? 'Tell them what you\'re doing and invite them immediately' : 
+                      intensity === 'bold' ? 'Share your plans and ask them to join' :
+                      intensity === 'moderate' ? 'Mention an activity and invite them' : 
+                      'Ask if they want to do something';
+        return `${invite}. Example: "I'm going hiking this weekend - want to come?" Ask ${count} people. Collect ${count} NO's to complete this quest.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
+    },
+    {
+      title: 'Make Bold Date Requests',
+      actionStatement: 'Ask for specific date plans',
+      icon: 'award',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const boldness = intensity === 'extreme' ? 'Don\'t small talk - go straight for the ask' : 
+                        intensity === 'bold' ? 'Be direct and specific' :
+                        intensity === 'moderate' ? 'Make a clear request' : 
+                        'Suggest a specific plan';
+        return `${boldness}: "Would you go on a dinner date with me this Friday?" Ask ${count} people you're interested in. Target: ${count} rejections. Yes doesn't count!`;
+      },
+      intensityScaling: { mild: 3, moderate: 4, bold: 6, extreme: 8 },
     },
   ],
+  
+  business: [
+    {
+      title: 'Request 100% Discount',
+      actionStatement: 'Ask for items completely free',
+      icon: 'target',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const ask = intensity === 'extreme' ? 'Walk in confidently and state' : 
+                   intensity === 'bold' ? 'Ask the manager directly' :
+                   intensity === 'moderate' ? 'Request from staff' : 
+                   'Politely inquire';
+        return `${ask}: "Can I get this for free today?" Visit ${count} different stores. You need ${count} NO's to win. Every rejection builds your sales immunity!`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
+    },
+    {
+      title: 'Pitch Product Pre-Orders',
+      actionStatement: 'Sell before you build',
+      icon: 'briefcase',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const pitch = intensity === 'extreme' ? 'Tell them about your idea and ask for money upfront' : 
+                     intensity === 'bold' ? 'Pitch your concept and request pre-payment' :
+                     intensity === 'moderate' ? 'Share your idea and ask for commitment' : 
+                     'Describe your product and gauge interest';
+        return `${pitch}. Target ${count} potential customers. Collect ${count} NO's - each one teaches you what NOT to do next time.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 8, extreme: 12 },
+    },
+    {
+      title: 'Cold Email Decision Makers',
+      actionStatement: 'Email executives cold',
+      icon: 'mail',
+      getDescription: ({ count, level, intensity }) => {
+        const email = intensity === 'extreme' ? 'Find C-level executives and email them directly with a bold ask' : 
+                     intensity === 'bold' ? 'Research and email senior leaders' :
+                     intensity === 'moderate' ? 'Reach out to managers' : 
+                     'Contact potential clients';
+        return `${email}. Send ${count} emails with a clear call-to-action. You're shooting for ${count} rejections or no-replies. Silence is a no!`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 20 },
+    },
+    {
+      title: 'Request Free Services',
+      actionStatement: 'Ask businesses for free work',
+      icon: 'trending-up',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const request = intensity === 'extreme' ? 'Walk in and ask for their premium service for free' : 
+                       intensity === 'bold' ? 'Request their best service at no charge' :
+                       intensity === 'moderate' ? 'Ask for complimentary work' : 
+                       'Inquire about free options';
+        return `${request}. Visit ${count} businesses. Goal: ${count} NO's. Each rejection proves you're pushing boundaries!`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
+    },
+  ],
+  
+  'door-knocking': [
+    {
+      title: 'Knock & Pitch Direct',
+      actionStatement: 'Go door-to-door with your offer',
+      icon: 'target',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const approach = intensity === 'extreme' ? 'Knock loudly, introduce yourself immediately, and pitch within 10 seconds' : 
+                        intensity === 'bold' ? 'Knock confidently and deliver your pitch fast' :
+                        intensity === 'moderate' ? 'Knock and share your offer' : 
+                        'Politely knock and introduce yourself';
+        return `${approach}. Hit ${count} doors. You're aiming for ${count} door slams or NO's. Rejection is the goal!`;
+      },
+      intensityScaling: { mild: 5, moderate: 10, bold: 15, extreme: 25 },
+    },
+    {
+      title: 'Ask For Referrals',
+      actionStatement: 'Request neighbor introductions',
+      icon: 'mail',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const ask = intensity === 'extreme' ? 'After your pitch, immediately ask: "Who are your 3 closest neighbors I should talk to?"' : 
+                   intensity === 'bold' ? 'Request specific neighbor names' :
+                   intensity === 'moderate' ? 'Ask for referrals' : 
+                   'See if they know anyone interested';
+        return `${ask}. Knock on ${count} doors. Collect ${count} NO's when they refuse to give you names.`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 20 },
+    },
+    {
+      title: 'Offer Same-Day Service',
+      actionStatement: 'Push for immediate commitments',
+      icon: 'flame',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        const push = intensity === 'extreme' ? 'Tell them you can start work TODAY if they say yes now' : 
+                    intensity === 'bold' ? 'Offer to begin immediately' :
+                    intensity === 'moderate' ? 'Suggest starting soon' : 
+                    'Mention you have availability';
+        return `${push}. Target ${count} homes. Aim for ${count} "not today" or "we're not interested" responses.`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 20 },
+    },
+  ],
+  
+  'cold-calling': [
+    {
+      title: 'Call & Close Fast',
+      actionStatement: 'Make cold calls with urgency',
+      icon: 'message-circle',
+      getDescription: ({ count, level, intensity }) => {
+        const call = intensity === 'extreme' ? 'Call and ask for the sale within 30 seconds. No small talk' : 
+                    intensity === 'bold' ? 'Get to your ask in under 1 minute' :
+                    intensity === 'moderate' ? 'Pitch quickly' : 
+                    'Introduce yourself and offer';
+        return `${call}. Make ${count} calls. Goal: ${count} hang-ups or NO's. Each rejection strengthens your phone game!`;
+      },
+      intensityScaling: { mild: 5, moderate: 10, bold: 15, extreme: 25 },
+    },
+    {
+      title: 'Bypass Gatekeepers',
+      actionStatement: 'Demand decision-maker access',
+      icon: 'target',
+      getDescription: ({ count, level, intensity }) => {
+        const demand = intensity === 'extreme' ? 'When they answer, immediately say: "I need to speak with [decision maker] now"' : 
+                      intensity === 'bold' ? 'Confidently request the decision maker by name' :
+                      intensity === 'moderate' ? 'Ask to speak with leadership' : 
+                      'Request the appropriate person';
+        return `${demand}. Call ${count} companies. Get ${count} "I can't transfer you" or hang-ups. Gatekeepers are practice!`;
+      },
+      intensityScaling: { mild: 5, moderate: 10, bold: 15, extreme: 20 },
+    },
+    {
+      title: 'Ask For Immediate Decisions',
+      actionStatement: 'Push for yes or no NOW',
+      icon: 'flame',
+      getDescription: ({ count, level, intensity }) => {
+        const push = intensity === 'extreme' ? 'After your pitch, say: "I need a yes or no right now - can you decide?"' : 
+                    intensity === 'bold' ? 'Request an immediate answer' :
+                    intensity === 'moderate' ? 'Ask for a quick decision' : 
+                    'See if they can decide today';
+        return `${push}. Make ${count} calls. Collect ${count} "let me think about it" or "no" responses.`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 18 },
+    },
+  ],
+
+  // Add similar rejection-focused templates for other categories...
+  marketing: [
+    {
+      title: 'Ask Strangers To Share Content',
+      actionStatement: 'Request immediate social shares',
+      icon: 'trending-up',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Show strangers your content and ask them to share it RIGHT NOW on their phone. Target ${count} people. Get ${count} "I don't want to" responses.`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 15 },
+    },
+  ],
+
   adventure: [
-    { 
-      title: 'Ask for Secret Menu Items', 
-      description: 'Ask for off-menu items at restaurants', 
-      icon: 'coffee', 
-      descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'restaurant' : 'different restaurants'} and ask for something off-menu. They might say no.` 
-    },
-    { 
-      title: 'Ask Strangers for Directions', 
-      description: 'Ask strangers to guide you somewhere', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} to walk with you and show you directions. They might decline.` 
-    },
-    { 
-      title: 'Request Free Upgrades', 
-      description: 'Ask for free upgrades at restaurants or cafes', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'place' : 'different places'} for a free upgrade. Be polite when they say no.` 
-    },
-    { 
-      title: 'Ask to Join Groups', 
-      description: 'Ask strangers if you can join their activity', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'group' : 'different groups'} of strangers if you can join their activity. Embrace rejection.` 
+    {
+      title: 'Ask For Secret Menu Items',
+      actionStatement: 'Demand off-menu creations',
+      icon: 'coffee',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Walk into ${count} restaurants and ask for something NOT on the menu. Goal: ${count} "we don't have that" responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
     },
   ],
+
   fitness: [
-    { 
-      title: 'Ask for Free Training Sessions', 
-      description: 'Request free personal training', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'trainer' : 'trainers'} for a free personal training session. They might say no.` 
-    },
-    { 
-      title: 'Request Free Trial Classes', 
-      description: 'Ask for free trial classes', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'gym or studio' : 'different gyms or studios'} for a free trial class. Be prepared for rejection.` 
-    },
-    { 
-      title: 'Ask to Work In', 
-      description: 'Ask to share equipment with people', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} at the gym if you can work in with them. They might decline.` 
-    },
-    { 
-      title: 'Request Workout Advice', 
-      description: 'Ask fit people for their routine', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'fit person' : 'fit people'} to share their workout routine with you. They might say no.` 
+    {
+      title: 'Ask To Work In',
+      actionStatement: 'Request to share gym equipment',
+      icon: 'target',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Approach ${count} people using equipment and ask: "Can I work in with you?" Collect ${count} "I'm almost done" or "no" responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 8, extreme: 12 },
     },
   ],
+
   wealth: [
-    { 
-      title: 'Ask for Discounts', 
-      description: 'Request discounts at checkout', 
-      icon: 'trending-up', 
-      descriptionTemplate: (count: number) => `Ask for discounts at ${count} ${count === 1 ? 'store' : 'stores'}. They might say no, but ask anyway.` 
-    },
-    { 
-      title: 'Request Raises', 
-      description: 'Ask for compensation reviews', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Ask ${count === 1 ? 'your boss' : 'for'} ${count === 1 ? '' : count} ${count === 1 ? 'for a raise' : 'raises or compensation reviews'}. Be prepared for rejection.` 
-    },
-    { 
-      title: 'Ask to Borrow Money', 
-      description: 'Request loans from friends or family', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to lend you money. They might say no.` 
-    },
-    { 
-      title: 'Ask for Investments', 
-      description: 'Request investment in your idea', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to invest in your idea. Expect some rejections.` 
+    {
+      title: 'Negotiate Everything',
+      actionStatement: 'Haggle on every purchase',
+      icon: 'trending-up',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `At ${count} stores, ask: "What's your best price on this?" before buying anything. Target: ${count} "the price is the price" responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 8, extreme: 12 },
     },
   ],
+
   creativity: [
-    { 
-      title: 'Ask People to View Your Work', 
-      description: 'Request people watch your content', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to watch your video or view your work. They might say no.` 
-    },
-    { 
-      title: 'Request Collaborations', 
-      description: 'Ask creators to collaborate', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'creator' : 'creators'} to collaborate on a project. Be prepared for rejection.` 
-    },
-    { 
-      title: 'Ask for Harsh Feedback', 
-      description: 'Request brutal honesty on your work', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} for harsh feedback on something you made. They might reject your work.` 
-    },
-    { 
-      title: 'Ask for Shares/Retweets', 
-      description: 'Request people share your content', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to share or retweet your content. They might decline.` 
+    {
+      title: 'Ask For Harsh Feedback',
+      actionStatement: 'Request brutal criticism',
+      icon: 'message-circle',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Show your work to ${count} people and say: "Tell me what's wrong with this - be harsh." Aim for ${count} critical responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
     },
   ],
+
   mindset: [
-    { 
-      title: 'Talk to Strangers', 
-      description: 'Start conversations with new people', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Start ${count === 1 ? 'a conversation' : `${count} conversations`} with ${count === 1 ? 'a stranger' : 'strangers'} and ask curious questions.` 
-    },
-    { 
-      title: 'Share Failure Stories', 
-      description: 'Post about your failures', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Share ${count} ${count === 1 ? 'failure story' : 'failure stories'} and what you learned. Be vulnerable and honest.` 
-    },
-    { 
-      title: 'Ask for Help Publicly', 
-      description: 'Make public requests for help', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Make ${count} public ${count === 1 ? 'ask' : 'asks'} for help. Don't be afraid to show you need support.` 
-    },
-    { 
-      title: 'Face Small Fears', 
-      description: 'Confront your fears', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Face ${count} ${count === 1 ? 'small fear' : 'small fears'}. Pick things that make you uncomfortable.` 
+    {
+      title: 'Face Small Fears Public',
+      actionStatement: 'Do something uncomfortable',
+      icon: 'flame',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Do ${count} things that scare you in public. Ask ${count} strangers to watch you do it. Goal: ${count} "that's weird" or walkaway responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
     },
   ],
+
   relationships: [
-    { 
-      title: 'Ask for Big Favors', 
-      description: 'Request significant help from friends or family', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} for a big favor they might decline. Be direct about what you need.` 
-    },
-    { 
-      title: 'Request Quality Time', 
-      description: 'Ask people to spend time with you', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to spend quality time with you doing something specific. They might be busy.` 
-    },
-    { 
-      title: 'Ask for Personal Changes', 
-      description: 'Request someone to change a habit for you', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} close to you to change something for your benefit. Be specific about what you want.` 
-    },
-    { 
-      title: 'Borrow Money', 
-      description: 'Ask friends or family to lend you money', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'person' : 'people'} to lend you money. Practice being comfortable with potential rejection.` 
+    {
+      title: 'Ask For Big Favors',
+      actionStatement: 'Request inconvenient help',
+      icon: 'mail',
+      getDescription: ({ count, level, intensity }) => {
+        return `Ask ${count} friends/family for a significant favor that inconveniences them. Aim for ${count} "I can't right now" responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
     },
   ],
+
   community: [
-    { 
-      title: 'Offer to Help Strangers', 
-      description: 'Offer help to people who might decline', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Offer to help ${count} ${count === 1 ? 'stranger' : 'strangers'} carry their groceries or bags. They might say no.` 
-    },
-    { 
-      title: 'Ask to Pet Dogs', 
-      description: 'Ask strangers to pet their dogs', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'dog owner' : 'dog owners'} if you can pet their dog. Some will say no.` 
-    },
-    { 
-      title: 'Ask for Directions Then More', 
-      description: 'Ask strangers for directions then conversation', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} for directions, then ask if they can walk you there. They might decline.` 
-    },
-    { 
-      title: 'Request to Join Activities', 
-      description: 'Ask to join people doing activities', 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'group' : 'groups'} if you can join their activity. Be prepared for rejection.` 
+    {
+      title: 'Offer Help To Busy People',
+      actionStatement: 'Help people who look rushed',
+      icon: 'award',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Find ${count} busy-looking people and offer to help carry something. Get ${count} "I'm fine" or "no thanks" responses.`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 15 },
     },
   ],
+
   entrepreneurship: [
-    { 
-      title: 'Pitch Your Startup Idea', 
-      description: 'Present your idea to potential investors or mentors', 
-      icon: 'briefcase', 
-      descriptionTemplate: (count: number) => `Pitch your startup idea to ${count} ${count === 1 ? 'person' : 'people'}. Ask for honest feedback or investment interest.` 
-    },
-    { 
-      title: 'Cold Outreach to Mentors', 
-      description: 'Reach out to successful entrepreneurs', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Send ${count} cold ${count === 1 ? 'email' : 'emails'} to successful entrepreneurs asking for advice or mentorship.` 
-    },
-    { 
-      title: 'Launch a Minimum Viable Product', 
-      description: 'Put your product idea out there', 
-      icon: 'trending-up', 
-      descriptionTemplate: (count: number) => `Share your MVP with ${count} potential ${count === 1 ? 'customer' : 'customers'} and ask them to try it. Be ready for critiques.` 
-    },
-    { 
-      title: 'Ask for Customer Testimonials', 
-      description: 'Request honest reviews from early users', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Ask ${count} early ${count === 1 ? 'user' : 'users'} for a testimonial. They might say they're too busy.` 
+    {
+      title: 'Pitch Your Startup',
+      actionStatement: 'Sell your vision cold',
+      icon: 'briefcase',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `Pitch your startup idea to ${count} strangers and ask if they'd invest. Target: ${count} "not interested" responses.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 8, extreme: 12 },
     },
   ],
+
   sales: [
-    { 
-      title: 'Cold Pitch to Prospects', 
-      description: 'Reach out to potential buyers', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Make ${count} cold ${count === 1 ? 'pitch' : 'pitches'} to potential customers. Practice handling objections.` 
-    },
-    { 
-      title: 'Ask for Upsells', 
-      description: 'Offer premium versions to existing customers', 
-      icon: 'trending-up', 
-      descriptionTemplate: (count: number) => `Ask ${count} existing ${count === 1 ? 'customer' : 'customers'} to upgrade to a premium plan. Some will decline.` 
-    },
-    { 
-      title: 'Request Referrals', 
-      description: 'Ask satisfied customers for referrals', 
-      icon: 'mail', 
-      descriptionTemplate: (count: number) => `Ask ${count} satisfied ${count === 1 ? 'customer' : 'customers'} to refer you to someone else. They might say no.` 
-    },
-    { 
-      title: 'Follow Up on Lost Deals', 
-      description: 'Re-engage prospects who said no', 
-      icon: 'target', 
-      descriptionTemplate: (count: number) => `Follow up with ${count} ${count === 1 ? 'prospect' : 'prospects'} who previously declined. Be persistent but respectful.` 
+    {
+      title: 'Close Or Walk',
+      actionStatement: 'Push for immediate decisions',
+      icon: 'target',
+      getDescription: ({ count, level, intensity }) => {
+        return `Make ${count} sales pitches where you ask for the sale within 2 minutes. Get ${count} "not ready" or NO responses.`;
+      },
+      intensityScaling: { mild: 5, moderate: 8, bold: 12, extreme: 20 },
     },
   ],
+
   confidence: [
-    { 
-      title: 'Speak Up in Public', 
-      description: 'Share your opinion in a group setting', 
-      icon: 'message-circle', 
-      descriptionTemplate: (count: number) => `Speak up and share your thoughts in ${count} public ${count === 1 ? 'setting' : 'settings'}. Be bold and authentic.` 
-    },
-    { 
-      title: 'Ask Bold Questions', 
-      description: "Ask questions you're afraid to ask", 
-      icon: 'flame', 
-      descriptionTemplate: (count: number) => `Ask ${count} bold ${count === 1 ? 'question' : 'questions'} that challenge conventional thinking. Embrace discomfort.` 
-    },
-    { 
-      title: 'Introduce Yourself to Strangers', 
-      description: 'Break the ice with new people', 
-      icon: 'coffee', 
-      descriptionTemplate: (count: number) => `Introduce yourself to ${count} ${count === 1 ? 'stranger' : 'strangers'} and start a genuine conversation.` 
-    },
-    { 
-      title: 'Share Your Accomplishments', 
-      description: 'Talk about your wins without holding back', 
-      icon: 'award', 
-      descriptionTemplate: (count: number) => `Share ${count === 1 ? 'an accomplishment' : `${count} accomplishments`} with ${count === 1 ? 'someone' : 'people'} who might dismiss it. Own your success.` 
+    {
+      title: 'Speak Up Boldly',
+      actionStatement: 'Share opinions publicly',
+      icon: 'flame',
+      requiresLocation: true,
+      getDescription: ({ count, level, intensity }) => {
+        return `In ${count} public settings, voice a controversial opinion. Aim for ${count} disagreements or awkward silences.`;
+      },
+      intensityScaling: { mild: 3, moderate: 5, bold: 7, extreme: 10 },
     },
   ],
 };
 
-const questTemplatesGeneral: QuestTemplate[] = [
-  {
-    title: 'Ask for Discounts',
-    description: 'Visit stores and ask for discounts',
-    icon: 'target',
-    descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'store' : 'stores'} and ask for a discount on a regular-priced item. Be confident and friendly.`,
-  },
-  {
-    title: 'Request Favors from Strangers',
-    description: 'Ask strangers for small favors',
-    icon: 'message-circle',
-    descriptionTemplate: (count: number) => `Ask ${count} ${count === 1 ? 'stranger' : 'strangers'} for a small favor. Step outside your comfort zone.`,
-  },
-  {
-    title: 'Negotiate Prices',
-    description: 'Negotiate at markets or stores',
-    icon: 'trending-up',
-    descriptionTemplate: (count: number) => `Try to negotiate prices at ${count} ${count === 1 ? 'place' : 'places'}. Practice your negotiation skills.`,
-  },
-  {
-    title: 'Request Free Samples',
-    description: 'Ask for free samples',
-    icon: 'coffee',
-    descriptionTemplate: (count: number) => `Visit ${count} ${count === 1 ? 'store' : 'stores'} and ask for a free sample. Don't be shy.`,
-  },
-  {
-    title: 'Apply for Stretch Jobs',
-    description: 'Apply for positions above your level',
-    icon: 'briefcase',
-    descriptionTemplate: (count: number) => `Submit ${count} ${count === 1 ? 'application' : 'applications'} for ${count === 1 ? 'a position' : 'positions'} you think you're not qualified for. Aim high.`,
-  },
-  {
-    title: 'Ask for Recommendations',
-    description: 'Request recommendations or testimonials',
-    icon: 'award',
-    descriptionTemplate: (count: number) => `Request ${count === 1 ? 'a recommendation' : `${count} recommendations`} or ${count === 1 ? 'testimonial' : 'testimonials'} from ${count === 1 ? 'someone' : 'people'}. Build your credibility.`,
-  },
-  {
-    title: 'Start Conversations',
-    description: 'Talk to new people in public',
-    icon: 'message-circle',
-    descriptionTemplate: (count: number) => `Strike up ${count === 1 ? 'a conversation' : `${count} conversations`} with ${count === 1 ? 'a stranger' : 'strangers'} in public. Be friendly and curious.`,
-  },
-  {
-    title: 'Request VIP Meetings',
-    description: 'Reach out to influential people',
-    icon: 'mail',
-    descriptionTemplate: (count: number) => `Reach out to ${count} influential ${count === 1 ? 'person' : 'people'} and ask for ${count === 1 ? 'a meeting' : 'meetings'}. Be respectful of their time.`,
-  },
-  {
-    title: 'Ask for Special Treatment',
-    description: 'Request special accommodations',
-    icon: 'flame',
-    descriptionTemplate: (count: number) => `Request ${count} special ${count === 1 ? 'accommodation or exception' : 'accommodations or exceptions'}. Be polite but bold.`,
-  },
-];
-
 export async function generateQuest(params: GenerateQuestParams): Promise<Quest> {
-  const { difficulty, level, isSuperQuest = false, relationshipStatus, previousQuest, excludeTitles, categoryId } = params;
+  const { 
+    difficulty, 
+    level, 
+    isSuperQuest = false, 
+    previousQuest, 
+    excludeTitles, 
+    categoryId,
+    userLocation,
+    source 
+  } = params;
 
-  console.log('[QUEST AI] Generating quest locally with params:', params);
-  if (categoryId) {
-    console.log('[QUEST AI] 🎯 Category LOCKED:', categoryId, '- Will stay in this category');
+  console.log('[REJECTION COACH] 🎯 Generating quest with params:', {
+    difficulty,
+    level,
+    categoryId,
+    source,
+    hasLocation: !!userLocation,
+  });
+
+  // STRICT CATEGORY LOCKING - If categoryId provided, ONLY use that category
+  if (!categoryId) {
+    console.error('[REJECTION COACH] ❌ Category ID required for quest generation!');
+    throw new Error('Category ID is required to generate rejection quests');
   }
 
-  let questPool: QuestTemplate[] = questTemplatesGeneral;
-  let priorityPool: QuestTemplate[] = [];
-  let categoryLocked = false;
-
-  // When categoryId is provided, ONLY use category-specific templates
-  if (categoryId && categoryTemplates[categoryId]) {
-    priorityPool = categoryTemplates[categoryId];
-    categoryLocked = true;
-    // Don't mix with general templates - stay in category
-    questPool = [...categoryTemplates[categoryId]];
-    console.log('[QUEST AI] 📚 Using ONLY', categoryId, 'templates:', questPool.length, 'available');
-  } else if (relationshipStatus === 'single') {
-    priorityPool = questTemplatesSingle;
-    questPool = [...questTemplatesSingle, ...questTemplatesGeneral];
-  } else if (relationshipStatus === 'married') {
-    priorityPool = questTemplatesMarried;
-    questPool = [...questTemplatesMarried, ...questTemplatesGeneral];
+  const categoryTemplates = rejectionCoachTemplates[categoryId];
+  if (!categoryTemplates || categoryTemplates.length === 0) {
+    console.error('[REJECTION COACH] ❌ No templates found for category:', categoryId);
+    throw new Error(`No quest templates available for category: ${categoryId}`);
   }
 
+  console.log('[REJECTION COACH] 🔒 CATEGORY LOCKED:', categoryId, '- Using', categoryTemplates.length, 'templates');
+
+  // Filter out previously completed quests
   const excludes = new Set<string>((excludeTitles ?? []).map((t) => t.toLowerCase()));
   if (previousQuest?.title) {
     excludes.add(previousQuest.title.toLowerCase());
   }
 
-  const availablePriority = priorityPool.filter((t) => !excludes.has(t.title.toLowerCase()));
-  const availableAll = questPool.filter((t) => !excludes.has(t.title.toLowerCase()));
-  
-  const baseTemplate = (availablePriority.length > 0
-    ? availablePriority[Math.floor(Math.random() * availablePriority.length)]
-    : availableAll.length > 0
-    ? availableAll[Math.floor(Math.random() * availableAll.length)]
-    : questPool[Math.floor(Math.random() * questPool.length)]);
+  const availableTemplates = categoryTemplates.filter(
+    (t) => !excludes.has(t.title.toLowerCase())
+  );
 
-  const randomIcon = iconOptions[Math.floor(Math.random() * iconOptions.length)] as string;
-
-  const minNoByDifficulty: Record<QuestDifficulty, number> = {
-    easy: 3,
-    medium: 5,
-    hard: 8,
-    extreme: 10,
-  };
-
-  const requiredCount = minNoByDifficulty[difficulty];
-
-  let title = baseTemplate.title;
-  let baseDescription = baseTemplate.descriptionTemplate
-    ? baseTemplate.descriptionTemplate(requiredCount)
-    : baseTemplate.description;
-
-  if (excludes.has(title.toLowerCase())) {
-    const variants = [
-      'in a different setting',
-      'with a twist',
-      'targeting a new audience',
-      'using a bold opener',
-      'with a time limit',
-      'at a location you rarely visit',
-      'with an unexpected angle',
-    ];
-    const variant = variants[Math.floor(Math.random() * variants.length)];
-    title = `${title} – ${params.rank} Remix`;
-    baseDescription = `${baseDescription}. Do it ${variant}.`;
+  if (availableTemplates.length === 0) {
+    console.warn('[REJECTION COACH] ⚠️ All templates used, resetting pool for category:', categoryId);
+    // If all templates used, allow reuse but log it
   }
 
-  const encouragements = [
-    'Getting a no is a win.',
-    'Each rejection builds your resilience.',
-    'Every no earns XP.'
-  ] as const;
-  const reflectionByDifficulty: Record<QuestDifficulty, string> = {
-    easy: 'Write one sentence on how the first no felt.',
-    medium: 'After the third attempt, note what opener felt most natural.',
-    hard: 'Reflect on a visible moment of discomfort and what you learned.',
-    extreme: 'Journal how you managed pressure when others were watching.'
-  };
-  const reflection = reflectionByDifficulty[difficulty];
-  const encouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+  const template = availableTemplates.length > 0
+    ? availableTemplates[Math.floor(Math.random() * availableTemplates.length)]
+    : categoryTemplates[Math.floor(Math.random() * categoryTemplates.length)];
 
-  const description = `${baseDescription} Goal: Get at least ${requiredCount} ${requiredCount === 1 ? 'no' : "no's"}. ${encouragement} Reflection: ${reflection}`;
+  // Progressive difficulty based on level
+  const intensity = getIntensityForLevel(level);
+  const noCount = template.intensityScaling[intensity];
+
+  console.log('[REJECTION COACH] 📈 Level', level, '→ Intensity:', intensity, '→ Required NO\'s:', noCount);
+
+  // Generate action-focused description
+  const description = template.getDescription({
+    count: noCount,
+    level,
+    intensity,
+  });
+
+  // Add countdown timer
+  const timerMinutes = getTimerForDifficulty(difficulty, source);
+  const timerEndAt = new Date(Date.now() + timerMinutes * 60 * 1000).toISOString();
+
+  console.log('[REJECTION COACH] ⏱️ Timer set:', timerMinutes, 'minutes (ends at', new Date(timerEndAt).toLocaleTimeString(), ')');
+
+  // Add location if quest requires it and location available
+  const questLocation = template.requiresLocation && userLocation
+    ? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        address: 'Within 10-20 miles of your location',
+      }
+    : undefined;
+
+  if (template.requiresLocation && !userLocation) {
+    console.warn('[REJECTION COACH] ⚠️ Quest requires location but none provided');
+  }
 
   const quest: Quest = {
     id: Date.now().toString(),
-    title,
-    description,
+    title: template.title,
+    description: `🎯 ${template.actionStatement}\n\n${description}\n\n⏱️ You have ${timerMinutes} minutes.\n💪 Remember: YES doesn't count - only NO's build your rejection immunity!`,
     type: isSuperQuest ? 'special' : difficulty === 'easy' ? 'daily' : difficulty === 'extreme' ? 'special' : 'weekly',
     difficulty,
     points: calculatePoints(difficulty, level, isSuperQuest),
     xp: calculateXP(difficulty, level, isSuperQuest),
     completed: false,
-    icon: baseTemplate.icon || randomIcon,
-    minNoRequired: requiredCount,
+    icon: template.icon,
+    minNoRequired: noCount,
+    durationMinutes: timerMinutes,
+    timerEndAt,
+    location: questLocation,
     category: categoryId,
+    source: 'ai',
+    createdAt: new Date(),
   };
 
-  console.log('[QUEST AI] ✅ Quest generated successfully!');
-  console.log('[QUEST AI] 📁 Category:', quest.category || 'general');
-  console.log('[QUEST AI] 📝 Title:', quest.title);
-  console.log('[QUEST AI] 🎯 Difficulty:', quest.difficulty, '| Min No Required:', quest.minNoRequired);
-  
-  if (categoryLocked) {
-    console.log('[QUEST AI] 🔒 Category lock MAINTAINED - quest stays in', categoryId, 'category');
-  }
-  
+  console.log('[REJECTION COACH] ✅ Quest generated successfully!');
+  console.log('[REJECTION COACH] 📁 Category:', quest.category, '(LOCKED)');
+  console.log('[REJECTION COACH] 📝 Title:', quest.title);
+  console.log('[REJECTION COACH] 🎯 Target NO\'s:', quest.minNoRequired);
+  console.log('[REJECTION COACH] ⏱️ Timer:', quest.durationMinutes, 'minutes');
+  console.log('[REJECTION COACH] 📍 Location:', quest.location ? 'Set' : 'Not required');
+
   return quest;
 }
