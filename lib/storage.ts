@@ -3,9 +3,13 @@
  * 
  * Prevents premature AsyncStorage access during app startup.
  * All storage operations must wait for explicit initialization.
+ * Includes comprehensive error handling and data validation.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 100;
 
 // Storage initialization state
 let storageReady = false;
@@ -181,6 +185,7 @@ export function isStorageAvailable(): boolean {
 export const guardedStorage = {
   /**
    * Get an item from storage (returns null if not ready)
+   * Includes retry logic and validation
    */
   async getItem(key: string): Promise<string | null> {
     if (!storageReady) {
@@ -189,31 +194,83 @@ export const guardedStorage = {
     }
     
     if (!storageAvailable) {
-      // Silently return null - storage unavailable is expected state
       return null;
     }
     
-    try {
-      return await AsyncStorage.getItem(key);
-    } catch (error) {
-      console.error(`[STORAGE] Error getting item "${key}":`, error);
-      return null;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const value = await AsyncStorage.getItem(key);
+        
+        if (value === null || value === undefined) {
+          return null;
+        }
+        
+        if (typeof value !== 'string') {
+          console.warn(`[STORAGE] Invalid value type for "${key}", expected string`);
+          await AsyncStorage.removeItem(key);
+          return null;
+        }
+        
+        if (value.trim().length === 0) {
+          console.warn(`[STORAGE] Empty value for "${key}", cleaning up`);
+          await AsyncStorage.removeItem(key);
+          return null;
+        }
+        
+        return value;
+      } catch (error) {
+        console.error(`[STORAGE] Error getting item "${key}" (attempt ${attempt + 1}/${MAX_RETRIES}):`, error);
+        
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        } else {
+          return null;
+        }
+      }
     }
+    
+    return null;
   },
 
   /**
    * Set an item in storage (no-op if not ready)
+   * Validates data before storing and includes retry logic
    */
   async setItem(key: string, value: string): Promise<void> {
     if (!storageReady || !storageAvailable) {
-      // Silently no-op if storage is unavailable
       return;
     }
     
-    try {
-      await AsyncStorage.setItem(key, value);
-    } catch (error) {
-      console.error(`[STORAGE] Error setting item "${key}":`, error);
+    if (typeof value !== 'string') {
+      console.error(`[STORAGE] Cannot set "${key}": value must be a string`);
+      return;
+    }
+    
+    if (value.trim().length === 0) {
+      console.warn(`[STORAGE] Attempting to set empty value for "${key}", skipping`);
+      return;
+    }
+    
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        await AsyncStorage.setItem(key, value);
+        return;
+      } catch (error: any) {
+        console.error(`[STORAGE] Error setting item "${key}" (attempt ${attempt + 1}/${MAX_RETRIES}):`, error);
+        
+        const isQuotaError = error?.name === 'QuotaExceededError' || 
+                           error?.code === 22 ||
+                           error?.message?.includes('quota');
+        
+        if (isQuotaError) {
+          console.error(`[STORAGE] Storage quota exceeded for "${key}"`);
+          return;
+        }
+        
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        }
+      }
     }
   },
 
@@ -337,6 +394,145 @@ export const devMode = {
     if (__DEV__) {
       disableStorageAccess();
       console.log('[STORAGE] Storage disabled in dev mode');
+    }
+  },
+};
+
+/**
+ * Safe JSON operations with error handling
+ */
+export const safeJSON = {
+  /**
+   * Safely parse JSON with fallback
+   */
+  parse<T>(value: string | null, fallback: T): T {
+    if (!value || value.trim().length === 0) {
+      return fallback;
+    }
+    
+    try {
+      const parsed = JSON.parse(value);
+      return parsed as T;
+    } catch (error) {
+      console.error('[STORAGE] JSON parse error:', error);
+      console.error('[STORAGE] Invalid JSON (first 100 chars):', value.substring(0, 100));
+      return fallback;
+    }
+  },
+  
+  /**
+   * Safely stringify JSON with error handling
+   */
+  stringify<T>(value: T): string | null {
+    try {
+      return JSON.stringify(value);
+    } catch (error) {
+      console.error('[STORAGE] JSON stringify error:', error);
+      return null;
+    }
+  },
+};
+
+/**
+ * Type-safe storage wrapper with automatic JSON handling
+ */
+export const typedStorage = {
+  /**
+   * Get and parse JSON item
+   */
+  async getJSON<T>(key: string, fallback: T): Promise<T> {
+    const value = await guardedStorage.getItem(key);
+    return safeJSON.parse(value, fallback);
+  },
+  
+  /**
+   * Stringify and set JSON item
+   */
+  async setJSON<T>(key: string, value: T): Promise<boolean> {
+    const serialized = safeJSON.stringify(value);
+    
+    if (!serialized) {
+      console.error(`[STORAGE] Failed to serialize value for "${key}"`);
+      return false;
+    }
+    
+    await guardedStorage.setItem(key, serialized);
+    return true;
+  },
+  
+  /**
+   * Remove item
+   */
+  async remove(key: string): Promise<void> {
+    await guardedStorage.removeItem(key);
+  },
+  
+  /**
+   * Check if key exists
+   */
+  async has(key: string): Promise<boolean> {
+    const value = await guardedStorage.getItem(key);
+    return value !== null;
+  },
+};
+
+/**
+ * Batch operations with transaction-like behavior
+ */
+export const batchStorage = {
+  /**
+   * Set multiple items atomically (all or nothing)
+   */
+  async setMultiple(items: Record<string, any>): Promise<boolean> {
+    if (!storageReady || !storageAvailable) {
+      console.warn('[STORAGE] Batch operation blocked - storage not ready');
+      return false;
+    }
+    
+    const pairs: [string, string][] = [];
+    
+    for (const [key, value] of Object.entries(items)) {
+      const serialized = safeJSON.stringify(value);
+      if (!serialized) {
+        console.error(`[STORAGE] Failed to serialize "${key}" in batch operation`);
+        return false;
+      }
+      pairs.push([key, serialized]);
+    }
+    
+    try {
+      await guardedStorage.multiSet(pairs);
+      return true;
+    } catch (error) {
+      console.error('[STORAGE] Batch set failed:', error);
+      return false;
+    }
+  },
+  
+  /**
+   * Get multiple items at once
+   */
+  async getMultiple<T extends Record<string, any>>(
+    keys: string[],
+    defaults: T
+  ): Promise<T> {
+    if (!storageReady || !storageAvailable) {
+      return defaults;
+    }
+    
+    try {
+      const pairs = await guardedStorage.multiGet(keys);
+      const result = { ...defaults };
+      
+      for (const [key, value] of pairs) {
+        const parsed = safeJSON.parse(value, defaults[key]);
+        result[key] = parsed;
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('[STORAGE] Batch get failed:', error);
+      return defaults;
     }
   },
 };

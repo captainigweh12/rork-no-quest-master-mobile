@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { guardedStorage, safeJSON } from '@/lib/storage';
 import type {
   Friend,
   FriendInvite,
@@ -55,24 +55,14 @@ const STORAGE_KEYS = {
 
 async function getItem<T>(key: string): Promise<T | null> {
   try {
-    const item = await AsyncStorage.getItem(key);
+    const item = await guardedStorage.getItem(key);
     if (!item) return null;
     
-    if (item.trim().length === 0) {
-      console.warn(`[localStorage] Empty value for key: ${key}, removing...`);
-      await AsyncStorage.removeItem(key);
-      return null;
+    const parsed = safeJSON.parse<T | null>(item, null);
+    if (parsed === null) {
+      await guardedStorage.removeItem(key);
     }
-    
-    try {
-      return JSON.parse(item);
-    } catch (parseError) {
-      console.error(`[localStorage] JSON parse error for key: ${key}`);
-      console.error(`[localStorage] Invalid value (first 100 chars):`, item.substring(0, 100));
-      console.error(`[localStorage] Parse error:`, parseError);
-      await AsyncStorage.removeItem(key);
-      return null;
-    }
+    return parsed;
   } catch (error) {
     console.error(`[localStorage] Error getting ${key}:`, error);
     return null;
@@ -81,9 +71,12 @@ async function getItem<T>(key: string): Promise<T | null> {
 
 async function setItem<T>(key: string, value: T): Promise<void> {
   try {
-    await AsyncStorage.setItem(key, JSON.stringify(value));
+    const serialized = safeJSON.stringify(value);
+    if (serialized) {
+      await guardedStorage.setItem(key, serialized);
+    }
   } catch (error) {
-    console.error(`Error setting ${key}:`, error);
+    console.error(`[localStorage] Error setting ${key}:`, error);
   }
 }
 
@@ -165,8 +158,8 @@ export const localStorageService = {
 
   async signOut() {
     console.log('[localStorage] Signing out');
-    await AsyncStorage.removeItem(STORAGE_KEYS.SESSION);
-    await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    await guardedStorage.removeItem(STORAGE_KEYS.SESSION);
+    await guardedStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   },
 
   async getSession() {
@@ -683,7 +676,7 @@ export const localStorageService = {
     user.emailVerified = true;
     user.verificationCode = undefined;
     await setItem(STORAGE_KEYS.USERS, users);
-    await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_VERIFICATION);
+    await guardedStorage.removeItem(STORAGE_KEYS.PENDING_VERIFICATION);
 
     console.log('[localStorage] Email verified successfully');
     return { success: true };
