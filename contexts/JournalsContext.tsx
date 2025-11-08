@@ -38,8 +38,19 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as JournalEntry[];
-          if (Array.isArray(parsed)) setJournals(parsed);
+          try {
+            const parsed = JSON.parse(raw) as JournalEntry[];
+            if (Array.isArray(parsed)) {
+              setJournals(parsed);
+            } else {
+              console.warn('[JournalsContext] Parsed data is not an array, clearing');
+              await AsyncStorage.removeItem(STORAGE_KEY);
+            }
+          } catch (parseError) {
+            console.error('[JournalsContext] Invalid JSON in storage, clearing corrupted data:', parseError);
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            setError('Corrupted data cleared');
+          }
         }
       } catch (e) {
         setError('Failed to load journals');

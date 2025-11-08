@@ -27,6 +27,7 @@ import TrpcProvider from "@/providers/TrpcProvider";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { localStorageService } from "@/lib/localStorage";
 import { useAppInit } from "@/hooks/useAppInit";
+import React from "react";
 
 LogBox.ignoreLogs([
   'Deep imports from the \'react-native\' package are deprecated',
@@ -260,6 +261,25 @@ function RootLayoutNav() {
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const { isInitializing, isReady, error } = useAppInit();
   const [showError, setShowError] = useState(false);
+  
+  // Global error handler for uncaught errors during initialization
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args) => {
+      // Log the error normally
+      originalError(...args);
+      
+      // Check if it's a syntax error related to JSON parsing
+      const errorStr = args.join(' ');
+      if (errorStr.includes('SyntaxError') || errorStr.includes("';' expected")) {
+        console.warn('[APP] 🚨 Detected SyntaxError during initialization - storage may be corrupted');
+      }
+    };
+    
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
 
   // Show loading screen during initialization
   if (isInitializing) {

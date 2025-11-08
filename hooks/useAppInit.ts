@@ -43,8 +43,12 @@ export function useAppInit() {
         try {
           await emergencyClearCorruptedStorage();
           console.log('[APP_INIT] Emergency clear complete ✓');
-        } catch (clearError) {
+        } catch (clearError: any) {
           console.error('[APP_INIT] Emergency clear failed (continuing anyway):', clearError);
+          // Log the specific error type and message
+          if (clearError instanceof SyntaxError) {
+            console.error('[APP_INIT] SyntaxError detected during clear:', clearError.message);
+          }
         }
 
         // Step 1: Initialize storage system
@@ -85,8 +89,21 @@ export function useAppInit() {
           storageAvailable: available,
           error: null,
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('[APP_INIT] ❌ Initialization failed:', error);
+        
+        // Log detailed error information
+        if (error instanceof SyntaxError) {
+          console.error('[APP_INIT] SyntaxError:', error.message);
+          console.error('[APP_INIT] This usually means corrupted data in AsyncStorage');
+          // Try emergency clear again if it's a syntax error
+          try {
+            console.log('[APP_INIT] Attempting second emergency clear...');
+            await emergencyClearCorruptedStorage();
+          } catch (secondError) {
+            console.error('[APP_INIT] Second clear also failed:', secondError);
+          }
+        }
         
         if (!mounted) return;
         

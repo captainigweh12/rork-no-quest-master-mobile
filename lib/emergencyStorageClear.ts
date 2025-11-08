@@ -73,8 +73,13 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
         // Try to parse as JSON
         // Most storage values should be valid JSON
         try {
-          JSON.parse(value);
+          const parsed = JSON.parse(value);
           // Valid JSON - this key is fine
+          // But also check if the parsed result is reasonable
+          if (parsed === undefined || Number.isNaN(parsed)) {
+            console.warn(`[EMERGENCY] ⚠️ Key "${key}" parsed to invalid value (undefined/NaN)`);
+            corruptedKeys.add(key);
+          }
         } catch (parseError: any) {
           console.warn(`[EMERGENCY] ⚠️ Key "${key}" has invalid JSON:`, parseError.message);
           console.warn(`[EMERGENCY]    Value preview: ${value.substring(0, 100)}`);
@@ -83,8 +88,25 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
         
         // Additional check: keys starting with "obj" or "arr" or other weird prefixes
         // These are often corrupted values from failed JSON stringification
-        if (value.startsWith('obj') || value.startsWith('arr') || value.startsWith('[object') || value.startsWith('undefined') || value.startsWith('null') || value === 'NaN') {
+        const suspiciousPatterns = [
+          'obj', 'arr', '[object', 'undefined', 'null', 'NaN',
+          'function', 'symbol', 'bigint', // Invalid primitives
+          '${', '`', // Template literal fragments
+          'Error:', 'TypeError:', 'SyntaxError:', // Error objects
+        ];
+        
+        const hasSuspiciousPattern = suspiciousPatterns.some(pattern => 
+          value.startsWith(pattern) || value === pattern
+        );
+        
+        if (hasSuspiciousPattern) {
           console.warn(`[EMERGENCY] ⚠️ Key "${key}" has suspicious value pattern`);
+          corruptedKeys.add(key);
+        }
+        
+        // Check for values that are too short to be valid JSON objects/arrays
+        if ((value.startsWith('{') || value.startsWith('[')) && value.length < 2) {
+          console.warn(`[EMERGENCY] ⚠️ Key "${key}" has incomplete JSON structure`);
           corruptedKeys.add(key);
         }
       } catch (error: any) {

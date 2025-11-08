@@ -136,7 +136,17 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
     const loadState = async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        const parsed: YouTubeLinkState | null = raw ? JSON.parse(raw) : null;
+        let parsed: YouTubeLinkState | null = null;
+        
+        if (raw) {
+          try {
+            parsed = JSON.parse(raw);
+          } catch (parseError) {
+            console.error('[YouTubeContext] Invalid JSON in storage, clearing corrupted data:', parseError);
+            await AsyncStorage.removeItem(STORAGE_KEY);
+          }
+        }
+        
         if (mounted) {
           setState(parsed);
           setIsLoading(false);
