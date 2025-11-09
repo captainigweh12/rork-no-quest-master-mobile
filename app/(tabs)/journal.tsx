@@ -6,7 +6,7 @@ import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/Journal
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen, X, Sparkles, Lock, Users, Globe, Share2, ImagePlus } from 'lucide-react-native';
 import { Stack } from 'expo-router';
-import { generateObject } from '@rork/toolkit-sdk';
+import { generateObject } from 'ai';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import * as communityService from '@/services/supabase/community';

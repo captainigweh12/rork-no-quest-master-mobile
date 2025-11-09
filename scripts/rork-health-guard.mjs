@@ -149,9 +149,13 @@ if (exists(pkgPath)) {
 const deps = { ...(pkg.dependencies||{}), ...(pkg.devDependencies||{}) };
 const usesMMKV = 'react-native-mmkv' in deps;
 const usesNative = ['react-native-mmkv','@react-native-segmented-control/segmented-control','react-native-reanimated'].some(d => d in deps);
+const usesAsyncStorage = '@react-native-async-storage/async-storage' in deps;
 
 if (usesMMKV) {
   console.log(gray('MMKV detected.'));
+}
+if (usesAsyncStorage) {
+  console.log(gray('AsyncStorage detected - runtime storage health guard active'));
 }
 if (usesNative) {
   const usingExpoGo = !process.env.EXPO_DEV_CLIENT && !process.argv.includes('--assume-dev-client');
@@ -182,6 +186,15 @@ function quickResolveScan() {
   }
 }
 quickResolveScan();
+
+// Check for storage health guard integration
+const storageGuardPath = path.join(PROJECT_ROOT, 'lib', 'emergencyStorageClear.ts');
+if (exists(storageGuardPath)) {
+  console.log(gray('✓ Storage health guard detected - will run at app startup'));
+  console.log(gray('  - Handles AsyncStorage corruption detection'));
+  console.log(gray('  - Auto-clears corrupted keys on startup'));
+  console.log(gray('  - Failsafe for SyntaxError in storage values'));
+}
 
 if (FIX_MODE) {
   cleanCaches();
