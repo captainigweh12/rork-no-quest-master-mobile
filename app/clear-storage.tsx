@@ -3,8 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback, useEffect } from 'react';
 import { getBaseUrl, getDefaultBaseUrl, isStaleUrl, clearStaleUrlIfNeeded } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getTrpcClient } from '@/lib/trpc';
-
+import { emergencyClearCorruptedStorage } from '@/lib/emergencyStorageClear';
 import { createTrpcClient } from '@/lib/trpc';
 
 const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
@@ -141,6 +140,36 @@ export default function ClearStorageScreen() {
     }
   }
 
+  const handleNuclearClear = useCallback(async () => {
+    Alert.alert(
+      '⚠️ Nuclear Clear',
+      'This will completely wipe all storage (SQLite + AsyncStorage) without reading anything. Use this only if the app is stuck with corrupted data.\n\nContinue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Nuclear Clear',
+          style: 'destructive',
+          onPress: async () => {
+            setIsClearing(true);
+            setTestResult(null);
+            try {
+              console.log('[Clear Storage] Nuclear clear initiated...');
+              await emergencyClearCorruptedStorage();
+              setTestResult('✅ Nuclear clear complete!\n\nAll storage wiped.\n\nPlease close and restart the app.');
+              Alert.alert('Success', 'Nuclear clear complete! Please force-quit and restart the app.', [{ text: 'OK' }]);
+            } catch (error) {
+              console.error('[Clear Storage] Nuclear clear failed:', error);
+              const message = error instanceof Error ? error.message : String(error);
+              setTestResult(`❌ Nuclear clear failed: ${message}`);
+            } finally {
+              setIsClearing(false);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
 
 
   return (
@@ -158,7 +187,7 @@ export default function ClearStorageScreen() {
           </Text>
           <Text style={[styles.value, styles.staleUrlText]}>{staleUrlDetected}</Text>
           <Text style={styles.warningText}>
-            This URL contains "rorkset.dev" which is no longer valid.
+            This URL contains &quot;rorkset.dev&quot; which is no longer valid.
           </Text>
         </View>
       )}
@@ -238,6 +267,21 @@ export default function ClearStorageScreen() {
         <Text style={styles.buttonText}>📦 View AsyncStorage</Text>
       </TouchableOpacity>
 
+      <View style={styles.divider} />
+
+      <TouchableOpacity 
+        testID="nuclear-clear-button"
+        style={[styles.button, styles.nuclearButton]} 
+        onPress={handleNuclearClear}
+        disabled={isClearing}
+      >
+        {isClearing ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>☢️ NUCLEAR CLEAR (Last Resort)</Text>
+        )}
+      </TouchableOpacity>
+
       {testResult && (
         <View testID="test-result" style={[styles.section, testResult.includes('✅') ? styles.success : styles.error]}>
           <Text style={styles.resultText}>{testResult}</Text>
@@ -261,7 +305,7 @@ export default function ClearStorageScreen() {
           </>
         ) : (
           <>
-            If you're seeing tRPC 404 errors:{"\n\n"}
+            If you&apos;re seeing tRPC 404 errors:{"\n\n"}
             1. Tap {`"`}Force Set Render URL{`"`} above{"\n"}
             2. Wait for confirmation{"\n"}
             3. Close the app completely (swipe away from recent apps){"\n"}
@@ -423,5 +467,8 @@ const styles = StyleSheet.create({
     color: '#DC3545',
     fontWeight: '600',
     marginTop: 4,
+  },
+  nuclearButton: {
+    backgroundColor: '#8B0000',
   },
 });
