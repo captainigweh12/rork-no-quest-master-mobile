@@ -35,3 +35,7 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 .vercel
+
+# Process management
+.backend-process.pid
+.backend-process.pid.tmp

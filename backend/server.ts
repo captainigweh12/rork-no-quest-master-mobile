@@ -10,6 +10,7 @@ config({ path: resolve(process.cwd(), 'backend/.env'), override: true });
 
 // ✅ Import Hono app AFTER envs are loaded
 import app from './hono.js';
+import { ProcessManager } from './process-manager.js';
 
 function getLanIP(): string | null {
   const nets = networkInterfaces();
@@ -24,47 +25,50 @@ function getLanIP(): string | null {
 }
 
 async function startServer() {
-  const startPort = Number(process.env.PORT ?? 8081);
   const hostname = '0.0.0.0' as const;
-  const maxAttempts = 10;
 
-  for (let i = 0; i < maxAttempts; i += 1) {
-    const port = startPort + i;
-    try {
-      const server = serve({ fetch: app.fetch, port, hostname });
-      const lan = getLanIP();
+  try {
+    // 🛡️ Initialize process manager (handles stale processes, graceful shutdown)
+    await ProcessManager.checkForStaleProcess();
 
-      console.log(`\n🚀 [Hono] Listening on: http://localhost:${port}`);
-      if (lan) console.log(`🌐 LAN address: http://${lan}:${port}`);
-
-      // 🔍 Print environment presence for quick verification
-      console.log('\n[ENV CHECK]');
-      console.log('AGORA_APP_ID present:', !!process.env.AGORA_APP_ID);
-      console.log('AGORA_APP_CERTIFICATE present:', !!process.env.AGORA_APP_CERTIFICATE);
-      console.log('AGORA_CUSTOMER_ID present:', !!process.env.AGORA_CUSTOMER_ID);
-      console.log('AGORA_CUSTOMER_SECRET present:', !!process.env.AGORA_CUSTOMER_SECRET);
-      console.log('MINT_RTC_TOKEN_SECRET present:', !!process.env.MINT_RTC_TOKEN_SECRET);
-      console.log('VIDEOSDK_API_KEY present:', !!process.env.VIDEOSDK_API_KEY);
-      console.log('VIDEOSDK_SECRET_KEY present:', !!process.env.VIDEOSDK_SECRET_KEY);
-      console.log('RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
-      console.log('SUPABASE_WEBHOOK_SECRET present:', !!process.env.SUPABASE_WEBHOOK_SECRET);
-
-      return server;
-    } catch (err: any) {
-      if (
-        err?.message?.includes('address already in use') ||
-        err?.code === 'EADDRINUSE'
-      ) {
-        console.error(`[Hono] Port ${port} in use, trying ${port + 1}...`);
-        continue;
-      }
-      console.error('[Hono] Failed to start server:', err?.message ?? err);
-      process.exit(1);
+    // 🔍 Find a free port (with multi-port fallback)
+    const requestedPort = Number(process.env.PORT ?? 8081);
+    const port = await ProcessManager.reservePort(requestedPort, 8090);
+    
+    if (port !== requestedPort) {
+      console.log(`⚠️  Requested port ${requestedPort} busy; using ${port} instead`);
     }
-  }
 
-  console.error(`[Hono] Could not find a free port starting from ${startPort} after ${maxAttempts} attempts.`);
-  process.exit(1);
+    await ProcessManager.initialize({ portHint: port });
+    await ProcessManager.ensurePortFree(port);
+    
+    const server = serve({ fetch: app.fetch, port, hostname });
+    
+    // Attach server for graceful shutdown with socket draining
+    ProcessManager.withHttpServer(server as any);
+    
+    const lan = getLanIP();
+
+    console.log(`\n🚀 [Hono] Listening on: http://localhost:${port}`);
+    if (lan) console.log(`🌐 LAN address: http://${lan}:${port}`);
+
+    // 🔍 Print environment presence for quick verification
+    console.log('\n[ENV CHECK]');
+    console.log('AGORA_APP_ID present:', !!process.env.AGORA_APP_ID);
+    console.log('AGORA_APP_CERTIFICATE present:', !!process.env.AGORA_APP_CERTIFICATE);
+    console.log('AGORA_CUSTOMER_ID present:', !!process.env.AGORA_CUSTOMER_ID);
+    console.log('AGORA_CUSTOMER_SECRET present:', !!process.env.AGORA_CUSTOMER_SECRET);
+    console.log('MINT_RTC_TOKEN_SECRET present:', !!process.env.MINT_RTC_TOKEN_SECRET);
+    console.log('VIDEOSDK_API_KEY present:', !!process.env.VIDEOSDK_API_KEY);
+    console.log('VIDEOSDK_SECRET_KEY present:', !!process.env.VIDEOSDK_SECRET_KEY);
+    console.log('RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
+    console.log('SUPABASE_WEBHOOK_SECRET present:', !!process.env.SUPABASE_WEBHOOK_SECRET);
+
+    return server;
+  } catch (err: any) {
+    console.error('[Hono] Failed to start server:', err?.message ?? err);
+    process.exit(1);
+  }
 }
 
 startServer();
