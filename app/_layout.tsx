@@ -30,7 +30,7 @@ import TrpcProvider from "@/providers/TrpcProvider";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { localStorageService } from "@/lib/localStorage";
 import { useAppInit } from "@/hooks/useAppInit";
-import { runStorageHealthGuard, nuclearClear } from '@/lib/storage/healthGuard';
+import { runFullHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
 import React from "react";
 
 LogBox.ignoreLogs([
@@ -273,16 +273,29 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        console.log('[APP] 🔍 Running storage health guard with auto-clear...');
-        const summary = await runStorageHealthGuard({ 
-          autoErase: true, 
-          scanAllUnknownKeys: true 
-        });
-        console.log('[APP] ✅ Storage health guard complete:', summary);
+        console.log('[APP] 🔍 Running full health check with auto-clear...');
+        const report = await runFullHealthCheck();
+        
+        const totalIssues = 
+          report.storage.deleted_invalid_json.length +
+          report.storage.deleted_bad_shape.length +
+          report.storage.expired.length;
+        
+        if (totalIssues > 0) {
+          console.log(`[APP] ✅ Auto-cleared ${totalIssues} corrupt/stale items`);
+        }
+        
+        console.log('[APP] ✅ Health check complete');
+        console.log(`[APP] 📊 Environment: ${report.environment.storageType} on ${report.environment.platform}`);
       } catch (e: unknown) {
         const err = e as Error;
-        console.warn('[APP] ⚠️ Health guard failed, running nuclear clear', err?.message);
-        await nuclearClear();
+        console.warn('[APP] ⚠️ Health check failed, running nuclear clear', err?.message);
+        try {
+          await nuclearClear();
+          console.log('[APP] ✅ Nuclear clear successful - please reload');
+        } catch (clearErr) {
+          console.error('[APP] ❌ Nuclear clear failed:', clearErr);
+        }
       }
     })();
   }, []);

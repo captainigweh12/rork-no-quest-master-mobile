@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback, useEffect } from 'react';
 import { getBaseUrl, getDefaultBaseUrl, isStaleUrl, clearStaleUrlIfNeeded } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { runStorageHealthGuard, nuclearClear } from '@/lib/storage/healthGuard';
+import { runFullHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
 import { createTrpcClient } from '@/lib/trpc';
 
 const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
@@ -143,18 +143,16 @@ export default function ClearStorageScreen() {
   const handleHealthCheck = useCallback(async () => {
     setTestResult(null);
     try {
-      console.log('[Clear Storage] Running storage health guard with auto-clear...');
-      const summary = await runStorageHealthGuard({ 
-        autoErase: true, 
-        scanAllUnknownKeys: true 
-      });
-      const totalIssues = 
-        summary.deleted_invalid_json.length +
-        summary.deleted_bad_shape.length +
-        summary.expired.length +
-        summary.fixed_defaulted.length;
+      console.log('[Clear Storage] Running full health check with auto-clear...');
+      const report = await runFullHealthCheck();
       
-      const report = Object.entries(summary)
+      const totalIssues = 
+        report.storage.deleted_invalid_json.length +
+        report.storage.deleted_bad_shape.length +
+        report.storage.expired.length +
+        report.storage.fixed_defaulted.length;
+      
+      const storageReport = Object.entries(report.storage)
         .map(([action, keys]) => {
           const count = (keys as string[]).length;
           if (count === 0) return null;
@@ -164,14 +162,17 @@ export default function ClearStorageScreen() {
         .join('\n');
       
       setTestResult(
-        `✅ Storage health guard complete!\n\n` +
+        `✅ Full health check complete!\n\n` +
+        `Environment: ${report.environment.storageType} on ${report.environment.platform}\n` +
+        `MMKV Available: ${report.environment.hasMMKV ? 'Yes' : 'No'}\n\n` +
         `${totalIssues > 0 ? `Auto-cleared ${totalIssues} corrupt/stale items\n\n` : 'No issues found!\n\n'}` +
-        `${report || 'All storage keys are healthy'}`
+        `${storageReport || 'All storage keys are healthy'}\n\n` +
+        `Timestamp: ${new Date(report.timestamp).toLocaleString()}`
       );
     } catch (error) {
-      console.error('[Clear Storage] Health guard failed:', error);
+      console.error('[Clear Storage] Health check failed:', error);
       const message = error instanceof Error ? error.message : String(error);
-      setTestResult(`❌ Health guard failed: ${message}`);
+      setTestResult(`❌ Health check failed: ${message}`);
     }
   }, []);
 
