@@ -2,35 +2,66 @@
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
 
-// CRITICAL: Pre-emptive corruption check before ANY storage reads
+// CRITICAL: Immediately test and clear corrupted storage BEFORE ANYTHING ELSE
 if (Platform.OS !== 'web') {
   (async () => {
     try {
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
       
-      // Nuclear option: if we get any storage-related error in the next 100ms,
-      // we'll clear everything
-      const originalError = console.error;
-      let detectedStorageError = false;
+      console.log('[PRE-INIT] Testing storage integrity...');
       
-      console.error = (...args: any[]) => {
-        const errorStr = args.join(' ');
-        if ((errorStr.includes('SyntaxError') || errorStr.includes("';' expected")) && !detectedStorageError) {
-          detectedStorageError = true;
-          console.log('[PRE-INIT] 🚨 Detected storage corruption, clearing ALL storage immediately...');
-          AsyncStorage.clear()
-            .then(() => console.log('[PRE-INIT] ✅ Emergency clear successful'))
-            .catch((err: any) => console.error('[PRE-INIT] ❌ Emergency clear failed:', err));
+      // Try to read a test key - if this fails with SyntaxError, storage is corrupted
+      try {
+        // Try to get all keys - if this throws, storage is severely corrupted
+        const keys = await AsyncStorage.getAllKeys();
+        console.log(`[PRE-INIT] Found ${keys.length} keys`);
+        
+        // Try to read one value to test parsing
+        if (keys.length > 0) {
+          for (const key of keys.slice(0, 5)) {
+            try {
+              await AsyncStorage.getItem(key);
+            } catch (readError: any) {
+              if (readError.message?.includes('SyntaxError') || readError.message?.includes("';' expected")) {
+                throw new Error(`Corrupted key detected: ${key}`);
+              }
+            }
+          }
         }
-        originalError(...args);
-      };
+        
+        console.log('[PRE-INIT] ✅ Storage integrity check passed');
+      } catch (testError: any) {
+        console.error('[PRE-INIT] 🚨 Storage is corrupted:', testError.message);
+        console.log('[PRE-INIT] Clearing ALL storage NOW...');
+        
+        // Nuclear clear - don't try to be smart, just clear everything
+        try {
+          await AsyncStorage.clear();
+          console.log('[PRE-INIT] ✅ Emergency clear successful');
+          console.log('[PRE-INIT] Please restart the app');
+        } catch (clearError: any) {
+          console.error('[PRE-INIT] ❌ Clear failed:', clearError.message);
+          
+          // Last resort: try to remove keys individually
+          try {
+            const keys = await AsyncStorage.getAllKeys();
+            console.log(`[PRE-INIT] Attempting to remove ${keys.length} keys individually...`);
+            for (const key of keys) {
+              try {
+                await AsyncStorage.removeItem(key);
+              } catch (e) {
+                // Ignore individual failures
+              }
+            }
+            console.log('[PRE-INIT] ✅ Individual key removal complete');
+          } catch (e) {
+            console.error('[PRE-INIT] ❌ Even individual removal failed');
+          }
+        }
+      }
       
-      // Restore after 2 seconds
-      setTimeout(() => {
-        console.error = originalError;
-      }, 2000);
-    } catch (e) {
-      // Silently ignore - this is best-effort
+    } catch (e: any) {
+      console.error('[PRE-INIT] Fatal error:', e.message);
     }
   })();
 }
