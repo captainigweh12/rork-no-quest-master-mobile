@@ -6,7 +6,7 @@ type KV = {
   set(k: string, v: string): Promise<void> | void;
   del(k: string): Promise<void> | void;
   clear(): Promise<void> | void;
-  allKeys?(): Promise<readonly string[]>;
+  allKeys?(): Promise<string[]>;
 };
 
 let Storage: KV;
@@ -30,7 +30,10 @@ try {
     set: (k, v) => AsyncStorage.setItem(k, v),
     del: (k) => AsyncStorage.removeItem(k),
     clear: () => AsyncStorage.clear(),
-    allKeys: () => AsyncStorage.getAllKeys(),
+    allKeys: async () => {
+      const keys = await AsyncStorage.getAllKeys();
+      return [...keys];
+    },
   };
   console.log('[Storage] Using AsyncStorage (Expo Go compatible)');
 }
