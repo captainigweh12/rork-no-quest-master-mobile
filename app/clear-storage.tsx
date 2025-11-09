@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback, useEffect } from 'react';
 import { getBaseUrl, getDefaultBaseUrl, isStaleUrl, clearStaleUrlIfNeeded } from '@/lib/baseUrl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { emergencyClearCorruptedStorage } from '@/lib/emergencyStorageClear';
+import { runStorageHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
 import { createTrpcClient } from '@/lib/trpc';
 
 const RENDER_URL = 'https://rork-no-quest-master-mobile.onrender.com';
@@ -140,10 +140,26 @@ export default function ClearStorageScreen() {
     }
   }
 
+  const handleHealthCheck = useCallback(async () => {
+    setTestResult(null);
+    try {
+      console.log('[Clear Storage] Running health check...');
+      const summary = await runStorageHealthCheck();
+      const report = Object.entries(summary)
+        .map(([action, keys]) => `${action}: ${keys.length > 0 ? keys.join(', ') : 'none'}`)
+        .join('\n');
+      setTestResult(`✅ Health check complete!\n\n${report}`);
+    } catch (error) {
+      console.error('[Clear Storage] Health check failed:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      setTestResult(`❌ Health check failed: ${message}`);
+    }
+  }, []);
+
   const handleNuclearClear = useCallback(async () => {
     Alert.alert(
       '⚠️ Nuclear Clear',
-      'This will completely wipe all storage (SQLite + AsyncStorage) without reading anything. Use this only if the app is stuck with corrupted data.\n\nContinue?',
+      'This will completely wipe all storage without reading anything. Use this only if the app is stuck with corrupted data.\n\nContinue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -154,7 +170,7 @@ export default function ClearStorageScreen() {
             setTestResult(null);
             try {
               console.log('[Clear Storage] Nuclear clear initiated...');
-              await emergencyClearCorruptedStorage();
+              await nuclearClear();
               setTestResult('✅ Nuclear clear complete!\n\nAll storage wiped.\n\nPlease close and restart the app.');
               Alert.alert('Success', 'Nuclear clear complete! Please force-quit and restart the app.', [{ text: 'OK' }]);
             } catch (error) {
@@ -268,6 +284,14 @@ export default function ClearStorageScreen() {
       </TouchableOpacity>
 
       <View style={styles.divider} />
+
+      <TouchableOpacity 
+        testID="health-check-button"
+        style={[styles.button, styles.infoButton]} 
+        onPress={handleHealthCheck}
+      >
+        <Text style={styles.buttonText}>💚 Run Storage Health Check</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity 
         testID="nuclear-clear-button"

@@ -30,6 +30,7 @@ import TrpcProvider from "@/providers/TrpcProvider";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { localStorageService } from "@/lib/localStorage";
 import { useAppInit } from "@/hooks/useAppInit";
+import { runStorageHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
 import React from "react";
 
 LogBox.ignoreLogs([
@@ -269,24 +270,32 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   const [showError, setShowError] = useState(false);
   const [emergencyClearTriggered, setEmergencyClearTriggered] = useState(false);
   
-  // Global error handler for uncaught errors during initialization
+  useEffect(() => {
+    (async () => {
+      try {
+        const summary = await runStorageHealthCheck();
+        console.log('[APP] Storage health check:', summary);
+      } catch (e: unknown) {
+        const err = e as Error;
+        console.warn('[APP] Health check failed, running nuclear clear', err?.message);
+        await nuclearClear();
+      }
+    })();
+  }, []);
+  
   useEffect(() => {
     const originalError = console.error;
     console.error = (...args) => {
-      // Log the error normally
       originalError(...args);
       
-      // Check if it's a syntax error related to JSON parsing
       const errorStr = args.join(' ');
       if ((errorStr.includes('SyntaxError') || errorStr.includes("';' expected")) && !emergencyClearTriggered) {
         console.warn('[APP] 🚨 Detected SyntaxError during initialization - triggering nuclear clear');
         setEmergencyClearTriggered(true);
         
-        // Nuclear option: clear all storage immediately
         (async () => {
           try {
-            const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-            await AsyncStorage.clear();
+            await nuclearClear();
             console.log('[APP] ✅ Nuclear storage clear successful - please reload the app');
           } catch (clearError) {
             console.error('[APP] ❌ Nuclear clear failed:', clearError);
@@ -311,7 +320,6 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
   // Show error if initialization failed
   if (error && showError) {
-    console.error('[APP] Initialization error:', error);
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 20 }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#000' }}>
