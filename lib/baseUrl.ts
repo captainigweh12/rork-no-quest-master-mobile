@@ -42,7 +42,29 @@ export async function loadBaseUrlOverride(): Promise<string | undefined> {
       return undefined;
     }
 
-    const val = await guardedStorage.getItem(OVERRIDE_KEY);
+    let val: string | null = null;
+    try {
+      val = await guardedStorage.getItem(OVERRIDE_KEY);
+    } catch (storageError: any) {
+      console.warn('[baseUrl] Storage read failed (likely corrupted):', storageError.message || storageError);
+      
+      // If we got a syntax error, clear the corrupted key directly
+      if (storageError.message?.includes('SyntaxError') || storageError.message?.includes("';' expected")) {
+        console.log('[baseUrl] Clearing corrupted override key...');
+        try {
+          await guardedStorage.removeItem(OVERRIDE_KEY);
+          console.log('[baseUrl] Corrupted override cleared');
+        } catch (clearError) {
+          console.error('[baseUrl] Failed to clear corrupted key:', clearError);
+        }
+      }
+      
+      // Return in-memory value if available
+      const g = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
+      if (g && g.trim().length > 0) return stripTrailingSlash(g);
+      return undefined;
+    }
+    
     if (val && val.trim().length > 0) {
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripTrailingSlash(val.trim());
       return (globalThis as any).__RORK_BASE_URL_OVERRIDE;
