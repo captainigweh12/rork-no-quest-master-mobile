@@ -1,233 +1,294 @@
 /**
- * MMKV Storage Module
+ * Storage Module
  * 
- * High-performance key-value storage using react-native-mmkv.
- * Much faster than AsyncStorage for all operations.
- * Requires development build (does not work in Expo Go).
+ * Production-ready storage with:
+ * - MMKV for development builds (high-performance)
+ * - AsyncStorage for Expo Go (compatibility)
+ * - SecureStore for sensitive keys (tokens, credentials)
+ * - Dynamic imports to prevent Expo Go crashes
+ * - Type-safe interface with helpers
  */
 
-import { createMMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 100;
+type Key = string;
 
-// MMKV instance
-let storage: ReturnType<typeof createMMKV> | null = null;
-let storageReady = false;
-let storageAvailable = false;
-let initializationPromise: Promise<void> | null = null;
+export interface StorageBackend {
+  using: 'mmkv' | 'async';
+  getItem(key: Key): Promise<string | null>;
+  setItem(key: Key, value: string): Promise<void>;
+  removeItem(key: Key): Promise<void>;
+  getAllKeys(): Promise<string[]>;
+  clear(): Promise<void>;
+  multiGet(keys: Key[]): Promise<[Key, string | null][]>;
+  multiSet(entries: [Key, string][]): Promise<void>;
+  multiRemove(keys: Key[]): Promise<void>;
+}
 
-/**
- * Initialize MMKV storage
- */
-async function initializeStorage(): Promise<void> {
+// ---- Config ---------------------------------------------------------------
+
+// Route secrets to SecureStore at all times
+const SECRET_KEYS = new Set([
+  'auth:access_token',
+  'auth:refresh_token',
+  'videosdk:token',
+  'supabase:session',
+]);
+
+const LOG = __DEV__; // Only log in development
+
+function log(...args: any[]) {
+  if (LOG) console.log('[Storage]', ...args);
+}
+
+// ---- Backend Management ---------------------------------------------------
+
+let _backend: StorageBackend | null = null;
+let _ready: Promise<StorageBackend> | null = null;
+
+async function createMMKVBackend(): Promise<StorageBackend> {
   try {
-    console.log('[MMKV] Initializing storage...');
-    
-    storage = createMMKV({
-      id: 'default-storage'
-    });
-    
-  // Test storage
-  storage.set('test-key', 'test-value');
-  storage.remove('test-key');
-    console.log('[MMKV] Storage test successful');
-    
-    storageReady = true;
-    storageAvailable = true;
-  } catch (error) {
-    console.error('[MMKV] Failed to initialize:', error);
-    storageAvailable = false;
-    throw new Error('MMKV not available - ensure you are using a development build');
+    // Dynamic import so Expo Go doesn't crash
+    log('Attempting MMKV initialization...');
+  const { createMMKV } = await import('react-native-mmkv');
+  const mmkv = createMMKV({ id: 'default-storage' });
+
+    const removeKey = (k: string) => {
+      const inst: any = mmkv as any;
+      if (typeof inst.delete === 'function') inst.delete(k);
+      else if (typeof inst.remove === 'function') inst.remove(k);
+      else if (typeof inst.removeItem === 'function') inst.removeItem(k);
+      else inst.set(k, ''); // fallback overwrite
+    };
+
+    const backend: StorageBackend = {
+      using: 'mmkv',
+      async getItem(key) { return mmkv.getString(key) ?? null; },
+      async setItem(key, value) { mmkv.set(key, value); },
+      async removeItem(key) { removeKey(key); },
+      async getAllKeys() { return Array.from(mmkv.getAllKeys()); },
+      async clear() { mmkv.clearAll(); },
+      async multiGet(keys) {
+        return keys.map((k) => [k, mmkv.getString(k) ?? null] as [Key, string | null]);
+      },
+      async multiSet(entries) { entries.forEach(([k, v]) => mmkv.set(k, v)); },
+      async multiRemove(keys) { keys.forEach((k) => removeKey(k)); },
+    };
+
+    log('MMKV initialized successfully');
+    return backend;
+  } catch (e) {
+    log('MMKV not available, falling back to AsyncStorage');
+    log('This is expected in Expo Go');
+    return createAsyncBackend();
   }
 }
 
-/**
- * Initialize storage system
- */
-export async function initAppStorage(): Promise<void> {
-  if (initializationPromise) {
-    console.log('[MMKV] Waiting for existing initialization');
-    return initializationPromise;
-  }
+function createAsyncBackend(): StorageBackend {
+  const backend: StorageBackend = {
+    using: 'async',
+    async getItem(key) { return AsyncStorage.getItem(key); },
+    async setItem(key, value) { return AsyncStorage.setItem(key, value); },
+    async removeItem(key) { return AsyncStorage.removeItem(key); },
+    async getAllKeys() { 
+      const keys = await AsyncStorage.getAllKeys();
+      return Array.from(keys); 
+    },
+    async clear() { return AsyncStorage.clear(); },
+    async multiGet(keys) { 
+      const pairs = await AsyncStorage.multiGet(keys);
+      return pairs.map(([k, v]) => [k, v] as [Key, string | null]);
+    },
+    async multiSet(entries) { return AsyncStorage.multiSet(entries); },
+    async multiRemove(keys) { return AsyncStorage.multiRemove(keys); },
+  };
+  log('AsyncStorage initialized successfully');
+  return backend;
+}
 
-  console.log('[MMKV] Starting initialization...');
-  
-  initializationPromise = (async () => {
-    try {
-      await initializeStorage();
-      console.log('[MMKV] Initialization complete');
-    } catch (error) {
-      console.error('[MMKV] Initialization failed:', error);
-      throw error;
-    }
+// ---- Public init / access -------------------------------------------------
+
+export function ready(): Promise<StorageBackend> {
+  if (_backend) return Promise.resolve(_backend);
+  if (_ready) return _ready;
+  _ready = (async () => {
+    const b = await createMMKVBackend();
+    _backend = b;
+    return b;
   })();
-
-  return initializationPromise;
+  return _ready;
 }
 
-/**
- * Check if storage is ready
- */
+// Route secrets to SecureStore (optional)
+async function setSecureIfNeeded(key: Key, value?: string | null): Promise<boolean> {
+  if (!SECRET_KEYS.has(key)) return false;
+  try {
+    if (value == null) { 
+      await SecureStore.deleteItemAsync(key); 
+      return true; 
+    }
+    await SecureStore.setItemAsync(key, value);
+    return true;
+  } catch (e) {
+    log('SecureStore error, falling back to regular storage:', e);
+    return false;
+  }
+}
+
+async function getSecureIfNeeded(key: Key): Promise<string | null | undefined> {
+  if (!SECRET_KEYS.has(key)) return undefined;
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch (e) {
+    log('SecureStore read error, returning undefined:', e);
+    return undefined;
+  }
+}
+
+// ---- High-level API -------------------------------------------------------
+
+export async function getItem(key: Key): Promise<string | null> {
+  const secure = await getSecureIfNeeded(key);
+  if (secure !== undefined) return secure;
+  const b = await ready();
+  return b.getItem(key);
+}
+
+export async function setItem(key: Key, value: string): Promise<void> {
+  if (await setSecureIfNeeded(key, value)) return;
+  const b = await ready();
+  return b.setItem(key, value);
+}
+
+export async function removeItem(key: Key): Promise<void> {
+  if (await setSecureIfNeeded(key, null)) return;
+  const b = await ready();
+  return b.removeItem(key);
+}
+
+export async function getAllKeys(): Promise<string[]> {
+  const b = await ready();
+  return b.getAllKeys();
+}
+
+export async function clear(): Promise<void> {
+  // Clear secure keys explicitly
+  await Promise.allSettled(
+    Array.from(SECRET_KEYS).map((k) => SecureStore.deleteItemAsync(k))
+  );
+  const b = await ready();
+  return b.clear();
+}
+
+export async function multiGet(keys: Key[]): Promise<[Key, string | null][]> {
+  const b = await ready();
+  const results: [Key, string | null][] = [];
+  for (const k of keys) {
+    const s = await getSecureIfNeeded(k);
+    results.push([k, s !== undefined ? s : await b.getItem(k)]);
+  }
+  return results;
+}
+
+export async function multiSet(entries: [Key, string][]): Promise<void> {
+  const secureTasks: Promise<any>[] = [];
+  const normal: [Key, string][] = [];
+  for (const [k, v] of entries) {
+    if (SECRET_KEYS.has(k)) {
+      secureTasks.push(SecureStore.setItemAsync(k, v).catch(() => {}));
+    } else {
+      normal.push([k, v]);
+    }
+  }
+  const b = await ready();
+  await Promise.all([b.multiSet(normal), ...secureTasks]);
+}
+
+export async function multiRemove(keys: Key[]): Promise<void> {
+  const secureTasks: Promise<any>[] = [];
+  const normal: Key[] = [];
+  for (const k of keys) {
+    if (SECRET_KEYS.has(k)) {
+      secureTasks.push(SecureStore.deleteItemAsync(k).catch(() => {}));
+    } else {
+      normal.push(k);
+    }
+  }
+  const b = await ready();
+  await Promise.all([b.multiRemove(normal), ...secureTasks]);
+}
+
+// ---- Convenience typed helpers --------------------------------------------
+
+export async function getJSON<T>(key: Key, fallback?: T): Promise<T | null> {
+  const raw = await getItem(key);
+  if (raw == null) return fallback ?? null;
+  try { return JSON.parse(raw) as T; } catch { return fallback ?? null; }
+}
+
+export async function setJSON(key: Key, value: any): Promise<void> {
+  return setItem(key, JSON.stringify(value));
+}
+
+export async function getBoolean(key: Key): Promise<boolean | null> {
+  const v = await getItem(key);
+  return v == null ? null : v === 'true' || v === '1';
+}
+
+export async function getNumber(key: Key): Promise<number | null> {
+  const v = await getItem(key);
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+// Introspection (for debugging / analytics)
+export async function using(): Promise<'mmkv' | 'async'> {
+  const b = await ready();
+  return b.using;
+}
+
+// ---- Backward Compatibility API (for existing code) ----------------------
+
+export async function initAppStorage(): Promise<void> {
+  await ready();
+  log('Storage initialization complete');
+}
+
 export function isStorageReady(): boolean {
-  return storageReady;
+  return _backend !== null;
 }
 
-/**
- * Check if storage is available
- */
 export function isStorageAvailable(): boolean {
-  return storageAvailable;
+  return _backend !== null;
 }
 
-/**
- * Reset storage state
- */
 export function resetStorage(): void {
-  storage = null;
-  storageReady = false;
-  storageAvailable = false;
-  initializationPromise = null;
+  _backend =null;
+  _ready = null;
 }
 
-/**
- * Guarded storage interface
- */
 export const guardedStorage = {
-  async getItem(key: string): Promise<string | null> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      return storage.getString(key) ?? null;
-    } catch (error) {
-      console.error(`[MMKV] Error reading ${key}:`, error);
-      return null;
-    }
-  },
-
-  async setItem(key: string, value: string): Promise<void> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      storage.set(key, value);
-    } catch (error) {
-      console.error(`[MMKV] Error writing ${key}:`, error);
-      throw error;
-    }
-  },
-
-  async removeItem(key: string): Promise<void> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      storage.remove(key);
-    } catch (error) {
-      console.error(`[MMKV] Error removing ${key}:`, error);
-      throw error;
-    }
-  },
-
-  async getAllKeys(): Promise<string[]> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      return storage.getAllKeys();
-    } catch (error) {
-      console.error('[MMKV] Error getting all keys:', error);
-      return [];
-    }
-  },
-
-  async clear(): Promise<void> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      storage.clearAll();
-    } catch (error) {
-      console.error('[MMKV] Error clearing storage:', error);
-      throw error;
-    }
-  },
-
-  async multiGet(keys: string[]): Promise<[string, string | null][]> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      return keys.map(key => [key, storage!.getString(key) ?? null]);
-    } catch (error) {
-      console.error('[MMKV] Error in multiGet:', error);
-      return keys.map(key => [key, null]);
-    }
-  },
-
-  async multiSet(keyValuePairs: [string, string][]): Promise<void> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      for (const [key, value] of keyValuePairs) {
-        storage.set(key, value);
-      }
-    } catch (error) {
-      console.error('[MMKV] Error in multiSet:', error);
-      throw error;
-    }
-  },
-
-  async multiRemove(keys: string[]): Promise<void> {
-    if (!storage || !storageAvailable) {
-      throw new Error('MMKV not available - ensure you are using a development build');
-    }
-    try {
-      for (const key of keys) {
-        storage.remove(key);
-      }
-    } catch (error) {
-      console.error('[MMKV] Error in multiRemove:', error);
-      throw error;
-    }
-  }
+  getItem,
+  setItem,
+  removeItem,
+  getAllKeys,
+  clear,
+  multiGet,
+  multiSet,
+  multiRemove,
 };
 
-/**
- * Typed storage interface for JSON values
- */
 export const typedStorage = {
-  async getJSON<T>(key: string, defaultValue: T): Promise<T> {
-    const value = await guardedStorage.getItem(key);
-    if (value === null) return defaultValue;
-    try {
-      return JSON.parse(value) as T;
-    } catch (e) {
-      console.error(`[MMKV] Error parsing JSON for ${key}:`, e);
-      return defaultValue;
-    }
-  },
-
-  async setJSON<T>(key: string, value: T): Promise<void> {
-    try {
-      const serialized = JSON.stringify(value);
-      await guardedStorage.setItem(key, serialized);
-    } catch (e) {
-      console.error(`[MMKV] Error stringifying JSON for ${key}:`, e);
-      throw e;
-    }
-  }
+  getJSON,
+  setJSON,
 };
 
-/**
- * Batch storage operations interface
- */
 export const batchStorage = {
   async getMultiple<T extends Record<string, any>>(keys: string[], defaultValues: T): Promise<T> {
     const result: Record<string, any> = {};
-    const pairs = await guardedStorage.multiGet(keys);
+    const pairs = await multiGet(keys);
     pairs.forEach(([key, value]) => {
       if (value === null) {
         result[key] = defaultValues[key];
@@ -235,7 +296,7 @@ export const batchStorage = {
         try {
           result[key] = JSON.parse(value);
         } catch (e) {
-          console.error(`[MMKV] Error parsing JSON for ${key}:`, e);
+          log(`Error parsing JSON for ${key}:`, e);
           result[key] = defaultValues[key];
         }
       }
@@ -249,10 +310,10 @@ export const batchStorage = {
       try {
         pairs.push([key, JSON.stringify(value)]);
       } catch (e) {
-        console.error(`[MMKV] Error stringifying JSON for ${key}:`, e);
+        log(`Error stringifying JSON for ${key}:`, e);
         throw e;
       }
     }
-    await guardedStorage.multiSet(pairs);
-  }
+    await multiSet(pairs);
+  },
 };

@@ -23,7 +23,7 @@ async function testSQLiteStorage() {
     console.log('3. Testing JSON storage...');
     const testObj = { name: 'John', age: 30, active: true };
     await typedStorage.setJSON('test_object', testObj);
-    const retrievedObj = await typedStorage.getJSON('test_object', {});
+  const retrievedObj = await typedStorage.getJSON('test_object', {} as any);
     console.log('✓ Stored and retrieved object:', retrievedObj);
     console.assert(JSON.stringify(retrievedObj) === JSON.stringify(testObj), 'Object mismatch!\n');
 
