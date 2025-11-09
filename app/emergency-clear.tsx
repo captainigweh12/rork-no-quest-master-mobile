@@ -32,54 +32,86 @@ export default function EmergencyClearScreen() {
 
   async function handleEmergencyClear() {
     try {
-      console.log('[Emergency Clear] Starting emergency clear...');
+      console.log('[Emergency Clear] Starting NUCLEAR clear...');
       
-      const allKeys = (AsyncStorage && typeof (AsyncStorage as any).getAllKeys === 'function')
-        ? await (AsyncStorage as any).getAllKeys()
-        : [];
-      console.log('[Emergency Clear] All keys before clear:', allKeys);
-
-      if (AsyncStorage && typeof (AsyncStorage as any).clear === 'function') {
-        await (AsyncStorage as any).clear();
-        console.log('[Emergency Clear] AsyncStorage cleared');
+      // DON'T try to read anything - just nuke it all
+      console.log('[Emergency Clear] Step 1: Clearing AsyncStorage...');
+      
+      let clearSuccess = false;
+      
+      // Method 1: Try clear() first (fastest)
+      try {
+        await AsyncStorage.clear();
+        console.log('[Emergency Clear] ✅ AsyncStorage.clear() successful');
+        clearSuccess = true;
+      } catch (clearError: any) {
+        console.error('[Emergency Clear] clear() failed:', clearError.message);
+        
+        // Method 2: Try to get keys and remove individually
+        try {
+          const keys = await AsyncStorage.getAllKeys();
+          console.log(`[Emergency Clear] Found ${keys.length} keys, removing individually...`);
+          
+          // Remove in small batches
+          const BATCH_SIZE = 10;
+          for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+            const batch = keys.slice(i, i + BATCH_SIZE);
+            for (const key of batch) {
+              try {
+                await AsyncStorage.removeItem(key);
+              } catch (removeError) {
+                console.warn(`[Emergency Clear] Failed to remove key: ${key}`);
+              }
+            }
+          }
+          console.log('[Emergency Clear] ✅ Individual removal complete');
+          clearSuccess = true;
+        } catch (keysError: any) {
+          console.error('[Emergency Clear] getAllKeys() also failed:', keysError.message);
+        }
+      }
+      
+      if (!clearSuccess) {
+        throw new Error('All clearing methods failed');
       }
 
-      // Clear in-memory override and persisted override via helper
-      await setBaseUrlOverride(undefined);
-      console.log('[Emergency Clear] Override cleared');
+      // Wait a bit for storage to settle
+      await new Promise(resolve => setTimeout(resolve, 500));
 
+      // Now try to set the new URL
+      console.log('[Emergency Clear] Step 2: Setting Render URL...');
       const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
-      await setBaseUrlOverride(renderUrl);
-      console.log('[Emergency Clear] New URL set via helper:', renderUrl);
-
-      const verifyKeys = (AsyncStorage && typeof (AsyncStorage as any).getAllKeys === 'function')
-        ? await (AsyncStorage as any).getAllKeys()
-        : [];
-      console.log('[Emergency Clear] Keys after clear:', verifyKeys);
-
-      const verifyUrl = (globalThis as any).__RORK_BASE_URL_OVERRIDE as string | undefined;
-      console.log('[Emergency Clear] Verified URL:', verifyUrl);
-      setCurrentOverride(verifyUrl);
       
+      try {
+        await AsyncStorage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', renderUrl);
+        (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
+        console.log('[Emergency Clear] ✅ New URL set:', renderUrl);
+      } catch (setError) {
+        console.error('[Emergency Clear] Failed to set URL:', setError);
+      }
+
+      setCurrentOverride(renderUrl);
       setCleared(true);
       
       Alert.alert(
         '✅ Emergency Clear Complete',
-        `All caches cleared!\n\nNew URL: ${renderUrl}\n\n⚠️ CRITICAL: You MUST now:\n1. Close this app completely\n2. Swipe it away from recent apps\n3. Restart the app\n\nThe changes will NOT work until you restart!`,
+        `All caches cleared!\n\nNew URL: ${renderUrl}\n\n⚠️ CRITICAL: You MUST now:\n1. Close this app completely (don\'t just minimize)\n2. Swipe it away from recent apps\n3. Reopen the app\n\nChanges take effect on restart only!`,
         [
           {
-            text: 'I Understand - Close App',
+            text: 'OK - I Will Restart',
             onPress: () => {
-              console.log('[Emergency Clear] User acknowledged, returning to auth');
-              router.replace('/auth');
+              console.log('[Emergency Clear] User acknowledged');
             }
           }
         ]
       );
     } catch (error) {
-      console.error('[Emergency Clear] Failed:', error);
+      console.error('[Emergency Clear] FATAL ERROR:', error);
       const errorMsg = error instanceof Error ? error.message : String(error);
-      Alert.alert('Emergency Clear Failed', errorMsg);
+      Alert.alert(
+        '❌ Emergency Clear Failed',
+        `Error: ${errorMsg}\n\nTry these steps manually:\n1. Delete the app\n2. Reinstall it\n3. Or clear app data in phone settings`
+      );
     }
   }
 
