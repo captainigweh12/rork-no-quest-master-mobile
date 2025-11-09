@@ -30,7 +30,7 @@ import TrpcProvider from "@/providers/TrpcProvider";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { localStorageService } from "@/lib/localStorage";
 import { useAppInit } from "@/hooks/useAppInit";
-import { runStorageHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
+import { runStorageHealthGuard, nuclearClear } from '@/lib/storage/healthGuard';
 import React from "react";
 
 LogBox.ignoreLogs([
@@ -273,11 +273,15 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const summary = await runStorageHealthCheck();
-        console.log('[APP] Storage health check:', summary);
+        console.log('[APP] 🔍 Running storage health guard with auto-clear...');
+        const summary = await runStorageHealthGuard({ 
+          autoErase: true, 
+          scanAllUnknownKeys: true 
+        });
+        console.log('[APP] ✅ Storage health guard complete:', summary);
       } catch (e: unknown) {
         const err = e as Error;
-        console.warn('[APP] Health check failed, running nuclear clear', err?.message);
+        console.warn('[APP] ⚠️ Health guard failed, running nuclear clear', err?.message);
         await nuclearClear();
       }
     })();
