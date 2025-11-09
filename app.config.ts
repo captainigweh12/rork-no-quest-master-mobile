@@ -108,7 +108,10 @@ export default (): ExpoConfig => {
           recordAudioAndroid: true,
         },
       ],
+      // MMKV plugin removed - using dynamic require() for Expo Go compatibility
+      // It will be loaded automatically in custom dev clients via require()
     ],
+    jsEngine: 'hermes',
     experiments: {
       typedRoutes: true,
     },

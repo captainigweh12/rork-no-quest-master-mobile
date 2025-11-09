@@ -36,10 +36,10 @@ const SECRET_KEYS = new Set([
   'supabase:session',
 ]);
 
-const LOG = __DEV__; // Only log in development
-
+// Explicit logging guard; can be toggled or extended later
+const LOG_ENABLED = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
 function log(...args: any[]) {
-  if (LOG) console.log('[Storage]', ...args);
+  if (LOG_ENABLED) console.log('[Storage]', ...args);
 }
 
 // ---- Backend Management ---------------------------------------------------
@@ -51,8 +51,9 @@ async function createMMKVBackend(): Promise<StorageBackend> {
   try {
     // Dynamic import so Expo Go doesn't crash
     log('Attempting MMKV initialization...');
-  const { createMMKV } = await import('react-native-mmkv');
-  const mmkv = createMMKV({ id: 'default-storage' });
+    // Prefer canonical MMKV class if exported; fall back to createMMKV
+    const mod: any = await import('react-native-mmkv');
+    const mmkv = mod?.MMKV ? new mod.MMKV({ id: 'default-storage' }) : mod.createMMKV({ id: 'default-storage' });
 
     const removeKey = (k: string) => {
       const inst: any = mmkv as any;
@@ -265,9 +266,16 @@ export function isStorageAvailable(): boolean {
 }
 
 export function resetStorage(): void {
-  _backend =null;
+  _backend = null;
   _ready = null;
 }
+
+// Optional encryption hook scaffold (disabled by default). To enable, retrieve a key
+// from SecureStore (or generate one) and pass via MMKV constructor options.
+// Example (pseudo-code):
+// const encryptionKey = await SecureStore.getItemAsync('mmkv:encKey');
+// if (!encryptionKey) { generateRandomKey(); SecureStore.setItemAsync('mmkv:encKey', key); }
+// new MMKV({ id: 'default-storage', encryptionKey });
 
 export const guardedStorage = {
   getItem,
