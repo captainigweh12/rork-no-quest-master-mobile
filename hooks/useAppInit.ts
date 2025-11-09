@@ -39,17 +39,11 @@ export function useAppInit() {
       try {
         console.log('[APP_INIT] Starting initialization sequence...');
 
-        // Step 0: Emergency clear of corrupted storage (MUST run first)
-        console.log('[APP_INIT] Step 0: Emergency clearing corrupted storage...');
+        // Step 0: Emergency clear of corrupted storage (silently handles errors)
         try {
           await emergencyClearCorruptedStorage();
-          console.log('[APP_INIT] Emergency clear complete ✓');
-        } catch (clearError: any) {
-          console.error('[APP_INIT] Emergency clear failed (continuing anyway):', clearError);
-          // Log the specific error type and message
-          if (clearError instanceof SyntaxError) {
-            console.error('[APP_INIT] SyntaxError detected during clear:', clearError.message);
-          }
+        } catch (clearError) {
+          // Silently ignore - emergencyClearCorruptedStorage handles its own errors
         }
 
         // Step 1: Initialize storage system

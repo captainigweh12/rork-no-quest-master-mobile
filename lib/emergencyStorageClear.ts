@@ -1,42 +1,54 @@
 /**
- * Emergency Storage Clear - Legacy AsyncStorage cleanup
+ * Emergency Storage Clear - Safe AsyncStorage check
  * 
- * This module clears corrupted AsyncStorage data before migration to SQLite.
- * After migration, SQLite handles data integrity automatically.
+ * This module safely checks for corrupted AsyncStorage data.
  */
 
 let clearingComplete = false;
 
 /**
- * Clear corrupted AsyncStorage data before SQLite migration
- * This is now a compatibility layer for legacy data
+ * Safely check and clear corrupted AsyncStorage data
+ * Silently handles all errors to prevent app crashes
  */
 export async function emergencyClearCorruptedStorage(): Promise<void> {
   if (clearingComplete) {
-    console.log('[EMERGENCY] Already cleared');
     return;
   }
 
   try {
-    console.log('[EMERGENCY] Checking for legacy AsyncStorage data...');
-    
     const AsyncStorage = await import('@react-native-async-storage/async-storage');
     const storage = AsyncStorage.default;
     
+    // Try to get all keys - if this fails, storage is corrupted
     const allKeys = await storage.getAllKeys();
     
-    if (!allKeys || allKeys.length === 0) {
-      console.log('[EMERGENCY] No legacy data found');
-      clearingComplete = true;
-      return;
+    // Check for corrupted data by trying to parse each value
+    if (allKeys && allKeys.length > 0) {
+      const keysToRemove: string[] = [];
+      
+      for (const key of allKeys) {
+        try {
+          const value = await storage.getItem(key);
+          if (value && value.trim().length > 0) {
+            // Try to parse - if it fails, it's corrupted
+            JSON.parse(value);
+          }
+        } catch (parseError) {
+          // Corrupted key found
+          keysToRemove.push(key);
+        }
+      }
+      
+      // Remove corrupted keys
+      if (keysToRemove.length > 0) {
+        console.log(`[EMERGENCY] Removing ${keysToRemove.length} corrupted keys`);
+        await storage.multiRemove(keysToRemove);
+      }
     }
-
-    console.log(`[EMERGENCY] Found ${allKeys.length} keys in AsyncStorage`);
-    console.log('[EMERGENCY] These will be migrated to SQLite automatically');
     
     clearingComplete = true;
   } catch (error: any) {
-    console.error('[EMERGENCY] Error checking legacy storage:', error.message);
+    // Silently handle all errors - don't block app startup
     clearingComplete = true;
   }
 }
