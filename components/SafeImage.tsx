@@ -11,17 +11,23 @@ interface SafeImageProps {
 
 export function SafeImage({ uri, style, fallback, testID }: SafeImageProps) {
   const [loadError, setLoadError] = useState(false);
-  const clean = uri?.trim();
   
-  // More defensive check: ensure we have a valid, non-empty URI
-  if (!clean || clean === '' || clean.length === 0 || loadError) {
+  // Extremely defensive URI validation
+  if (!uri || typeof uri !== 'string') {
+    return (fallback ?? null) as any;
+  }
+  
+  const clean = uri.trim();
+  
+  // Check for empty or invalid URI
+  if (clean.length === 0 || loadError) {
     return (fallback ?? null) as any;
   }
   
   // Additional validation: check if it looks like a valid URL
   const isValidUrl = clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('data:') || clean.startsWith('file://');
   if (!isValidUrl) {
-    console.warn('[SafeImage] Invalid URI format:', clean);
+    // Silently return fallback for invalid URIs (don't spam console)
     return (fallback ?? null) as any;
   }
   
@@ -34,7 +40,6 @@ export function SafeImage({ uri, style, fallback, testID }: SafeImageProps) {
       cachePolicy="memory-disk"
       transition={200}
       onError={() => {
-        console.log('[SafeImage] Failed to load:', clean);
         setLoadError(true);
       }}
       placeholder={{ blurhash: 'L6PZfSjE.AyE_3t7t7R**0o#DgR4' }}

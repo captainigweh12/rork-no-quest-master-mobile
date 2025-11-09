@@ -1,128 +1,88 @@
 /**
- * Emergency Storage Clear - Safe AsyncStorage check
+ * Emergency Storage Clear - Nuclear Option
  * 
- * This module safely checks for corrupted AsyncStorage data.
+ * This module performs aggressive storage clearing without reading any data.
+ * Used when AsyncStorage is corrupted and causes SyntaxError during parsing.
  */
 
 let clearingComplete = false;
+let clearAttempted = false;
 
 /**
- * Safely check and clear corrupted AsyncStorage data
- * Silently handles all errors to prevent app crashes
+ * NUCLEAR OPTION: Clear ALL storage without reading anything
+ * This is the only safe way when AsyncStorage.getItem() itself throws SyntaxError
  */
 export async function emergencyClearCorruptedStorage(): Promise<void> {
-  if (clearingComplete) {
+  // Only try once per app session
+  if (clearAttempted) {
     return;
   }
+  clearAttempted = true;
+
+  console.log('[EMERGENCY] 🚨 Nuclear storage clear initiated');
 
   try {
+    // Import AsyncStorage
     const AsyncStorage = await import('@react-native-async-storage/async-storage');
     const storage = AsyncStorage.default;
     
-    console.log('[EMERGENCY] Starting storage corruption check...');
+    // IMPORTANT: Do NOT try to read anything - just clear everything
+    // Reading corrupted data can throw SyntaxError and crash the app
     
-    // Try to get all keys - if this fails, storage is corrupted
-    let allKeys: readonly string[] = [];
+    console.log('[EMERGENCY] Clearing ALL storage without reading...');
+    
     try {
-      allKeys = await storage.getAllKeys();
-      console.log(`[EMERGENCY] Found ${allKeys.length} storage keys`);
-    } catch (keysError: any) {
-      console.warn('[EMERGENCY] Failed to get storage keys, clearing all storage');
-      console.warn('[EMERGENCY] Error:', keysError.message || keysError);
-      try {
-        await storage.clear();
-        console.log('[EMERGENCY] Storage cleared successfully');
-      } catch (clearError: any) {
-        // Even clear failed, storage is severely corrupted
-        console.error('[EMERGENCY] Failed to clear storage:', clearError.message || clearError);
-      }
+      // Method 1: Use clear() - fastest but removes everything
+      await storage.clear();
+      console.log('[EMERGENCY] ✅ Storage cleared using clear()');
       clearingComplete = true;
       return;
-    }
-    
-    // Check for corrupted data by trying to get raw values (without parsing)
-    if (allKeys && allKeys.length > 0) {
-      const keysToRemove: string[] = [];
+    } catch (clearError: any) {
+      console.error('[EMERGENCY] clear() failed:', clearError.message);
       
-      for (const key of allKeys) {
-        try {
-          // Try to get raw value without any parsing
-          const value = await storage.getItem(key);
-          
-          if (value === null || value === undefined) {
-            // Null/undefined values are OK, skip
-            continue;
-          }
-          
-          // Check if value is readable
-          try {
-            const trimmed = value.trim();
-            
-            // Check if it looks like it should be JSON
-            if (trimmed.length > 0 && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
-              // Try to parse - if it fails, it's corrupted
-              try {
-                JSON.parse(value);
-              } catch (parseError) {
-                console.warn(`[EMERGENCY] Corrupted JSON in key: ${key}`);
-                keysToRemove.push(key);
+      // Method 2: Try to get keys and remove them
+      try {
+        const keys = await storage.getAllKeys();
+        console.log(`[EMERGENCY] Found ${keys.length} keys, removing all...`);
+        
+        if (keys.length > 0) {
+          // Remove in batches to avoid overwhelming storage
+          const BATCH_SIZE = 50;
+          for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+            const batch = keys.slice(i, i + BATCH_SIZE);
+            try {
+              await storage.multiRemove(batch);
+              console.log(`[EMERGENCY] Removed batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+            } catch (batchError) {
+              console.warn('[EMERGENCY] Batch removal failed, trying individual removal');
+              // Try individual removal
+              for (const key of batch) {
+                try {
+                  await storage.removeItem(key);
+                } catch (individualError) {
+                  // Ignore individual failures
+                  console.warn(`[EMERGENCY] Could not remove key: ${key}`);
+                }
               }
             }
-            // If value has non-printable characters or looks malformed, remove it
-            else if (trimmed.length > 0 && !/^[\x20-\x7E\s]*$/.test(trimmed)) {
-              console.warn(`[EMERGENCY] Malformed data in key: ${key}`);
-              keysToRemove.push(key);
-            }
-          } catch (stringError) {
-            // Even basic string operations failed - definitely corrupted
-            console.warn(`[EMERGENCY] Value not even a valid string for key: ${key}`);
-            keysToRemove.push(key);
-          }
-        } catch (getError: any) {
-          // Failed to even get the value - corrupted
-          console.warn(`[EMERGENCY] Failed to read key: ${key}`);
-          console.warn(`[EMERGENCY] Error:`, getError.message || getError);
-          keysToRemove.push(key);
-        }
-      }
-      
-      // Remove corrupted keys
-      if (keysToRemove.length > 0) {
-        console.log(`[EMERGENCY] Removing ${keysToRemove.length} corrupted keys:`, keysToRemove);
-        try {
-          await storage.multiRemove(keysToRemove);
-          console.log('[EMERGENCY] Corrupted keys removed successfully');
-        } catch (removeError: any) {
-          console.error('[EMERGENCY] Failed to remove corrupted keys:', removeError.message || removeError);
-          // Try individual removal as fallback
-          for (const key of keysToRemove) {
-            try {
-              await storage.removeItem(key);
-              console.log(`[EMERGENCY] Removed ${key} individually`);
-            } catch (individualError: any) {
-              console.error(`[EMERGENCY] Failed to remove ${key}:`, individualError.message || individualError);
-            }
           }
         }
-      } else {
-        console.log('[EMERGENCY] No corrupted keys found');
+        
+        console.log('[EMERGENCY] ✅ Storage cleared using key removal');
+        clearingComplete = true;
+        return;
+      } catch (keysError: any) {
+        console.error('[EMERGENCY] getAllKeys() failed:', keysError.message);
       }
     }
     
-    clearingComplete = true;
-    console.log('[EMERGENCY] Corruption check complete');
+    // If we got here, both methods failed
+    console.error('[EMERGENCY] ❌ All clearing methods failed');
+    clearingComplete = false;
+    
   } catch (error: any) {
-    // Silently handle all errors - don't block app startup
-    console.error('[EMERGENCY] Emergency clear failed:', error.message || error);
-    // Last resort: try to clear all storage using a different approach
-    try {
-      const AsyncStorage = await import('@react-native-async-storage/async-storage');
-      await AsyncStorage.default.clear();
-      console.log('[EMERGENCY] Forced storage clear successful');
-    } catch (lastResortError: any) {
-      console.error('[EMERGENCY] Even forced clear failed:', lastResortError.message || lastResortError);
-    }
-    clearingComplete = true;
+    console.error('[EMERGENCY] ❌ Fatal error during emergency clear:', error.message || error);
+    clearingComplete = false;
   }
 }
 
@@ -138,6 +98,7 @@ export function isEmergencyClearComplete(): boolean {
  */
 export function resetEmergencyClearState(): void {
   if (__DEV__) {
+    clearAttempted = false;
     clearingComplete = false;
     console.log('[EMERGENCY] State reset');
   }

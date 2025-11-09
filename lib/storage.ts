@@ -163,12 +163,27 @@ export const guardedStorage = {
               JSON.parse(value);
             } catch (parseError) {
               console.warn(`[STORAGE] Corrupted JSON in MMKV for key ${key}, removing`);
-              mmkv.delete(key);
+              try {
+                mmkv.delete(key);
+              } catch (deleteError) {
+                console.error(`[STORAGE] Failed to delete corrupted key ${key}:`, deleteError);
+              }
               return null;
             }
           }
           return value;
-        } catch (error) {
+        } catch (error: any) {
+          // If it's a SyntaxError, the value is severely corrupted
+          if (error.message?.includes('SyntaxError') || error.message?.includes("';' expected")) {
+            console.error(`[STORAGE] SyntaxError reading ${key}, clearing it:`, error.message);
+            try {
+              mmkv.delete(key);
+            } catch (deleteError) {
+              console.error(`[STORAGE] Failed to delete corrupted key ${key}`);
+            }
+            return null;
+          }
+          
           console.warn(`MMKV read error for key ${key}, falling back to AsyncStorage:`, error);
           // Fallback to AsyncStorage if MMKV fails
           try {
@@ -179,7 +194,11 @@ export const guardedStorage = {
                 JSON.parse(value);
               } catch (parseError) {
                 console.warn(`[STORAGE] Corrupted JSON in AsyncStorage for key ${key}, removing`);
-                await AsyncStorage.removeItem(key);
+                try {
+                  await AsyncStorage.removeItem(key);
+                } catch (removeError) {
+                  console.error(`[STORAGE] Failed to remove corrupted key ${key}`);
+                }
                 return null;
               }
             }
@@ -192,18 +211,36 @@ export const guardedStorage = {
       }
 
       // Web or Expo Go → AsyncStorage
-      const value = await AsyncStorage.getItem(key);
-      // Validate for corruption
-      if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
-        try {
-          JSON.parse(value);
-        } catch (parseError) {
-          console.warn(`[STORAGE] Corrupted JSON in AsyncStorage for key ${key}, removing`);
-          await AsyncStorage.removeItem(key);
+      try {
+        const value = await AsyncStorage.getItem(key);
+        // Validate for corruption
+        if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
+          try {
+            JSON.parse(value);
+          } catch (parseError) {
+            console.warn(`[STORAGE] Corrupted JSON in AsyncStorage for key ${key}, removing`);
+            try {
+              await AsyncStorage.removeItem(key);
+            } catch (removeError) {
+              console.error(`[STORAGE] Failed to remove corrupted key ${key}`);
+            }
+            return null;
+          }
+        }
+        return value;
+      } catch (error: any) {
+        // If it's a SyntaxError, the value is severely corrupted
+        if (error.message?.includes('SyntaxError') || error.message?.includes("';' expected")) {
+          console.error(`[STORAGE] SyntaxError reading ${key}:`, error.message);
+          try {
+            await AsyncStorage.removeItem(key);
+          } catch (removeError) {
+            console.error(`[STORAGE] Failed to remove corrupted key ${key}`);
+          }
           return null;
         }
+        throw error;
       }
-      return value;
     } catch (error) {
       console.error(`[STORAGE] Fatal error getting ${key}:`, error);
       return null;
