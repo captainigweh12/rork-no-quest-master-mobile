@@ -158,7 +158,7 @@ export const guardedStorage = {
         try {
           const value = mmkv.getString(key) ?? null;
           // Validate it's not corrupted by attempting to parse if it looks like JSON
-          if (value && value.trim().startsWith('{') || value?.trim().startsWith('[')) {
+          if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
             try {
               JSON.parse(value);
             } catch (parseError) {
