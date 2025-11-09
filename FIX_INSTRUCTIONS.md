@@ -1,78 +1,194 @@
-# Quick Fix Instructions for SyntaxError
+# Quick Fix Instructions
 
-## What Was Fixed
-✅ Added pre-initialization corruption detection in `app/_layout.tsx`
-✅ Enhanced emergency clear screen at `/emergency-clear`
-✅ Improved error handling in storage and base URL modules
-✅ Created automatic corruption recovery mechanism
+## 🚨 Common Issues & Fast Fixes
 
-## What to Do Now
+### 1. "Bundling failed without error"
 
-### Step 1: Restart Your App
+**Symptoms:** Metro crashes silently, no stack trace
+
+**Fix:**
 ```bash
-# Stop the current app
-# Press Ctrl+C in terminal
-
-# Clear cache and restart
-bun run expo start -c
+npm run dev:fix
 ```
 
-### Step 2: On Your Device
+This auto-fixes encoding issues, strips BOMs, and cleans caches.
 
-**If the app loads now:**
-1. You're good! The corruption was automatically fixed
-2. Look for these logs:
-   ```
-   [PRE-INIT] ✅ Storage integrity check passed
-   ```
+---
 
-**If the app still shows SyntaxError:**
-1. Look for these logs:
-   ```
-   [PRE-INIT] 🚨 Storage corruption detected
-   [PRE-INIT] ✅ Nuclear clear successful
-   ```
-2. **Force-close the app** (swipe away from recent apps)
-3. **Reopen it** - should work now
+### 2. "[EMERGENCY] Failed to import AsyncStorage"
 
-**If it STILL doesn't work:**
-1. Navigate to: `exp://[YOUR-IP]:8081/emergency-clear`
-2. Or open the URL bar and type: `/emergency-clear`
-3. Tap "EMERGENCY CLEAR NOW"
-4. Close and reopen the app
+**Symptoms:** App crashes on startup with SyntaxError
 
-### Step 3: Verify It's Working
-You should see these logs:
-```
-[PRE-INIT] ✅ Storage integrity check passed
-[APP_INIT] Storage ready ✓
-[APP_INIT] ✅ Initialization complete - app ready
+**Fix:** Already auto-fixed! The app will:
+1. Detect the error
+2. Run nuclear clear automatically
+3. Log success message
+
+If it persists:
+```bash
+# In app, navigate to /clear-storage
+# Tap "☢️ NUCLEAR CLEAR"
 ```
 
-## If Nothing Works
+---
 
-**Last Resort:**
-1. Delete the app from your device
-2. Reinstall it via Expo Go
-3. This will clear all corrupted data
+### 3. "source.uri should not be an empty string"
 
-## What Caused This?
-The error "1:4:';' expected" means something in AsyncStorage had a semicolon where it shouldn't (like `https;://` instead of `https://`). The new code detects this and clears it automatically.
+**Symptoms:** Console warning about images
 
-## Testing the Fix
-To verify it's working, you can test the corruption detection:
-
-```javascript
-// In Expo DevTools console
-import AsyncStorage from '@react-native-async-storage/async-storage';
-await AsyncStorage.setItem('test', 'invalid;data');
-await AsyncStorage.getItem('test'); // Should auto-clear on error
+**Fix:**
+```typescript
+// Add safety check to all images
+{imageUri ? (
+  <Image source={{ uri: imageUri }} />
+) : (
+  <Image source={require('@/assets/placeholder.png')} />
+)}
 ```
 
-## Files Modified
-- `app/_layout.tsx` - Pre-initialization corruption check
-- `app/emergency-clear.tsx` - Enhanced nuclear clear
-- `ASYNCSTORAGE_CORRUPTION_FIX.md` - Full documentation
+---
 
-## Need Help?
-Check the logs for `[PRE-INIT]`, `[STORAGE]`, or `[Emergency Clear]` messages to see what's happening.
+### 4. "Linking scheme mismatch"
+
+**Symptoms:** Deep link errors with 'noquest://'
+
+**Fix:**
+```typescript
+// app.config.ts
+export default {
+  expo: {
+    scheme: ['rork', 'app.rork', 'noquest'],
+  }
+}
+```
+
+Then:
+```bash
+npx expo start -c
+```
+
+---
+
+## 🛠️ Development Workflow
+
+### Start Development
+
+```bash
+# Normal start (with health checks)
+npm run dev
+
+# Start + auto-fix any issues
+npm run dev:fix
+
+# Just Expo (no checks)
+npm start
+```
+
+### After Git Pull
+
+```bash
+npm run dev:fix
+```
+
+This ensures no encoding or cache issues from other contributors.
+
+### Clean Everything
+
+```bash
+npm run rork:clean
+rm -rf node_modules
+npm install
+npm run dev
+```
+
+---
+
+## 📱 In-App Debug Tools
+
+Navigate to `/clear-storage` for:
+
+- **Test Connection** - Verify API is reachable
+- **Health Check** - Validate storage + environment
+- **View Storage** - Inspect AsyncStorage keys
+- **Nuclear Clear** - Complete wipe (last resort)
+
+---
+
+## 🔍 Checking Storage Health
+
+### Quick Check
+```bash
+npm run storage:check
+```
+
+### Full Diagnosis
+```bash
+npm run storage:diagnose
+```
+
+### In-App Check
+1. Open app
+2. Go to Settings → API Debug (or `/clear-storage`)
+3. Tap "💚 Run Storage Health Check"
+
+---
+
+## ⚡ Emergency Recovery
+
+### App Won't Boot
+
+1. Navigate to `/emergency-clear` or `/clear-storage`
+2. Tap "☢️ NUCLEAR CLEAR"
+3. Force-quit the app
+4. Restart
+
+### Bundle Won't Build
+
+```bash
+npm run rork:clean
+npx expo start -c --clear
+```
+
+### TypeScript Errors After Pull
+
+```bash
+npm run rork:guard
+# or
+npx tsc --noEmit
+```
+
+---
+
+## 📊 Scripts Quick Reference
+
+| Command | What It Does | When To Use |
+|---------|-------------|-------------|
+| `npm run dev` | Start with checks | Daily work |
+| `npm run dev:fix` | Auto-fix + start | After pull/encoding issues |
+| `npm run rork:clean` | Clear caches | Bundle issues |
+| `npm run storage:check` | Validate files | Quick health check |
+| `npm start` | Just Expo | Skip all checks |
+
+---
+
+## 🎯 Best Practices
+
+1. **Always use `npm run dev`** - Catches issues early
+2. **Run `npm run dev:fix` after pull** - Prevents encoding bugs
+3. **Keep storage keys minimal** - Less to validate
+4. **Use health guard for new keys** - Auto-validation
+5. **Test with corrupt data** - Verify auto-recovery
+
+---
+
+## 📞 Support
+
+If issues persist:
+1. Check console logs for detailed errors
+2. Run full diagnosis: `npm run storage:diagnose`
+3. Check [ASYNCSTORAGE_CORRUPTION_FIX.md](ASYNCSTORAGE_CORRUPTION_FIX.md) for details
+4. Use in-app debug screen at `/clear-storage`
+
+---
+
+**Last Updated:** 2025-11-09

@@ -66,10 +66,18 @@ export async function getJSON<T = unknown>(key: string): Promise<T | null> {
   return (val ?? null) as T | null;
 }
 
+export interface StorageHealthReport {
+  ok: string[];
+  fixed_defaulted: string[];
+  deleted_invalid_json: string[];
+  deleted_bad_shape: string[];
+  expired: string[];
+}
+
 export async function runStorageHealthGuard(opts?: {
   autoErase?: boolean;
   scanAllUnknownKeys?: boolean;
-}) {
+}): Promise<StorageHealthReport> {
   const autoErase = opts?.autoErase ?? true;
 
   const knownKeys = Object.values(KEYS) as string[];
@@ -86,7 +94,7 @@ export async function runStorageHealthGuard(opts?: {
 
   const keys = [...knownKeys, ...extraKeys] as string[];
 
-  const report: Record<string, string[]> = {
+  const report: StorageHealthReport = {
     ok: [],
     fixed_defaulted: [],
     deleted_invalid_json: [],
@@ -170,4 +178,41 @@ export async function nuclearClear() {
   console.log('[StorageHealthGuard] 💣 Nuclear clear initiated');
   await Storage.clear();
   console.log('[StorageHealthGuard] ✅ All storage cleared');
+}
+
+export interface RuntimeHealthReport {
+  storage: StorageHealthReport;
+  environment: {
+    hasMMKV: boolean;
+    storageType: 'MMKV' | 'AsyncStorage';
+    platform: string;
+    isDev: boolean;
+  };
+  timestamp: string;
+}
+
+export async function runFullHealthCheck(): Promise<RuntimeHealthReport> {
+  const storageReport = await runStorageHealthGuard({ 
+    autoErase: true, 
+    scanAllUnknownKeys: true 
+  });
+  
+  const { Platform } = await import('react-native');
+  let hasMMKV = false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('react-native-mmkv');
+    hasMMKV = true;
+  } catch {}
+  
+  return {
+    storage: storageReport,
+    environment: {
+      hasMMKV,
+      storageType: Storage.allKeys ? 'AsyncStorage' : 'MMKV',
+      platform: Platform.OS,
+      isDev: __DEV__,
+    },
+    timestamp: new Date().toISOString(),
+  };
 }
