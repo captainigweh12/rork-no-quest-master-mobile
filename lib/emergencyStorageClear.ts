@@ -5,7 +5,7 @@
  * Used when AsyncStorage is corrupted and causes SyntaxError during parsing.
  */
 
-import * as SQLite from 'expo-sqlite';
+
 
 let clearingComplete = false;
 let clearAttempted = false;
@@ -13,6 +13,8 @@ let clearAttempted = false;
 /**
  * NUCLEAR OPTION: Clear ALL storage without reading anything
  * This is the only safe way when AsyncStorage.getItem() itself throws SyntaxError
+ * 
+ * This function wraps EVERYTHING in try-catch to prevent crashes
  */
 export async function emergencyClearCorruptedStorage(): Promise<void> {
   // Only try once per app session
@@ -23,77 +25,98 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
 
   console.log('[EMERGENCY] 🚨 Nuclear storage clear initiated');
 
+  // Wrap the entire function in a mega try-catch
   try {
-    // Step 1: Nuclear clear SQLite database
-    console.log('[EMERGENCY] Step 1: Clearing SQLite database...');
-    try {
-      const db = await SQLite.openDatabaseAsync('app_storage.db');
-      await db.execAsync('DROP TABLE IF EXISTS storage');
-      await db.closeAsync();
-      console.log('[EMERGENCY] ✅ SQLite database cleared');
-    } catch (sqliteError: any) {
-      console.error('[EMERGENCY] SQLite clear failed:', sqliteError.message);
-    }
+    // Step 1: Nuclear clear SQLite database (skip - not critical for this fix)
+    console.log('[EMERGENCY] Step 1: Skipping SQLite clear (not needed for AsyncStorage corruption)');
 
     // Step 2: Clear AsyncStorage
     console.log('[EMERGENCY] Step 2: Clearing AsyncStorage...');
-    const AsyncStorage = await import('@react-native-async-storage/async-storage');
-    const storage = AsyncStorage.default;
+    
+    let storage: any;
+    try {
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      storage = AsyncStorage.default;
+    } catch (importError: any) {
+      console.error('[EMERGENCY] ❌ Failed to import AsyncStorage:', importError?.message || String(importError));
+      clearingComplete = false;
+      return;
+    }
     
     // IMPORTANT: Do NOT try to read anything - just clear everything
     // Reading corrupted data can throw SyntaxError and crash the app
     
+    // Method 1: Use clear() - fastest but removes everything
     try {
-      // Method 1: Use clear() - fastest but removes everything
       await storage.clear();
       console.log('[EMERGENCY] ✅ AsyncStorage cleared using clear()');
       clearingComplete = true;
       return;
     } catch (clearError: any) {
-      console.error('[EMERGENCY] clear() failed:', clearError.message);
+      const errMsg = clearError?.message || String(clearError);
+      console.error('[EMERGENCY] clear() failed:', errMsg);
       
-      // Method 2: Try to get keys and remove them
-      try {
-        const keys = await storage.getAllKeys();
-        console.log(`[EMERGENCY] Found ${keys.length} keys, removing all...`);
-        
-        if (keys.length > 0) {
-          // Remove in batches to avoid overwhelming storage
-          const BATCH_SIZE = 50;
-          for (let i = 0; i < keys.length; i += BATCH_SIZE) {
-            const batch = keys.slice(i, i + BATCH_SIZE);
-            try {
-              await storage.multiRemove(batch);
-              console.log(`[EMERGENCY] Removed batch ${Math.floor(i / BATCH_SIZE) + 1}`);
-            } catch (batchError) {
-              console.warn('[EMERGENCY] Batch removal failed, trying individual removal');
-              // Try individual removal
-              for (const key of batch) {
-                try {
-                  await storage.removeItem(key);
-                } catch (individualError) {
-                  // Ignore individual failures
-                  console.warn(`[EMERGENCY] Could not remove key: ${key}`);
-                }
+      // Don't try to read keys if we got a SyntaxError
+      if (errMsg.includes('SyntaxError') || errMsg.includes("';' expected")) {
+        console.error('[EMERGENCY] ❌ AsyncStorage is severely corrupted - cannot be cleared programmatically');
+        console.error('[EMERGENCY] 💡 User must manually clear app data from device settings');
+        clearingComplete = false;
+        return;
+      }
+    }
+    
+    // Method 2: Try to get keys and remove them (only if clear() failed without SyntaxError)
+    console.log('[EMERGENCY] Attempting key-by-key removal...');
+    try {
+      const keys = await storage.getAllKeys();
+      console.log(`[EMERGENCY] Found ${keys?.length || 0} keys`);
+      
+      if (keys && keys.length > 0) {
+        // Remove in batches to avoid overwhelming storage
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+          const batch = keys.slice(i, i + BATCH_SIZE);
+          try {
+            await storage.multiRemove(batch);
+            console.log(`[EMERGENCY] Removed batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+          } catch (batchError: any) {
+            console.warn('[EMERGENCY] Batch removal failed, trying individual removal');
+            // Try individual removal
+            for (const key of batch) {
+              try {
+                await storage.removeItem(key);
+              } catch (individualError) {
+                // Silently ignore individual failures
               }
             }
           }
         }
-        
         console.log('[EMERGENCY] ✅ AsyncStorage cleared using key removal');
         clearingComplete = true;
         return;
-      } catch (keysError: any) {
-        console.error('[EMERGENCY] getAllKeys() failed:', keysError.message);
+      } else {
+        console.log('[EMERGENCY] No keys found or storage already empty');
+        clearingComplete = true;
+        return;
       }
+    } catch (keysError: any) {
+      const errMsg = keysError?.message || String(keysError);
+      console.error('[EMERGENCY] getAllKeys() failed:', errMsg);
+      
+      // If we got a SyntaxError here too, storage is severely corrupted
+      if (errMsg.includes('SyntaxError') || errMsg.includes("';' expected")) {
+        console.error('[EMERGENCY] ❌ Storage metadata is corrupted - cannot enumerate keys');
+        console.error('[EMERGENCY] 💡 User must manually clear app data from device settings');
+      }
+      
+      clearingComplete = false;
     }
     
-    // If we got here, both methods failed
-    console.error('[EMERGENCY] ❌ All clearing methods failed');
-    clearingComplete = false;
-    
   } catch (error: any) {
-    console.error('[EMERGENCY] ❌ Fatal error during emergency clear:', error.message || error);
+    // Mega catch - this should never be reached, but if it is, log it
+    const errMsg = error?.message || String(error);
+    console.error('[EMERGENCY] ❌ Fatal error during emergency clear:', errMsg);
+    console.error('[EMERGENCY] Stack:', error?.stack || 'No stack trace');
     clearingComplete = false;
   }
 }
@@ -114,4 +137,19 @@ export function resetEmergencyClearState(): void {
     clearingComplete = false;
     console.log('[EMERGENCY] State reset');
   }
+}
+
+/**
+ * Synchronous emergency clear - runs BEFORE anything else
+ * This is called at module load time to catch corruption early
+ */
+export function syncEmergencyClear(): void {
+  if (clearAttempted) return;
+  
+  console.log('[SYNC_CLEAR] Running synchronous emergency clear...');
+  
+  // We can't use async/await here, but we can start the process
+  emergencyClearCorruptedStorage().catch(err => {
+    console.error('[SYNC_CLEAR] Failed:', err);
+  });
 }

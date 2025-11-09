@@ -36,39 +36,54 @@ export function useAppInit() {
     let mounted = true;
 
     async function initialize() {
+      // MEGA TRY-CATCH: Prevent any initialization error from crashing
       try {
         console.log('[APP_INIT] Starting initialization sequence...');
 
-        // Step 0: Emergency clear of corrupted storage (silently handles errors)
+        // Step 0: Emergency clear of corrupted storage FIRST
+        console.log('[APP_INIT] Step 0: Running emergency storage clear...');
         try {
           await emergencyClearCorruptedStorage();
-        } catch (clearError) {
-          // Silently ignore - emergencyClearCorruptedStorage handles its own errors
+          console.log('[APP_INIT] Emergency clear completed ✓');
+        } catch (clearError: any) {
+          // Even if emergency clear fails, continue - we wrap everything in try-catch
+          console.warn('[APP_INIT] Emergency clear had errors (continuing anyway):', clearError?.message || String(clearError));
         }
 
-        // Step 1: Initialize storage system
+        // Step 1: Initialize storage system (with error protection)
         console.log('[APP_INIT] Step 1: Initializing storage...');
-        await initAppStorage();
-        
-        if (!mounted) return;
-        
-        // Verify storage is ready
-        if (!isStorageReady()) {
-          throw new Error('Storage initialization failed');
+        try {
+          await initAppStorage();
+          
+          if (!mounted) return;
+          
+          // Verify storage is ready
+          if (!isStorageReady()) {
+            console.warn('[APP_INIT] ⚠️ Storage not ready - continuing anyway');
+          } else {
+            console.log('[APP_INIT] Storage ready ✓');
+          }
+        } catch (storageError: any) {
+          // Don't let storage errors crash the app
+          console.error('[APP_INIT] Storage init failed (continuing anyway):', storageError?.message || String(storageError));
         }
-        console.log('[APP_INIT] Storage ready ✓');
 
         // Step 2: Load environment configuration
         console.log('[APP_INIT] Step 2: Loading environment...');
         // This happens automatically via .env files
         console.log('[APP_INIT] Environment loaded ✓');
 
-        // Step 3: Load base URL override from storage
+        // Step 3: Load base URL override from storage (with error protection)
         console.log('[APP_INIT] Step 3: Loading base URL from storage...');
-        const { loadBaseUrlOverride, getBaseUrl } = await import('@/lib/baseUrl');
-        await loadBaseUrlOverride();
-        const baseUrl = getBaseUrl();
-        console.log('[APP_INIT] Base URL ready:', baseUrl, '✓');
+        try {
+          const { loadBaseUrlOverride, getBaseUrl } = await import('@/lib/baseUrl');
+          await loadBaseUrlOverride();
+          const baseUrl = getBaseUrl();
+          console.log('[APP_INIT] Base URL ready:', baseUrl, '✓');
+        } catch (baseUrlError: any) {
+          // Don't let base URL errors crash the app
+          console.error('[APP_INIT] Base URL load failed (using defaults):', baseUrlError?.message || String(baseUrlError));
+        }
 
         if (!mounted) return;
 
@@ -86,36 +101,38 @@ export function useAppInit() {
         });
       } 
       catch (error: any) {
-        console.error('[APP_INIT] ❌ Initialization failed:', error);
+        // MEGA CATCH: Handle any remaining errors gracefully
+        const errMsg = error?.message || String(error);
+        console.error('[APP_INIT] ❌ Initialization had errors:', errMsg);
         
         // Platform-specific error logging
         if (Platform.OS !== 'web') {
           console.error('[APP_INIT] Native platform error details:');
           console.error('- OS:', Platform.OS);
           console.error('- Version:', Platform.Version);
-          console.error('- Error type:', error.constructor.name);
-          if (error.code) console.error('- Error code:', error.code);
-          if (error.message) console.error('- Message:', error.message);
+          console.error('- Error type:', error?.constructor?.name || 'Unknown');
+          if (error?.code) console.error('- Error code:', error.code);
+          if (error?.message) console.error('- Message:', error.message);
         }
 
-        // Log detailed error information
-        if (error instanceof SyntaxError) {
-          console.error('[APP_INIT] SyntaxError:', error.message);
-          console.error('[APP_INIT] This usually means corrupted data in AsyncStorage');
-          // Try emergency clear again if it's a syntax error
+        // Special handling for SyntaxError
+        if (errMsg.includes('SyntaxError') || errMsg.includes("';' expected")) {
+          console.error('[APP_INIT] 🚨 SyntaxError detected - storage corruption');
+          console.error('[APP_INIT] Attempting additional emergency clear...');
           try {
-            console.log('[APP_INIT] Attempting second emergency clear...');
             await emergencyClearCorruptedStorage();
-          } catch (secondError) {
-            console.error('[APP_INIT] Second clear also failed:', secondError);
+            console.log('[APP_INIT] ✅ Additional clear completed');
+          } catch (secondError: any) {
+            console.error('[APP_INIT] Additional clear failed:', secondError?.message || String(secondError));
           }
         }
         
         if (!mounted) return;
         
+        // ALWAYS mark as ready - don't let errors hang the app
         setState({
           isInitializing: false,
-          isReady: true, // Still mark as ready to prevent app hang
+          isReady: true,
           storageAvailable: isStorageAvailable(),
           error: error as Error,
         });

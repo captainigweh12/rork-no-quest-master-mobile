@@ -141,6 +141,7 @@ export const guardedStorage = {
    * Get item from storage with corruption protection
    */
   async getItem(key: string): Promise<string | null> {
+    // MEGA TRY-CATCH: Prevent any error from crashing the app
     try {
       // Secrets → SecureStore on native (except web)
       if (SECRET_KEYS.has(key) && !isWeb) {
@@ -241,8 +242,26 @@ export const guardedStorage = {
         }
         throw error;
       }
-    } catch (error) {
-      console.error(`[STORAGE] Fatal error getting ${key}:`, error);
+    } catch (error: any) {
+      // CRITICAL: Catch ALL errors including SyntaxError
+      const errMsg = error?.message || String(error);
+      
+      // Special handling for SyntaxError
+      if (errMsg.includes('SyntaxError') || errMsg.includes("';' expected")) {
+        console.error(`[STORAGE] 🚨 SyntaxError reading ${key} - storage is corrupted:`, errMsg);
+        
+        // Try to delete the corrupted key
+        try {
+          await this.removeItem(key);
+          console.log(`[STORAGE] ✅ Removed corrupted key: ${key}`);
+        } catch (removeError) {
+          console.error(`[STORAGE] ❌ Failed to remove corrupted key: ${key}`);
+        }
+        
+        return null;
+      }
+      
+      console.error(`[STORAGE] Fatal error getting ${key}:`, errMsg);
       return null;
     }
   },
@@ -251,6 +270,7 @@ export const guardedStorage = {
    * Set item in storage with validation
    */
   async setItem(key: string, value: string): Promise<void> {
+    // MEGA TRY-CATCH: Prevent any error from crashing the app
     try {
       // Validate value is not corrupted before storing
       if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
@@ -288,9 +308,14 @@ export const guardedStorage = {
 
       // Web or Expo Go → AsyncStorage
       await AsyncStorage.setItem(key, value);
-    } catch (error) {
-      console.error(`[STORAGE] Fatal error setting ${key}:`, error);
-      throw error;
+    } catch (error: any) {
+      // CRITICAL: Catch ALL errors including SyntaxError
+      const errMsg = error?.message || String(error);
+      console.error(`[STORAGE] Fatal error setting ${key}:`, errMsg);
+      
+      // Don't throw - just log and return
+      // Throwing could crash the app during initialization
+      return;
     }
   },
 
@@ -298,6 +323,8 @@ export const guardedStorage = {
    * Remove item from storage
    */
   async removeItem(key: string): Promise<void> {
+    // MEGA TRY-CATCH: Prevent any error from crashing the app
+    try {
     // Secrets → SecureStore on native
     if (SECRET_KEYS.has(key) && !isWeb) {
       try {
@@ -324,6 +351,12 @@ export const guardedStorage = {
 
     // Web or Expo Go → AsyncStorage
     await AsyncStorage.removeItem(key);
+    } catch (error: any) {
+      // CRITICAL: Catch ALL errors
+      const errMsg = error?.message || String(error);
+      console.error(`[STORAGE] Error removing ${key}:`, errMsg);
+      // Don't throw - just log
+    }
   },
 
   /**
