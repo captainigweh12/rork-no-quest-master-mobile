@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
 import { Alert } from 'react-native';

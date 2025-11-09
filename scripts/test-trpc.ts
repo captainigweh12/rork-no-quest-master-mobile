@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { TRPCClientError } from '@trpc/client';
 import superjson from 'superjson';

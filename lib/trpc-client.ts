@@ -8,10 +8,10 @@ const BASE = process.env.EXPO_PUBLIC_RORK_API_BASE_URL ??
 
 export function getTrpcClient(baseUrl?: string) {
   return createTRPCProxyClient<AppRouter>({
-    transformer: superjson,
     links: [
       httpBatchLink({
         url: `${baseUrl ?? BASE}/api/trpc`,
+        transformer: superjson,
         fetch: (input, init) => fetch(input, { ...init, credentials: 'include' }),
       }),
     ],

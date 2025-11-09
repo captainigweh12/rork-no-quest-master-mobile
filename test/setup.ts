@@ -1,6 +1,6 @@
 import { beforeAll, vi } from 'vitest';
 
-declare const global: NodeJS.Global;
+declare const global: any;
 
 // Mock React Native modules at module level (required for vi.mock to work)
 vi.mock('react-native', () => ({

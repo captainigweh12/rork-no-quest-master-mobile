@@ -5,7 +5,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import Daily, { DailyCall, DailyEvent, DailyParticipant } from '@daily-co/react-native-daily-js';
+import Daily, { DailyCall, DailyParticipant } from '@daily-co/react-native-daily-js';
 import { createQuestRoom, deleteRoom, type DailyRoom } from '@/services/daily/roomManager';
 import { Alert } from 'react-native';
 
@@ -101,13 +101,17 @@ export function DailyProvider({ children }: { children: React.ReactNode }) {
       setParticipants([]);
     };
 
-    const handleParticipantJoined = (event: any) => {
-      console.log('[Daily.co] Participant joined:', event.participant.user_id);
+    const handleParticipantJoined = (event?: { participant?: DailyParticipant }) => {
+      if (event?.participant?.user_id) {
+        console.log('[Daily.co] Participant joined:', event.participant.user_id);
+      }
       updateParticipants();
     };
 
-    const handleParticipantLeft = (event: any) => {
-      console.log('[Daily.co] Participant left:', event.participant.user_id);
+    const handleParticipantLeft = (event?: { participant?: DailyParticipant }) => {
+      if (event?.participant?.user_id) {
+        console.log('[Daily.co] Participant left:', event.participant.user_id);
+      }
       updateParticipants();
     };
 
@@ -115,9 +119,9 @@ export function DailyProvider({ children }: { children: React.ReactNode }) {
       updateParticipants();
     };
 
-    const handleError = (event: any) => {
-      console.error('[Daily.co] Error:', event.errorMsg);
-      setError(event.errorMsg);
+    const handleError = (event?: { errorMsg?: string }) => {
+      console.error('[Daily.co] Error:', event?.errorMsg);
+      setError(event?.errorMsg ?? 'Unknown Daily error');
       setIsLoading(false);
     };
 

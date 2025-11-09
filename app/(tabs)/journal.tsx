@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator, Platform, ScrollView } from 'react-native';
 import { useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';

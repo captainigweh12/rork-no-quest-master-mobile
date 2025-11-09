@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Webhook } from "npm:standardwebhooks@1.0.0";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');

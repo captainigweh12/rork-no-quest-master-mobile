@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, createTRPCRouter } from "../../create-context";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type PostgrestSingleResponse } from "@supabase/supabase-js";
 
 // Environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
@@ -8,6 +8,41 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
+
+// Supabase row interfaces (subset of columns used here)
+interface YouTubeOAuthRow {
+  user_id: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_type: string;
+  expires_at: string; // ISO timestamp
+  scope: string | null;
+  channel_id: string;
+  channel_title: string | null;
+  channel_url: string | null;
+  updated_at: string;
+}
+
+interface LiveStreamRow {
+  id?: string;
+  streamer_id: string;
+  quest_id: string | null | undefined;
+  title: string;
+  description: string | null | undefined;
+  stream_platform: string;
+  privacy_status: 'public' | 'unlisted' | 'private';
+  youtube_broadcast_id: string | null;
+  youtube_stream_id: string | null;
+  youtube_stream_key: string | null;
+  youtube_rtmp_url: string | null;
+  youtube_watch_url: string | null;
+  scheduled_start_time: string | null | undefined;
+  is_live: boolean;
+  started_at?: string | null;
+  ended_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 // YouTube API endpoints
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -63,11 +98,13 @@ async function refreshAccessToken(refreshToken: string) {
 async function getValidAccessToken(userId: string): Promise<string | null> {
   try {
     const supabase = getSupabaseClient();
-    const { data: tokenData, error } = await supabase
+    const tokenResp = await supabase
       .from('youtube_oauth_tokens')
       .select('*')
       .eq('user_id', userId)
       .single();
+    const tokenData = tokenResp.data as any;
+    const error = tokenResp.error;
 
     if (error || !tokenData) {
       console.log('[YouTube] No token found for user:', userId);
@@ -91,13 +128,13 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
 
       // Update token in database
       const supabase = getSupabaseClient();
-      await supabase
+      await (supabase as any)
         .from('youtube_oauth_tokens')
         .update({
           access_token: refreshed.access_token,
           expires_at: newExpiresAt.toISOString(),
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('user_id', userId);
 
       return refreshed.access_token;
@@ -168,7 +205,7 @@ const youtubeRouter = createTRPCRouter({
 
         // Store tokens in database (upsert)
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase
+        const upsertResp = await supabase
           .from('youtube_oauth_tokens')
           .upsert({
             user_id: input.userId,
@@ -181,12 +218,13 @@ const youtubeRouter = createTRPCRouter({
             channel_title: channel.snippet?.title,
             channel_url: `https://www.youtube.com/channel/${channel.id}`,
             updated_at: new Date().toISOString(),
-          }, {
+          } as any, {
             onConflict: 'user_id'
           })
           .select()
           .single();
 
+        const error = upsertResp.error;
         if (error) {
           console.error('[YouTube] Database error:', error);
           throw new Error('Failed to store tokens');
@@ -216,11 +254,13 @@ const youtubeRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase
+        const statusResp = await supabase
           .from('youtube_oauth_tokens')
           .select('channel_id, channel_title, channel_url, expires_at')
           .eq('user_id', input.userId)
-          .single();
+          .single() as any;
+        const data = statusResp.data as any;
+        const error = statusResp.error as any;
 
         if (error || !data) {
           return {
@@ -554,23 +594,24 @@ const youtubeRouter = createTRPCRouter({
 
         // Step 4: Store in database
         const supabase = getSupabaseClient();
-        const { error: dbError } = await supabase
+        const insertResp = await (supabase as any)
           .from('live_streams')
           .insert({
             streamer_id: input.userId,
-            quest_id: input.questId,
+            quest_id: input.questId ?? null,
             title: input.title,
-            description: input.description,
+            description: input.description ?? null,
             stream_platform: 'youtube',
             privacy_status: input.privacyStatus,
             youtube_broadcast_id: broadcast.id,
             youtube_stream_id: stream.id,
-            youtube_stream_key: stream.cdn?.ingestionInfo?.streamName,
-            youtube_rtmp_url: stream.cdn?.ingestionInfo?.ingestionAddress,
+            youtube_stream_key: stream.cdn?.ingestionInfo?.streamName ?? null,
+            youtube_rtmp_url: stream.cdn?.ingestionInfo?.ingestionAddress ?? null,
             youtube_watch_url: `https://www.youtube.com/watch?v=${broadcast.id}`,
-            scheduled_start_time: input.scheduledStartTime,
+            scheduled_start_time: input.scheduledStartTime ?? null,
             is_live: false,
-          });
+          } as any);
+        const dbError = insertResp.error as any;
 
         if (dbError) {
           console.error('[YouTube] Database error:', dbError);
@@ -628,9 +669,9 @@ const youtubeRouter = createTRPCRouter({
 
         // Update database
         const supabase = getSupabaseClient();
-        await supabase
+        await (supabase as any)
           .from('live_streams')
-          .update({ is_live: true, started_at: new Date().toISOString() })
+          .update({ is_live: true, started_at: new Date().toISOString() } as any)
           .eq('youtube_broadcast_id', input.broadcastId);
 
         console.log('[YouTube] Broadcast started successfully');
@@ -677,9 +718,9 @@ const youtubeRouter = createTRPCRouter({
 
         // Update database
         const supabase = getSupabaseClient();
-        await supabase
+        await (supabase as any)
           .from('live_streams')
-          .update({ is_live: false, ended_at: new Date().toISOString() })
+          .update({ is_live: false, ended_at: new Date().toISOString() } as any)
           .eq('youtube_broadcast_id', input.broadcastId);
 
         console.log('[YouTube] Broadcast ended successfully');

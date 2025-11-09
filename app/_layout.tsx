@@ -1,5 +1,17 @@
-// Polyfills must be imported first to support Node.js modules in React Native
+// Polyfills and native module initialization must come first
 import 'react-native-url-polyfill/auto';
+import { Platform } from 'react-native';
+import { createMMKV } from 'react-native-mmkv';
+
+// Initialize MMKV early
+if (Platform.OS !== 'web') {
+  try {
+    createMMKV({ id: 'app-storage' });
+    console.log('[MMKV] Early initialization successful');
+  } catch (e) {
+    console.error('[MMKV] Early initialization failed:', e);
+  }
+}
 
 import { useEffect, useState, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";

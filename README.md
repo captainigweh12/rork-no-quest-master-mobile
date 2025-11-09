@@ -316,3 +316,93 @@ For mobile apps, you'll configure your app's deep linking scheme in `app.json`.
 Rork builds fully native mobile apps using React Native and Expo - the same technology stack used by Discord, Shopify, Coinbase, Instagram, and nearly 30% of the top 100 apps on the App Store.
 
 Your Rork app is production-ready and can be published to both the App Store and Google Play Store. You can also export your app to run on the web, making it truly cross-platform.
+
+## Rork Dev Client & MMKV Storage
+
+This project now uses high-performance MMKV storage (`react-native-mmkv`). MMKV and some native modules are not available in the standard Expo Go or default Rork preview; you must run a custom development build (dev client) for reliable local data.
+
+### Why a Dev Client?
+Expo Go omits custom native modules. Without a dev client MMKV either fails to initialize or returns null values. A dev client packages all required native code (MMKV, camera, notifications, etc.).
+
+### One-Time Setup (PowerShell)
+```powershell
+# Install EAS CLI (if not installed)
+bun i -g @expo/eas-cli
+
+# Configure build profiles
+eas build:configure
+```
+
+### Build the Dev Client
+```powershell
+# iOS
+eas build --profile development --platform ios
+
+# Android
+eas build --profile development --platform android
+```
+Install the build on your device (QR code / download link). Open it once; future `bun run start` sessions will attach automatically.
+
+### Start the App (Rork Scripts)
+```powershell
+# Native dev server (Metro) with tunnel
+bun run start
+
+# Web preview
+bun run start-web
+
+# Rork platform + tunnel
+bun run start-rork
+
+# Verbose Rork debug
+bun run start-rork-dev
+```
+
+### Environment Setup
+Ensure a `.env` file exists:
+```powershell
+Copy-Item env.example .env
+notepad .env   # edit as needed
+```
+Restart the server after changes so `dotenv-cli` re-injects values.
+
+### Validating MMKV Works
+Add a quick log in any component:
+```ts
+import { guardedStorage } from '@/lib/storage';
+console.log('MMKV sample', guardedStorage.getItem('sample-key'));
+```
+Set then read a value; persistence across reloads confirms success.
+
+### Common MMKV Issues
+| Symptom | Cause | Fix |
+| ------- | ----- | ---- |
+| storage not ready | Dev client not installed | Build & install dev client |
+| values always null | Running in Expo Go | Use dev client build |
+| data wiped on reload | Clearing storage on init | Remove unconditional clear logic |
+
+### Rebuilding After Native Changes
+Adding/removing native packages (camera, notifications, etc.) requires a new dev client build: rerun the `eas build --profile development` command for the target platform.
+
+### Production Builds
+```powershell
+eas build --platform ios --profile production
+eas build --platform android --profile production
+```
+
+### Quick Reference
+```powershell
+# Dependencies
+bun i
+
+# Clean Metro cache
+bunx expo start --clear
+
+# Type check
+npx tsc --noEmit
+
+# Tests
+bun run test
+```
+---
+_MMKV + dev client workflow section added for clarity._

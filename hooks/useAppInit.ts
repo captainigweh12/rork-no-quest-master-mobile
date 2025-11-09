@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { emergencyClearCorruptedStorage } from '@/lib/emergencyStorageClear';
 import { initAppStorage, isStorageReady, isStorageAvailable } from '@/lib/storage';
 import { getBaseUrl } from '@/lib/baseUrl';
@@ -89,9 +90,20 @@ export function useAppInit() {
           storageAvailable: available,
           error: null,
         });
-      } catch (error: any) {
+      } 
+      catch (error: any) {
         console.error('[APP_INIT] ❌ Initialization failed:', error);
         
+        // Platform-specific error logging
+        if (Platform.OS !== 'web') {
+          console.error('[APP_INIT] Native platform error details:');
+          console.error('- OS:', Platform.OS);
+          console.error('- Version:', Platform.Version);
+          console.error('- Error type:', error.constructor.name);
+          if (error.code) console.error('- Error code:', error.code);
+          if (error.message) console.error('- Message:', error.message);
+        }
+
         // Log detailed error information
         if (error instanceof SyntaxError) {
           console.error('[APP_INIT] SyntaxError:', error.message);

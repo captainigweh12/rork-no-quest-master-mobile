@@ -1,4 +1,22 @@
-import { guardedStorage, safeJSON } from '@/lib/storage';
+import { guardedStorage } from '@/lib/storage';
+
+// Lightweight JSON helpers replacing removed safeJSON utility
+const jsonSafe = {
+  parse<T>(value: string, fallback: T): T {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  },
+  stringify(value: any): string | null {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return null;
+    }
+  }
+};
 import type {
   Friend,
   FriendInvite,
@@ -58,7 +76,7 @@ async function getItem<T>(key: string): Promise<T | null> {
     const item = await guardedStorage.getItem(key);
     if (!item) return null;
     
-    const parsed = safeJSON.parse<T | null>(item, null);
+  const parsed = jsonSafe.parse<T | null>(item, null);
     if (parsed === null) {
       await guardedStorage.removeItem(key);
     }
@@ -71,7 +89,7 @@ async function getItem<T>(key: string): Promise<T | null> {
 
 async function setItem<T>(key: string, value: T): Promise<void> {
   try {
-    const serialized = safeJSON.stringify(value);
+  const serialized = jsonSafe.stringify(value);
     if (serialized) {
       await guardedStorage.setItem(key, serialized);
     }

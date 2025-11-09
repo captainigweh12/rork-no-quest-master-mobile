@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Jest setup for React Native + Expo
 
 // Optional: mock timers

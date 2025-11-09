@@ -107,7 +107,7 @@ function logAndThrow(label: string, err: any): never {
  */
 export async function getUserTeams(): Promise<Team[]> {
   console.log('[getUserTeams] Fetching teams (RLS-scoped)');
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('teams')
     .select('*')
     .order('created_at', { ascending: false });
@@ -121,7 +121,7 @@ export async function getUserTeams(): Promise<Team[]> {
 
 export async function getTeamById(teamId: string): Promise<Team | null> {
   console.log('[getTeamById] Fetching team:', teamId);
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('teams')
     .select('*')
     .eq('id', teamId)
@@ -139,7 +139,7 @@ export async function createTeam(name: string, description: string | null): Prom
   console.log('[createTeam] Creating via RPC:', { name, description });
   await requireUserId(); // ensure we have a session/JWT
 
-  const { data, error } = await supabase.rpc('rpc_create_team', {
+  const { data, error } = await (supabase as any).rpc('rpc_create_team', {
     p_name: name,
     p_description: description,
   });
@@ -155,9 +155,9 @@ export async function updateTeam(
 ): Promise<Team> {
   console.log('[updateTeam] Updating team:', teamId, updates);
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('teams')
-    .update(updates)
+    .update(updates as any)
     .eq('id', teamId)
     .select('*')
     .single();
@@ -169,7 +169,7 @@ export async function updateTeam(
 export async function deleteTeam(teamId: string): Promise<void> {
   console.log('[deleteTeam] Deleting team:', teamId);
 
-  const { error } = await supabase.from('teams').delete().eq('id', teamId);
+  const { error } = await (supabase as any).from('teams').delete().eq('id', teamId);
   if (error) logAndThrow('deleteTeam', error);
 
   console.log('[deleteTeam] Team deleted');
@@ -184,7 +184,7 @@ export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
 
   // Keep your FK alias names; adjust if your constraint names differ
   const { data, error } = await supabase
-    .from('team_members')
+    .from('team_members' as any)
     .select(
       `
       id, team_id, user_id, role, joined_at,
@@ -212,8 +212,8 @@ export async function addTeamMember(
   await requireUserId();
 
   const { data, error } = await supabase
-    .from('team_members')
-    .insert({ team_id: teamId, user_id: userId, role })
+    .from('team_members' as any)
+    .insert({ team_id: teamId, user_id: userId, role } as any)
     .select('*')
     .single();
 
@@ -230,8 +230,8 @@ export async function updateTeamMemberRole(
   console.log('[updateTeamMemberRole] Updating role:', { teamId, userId, role });
 
   const { data, error } = await supabase
-    .from('team_members')
-    .update({ role })
+    .from('team_members' as any)
+    .update({ role } as any)
     .eq('team_id', teamId)
     .eq('user_id', userId)
     .select('*')
@@ -245,7 +245,7 @@ export async function removeTeamMember(teamId: string, userId: string): Promise<
   console.log('[removeTeamMember] Removing member:', { teamId, userId });
 
   const { error } = await supabase
-    .from('team_members')
+    .from('team_members' as any)
     .delete()
     .eq('team_id', teamId)
     .eq('user_id', userId);
@@ -262,7 +262,7 @@ export async function getTeamTasks(teamId: string): Promise<TeamTask[]> {
   console.log('[getTeamTasks] Fetching tasks for team:', teamId);
 
   const { data, error } = await supabase
-    .from('team_tasks')
+    .from('team_tasks' as any)
     .select(
       `
       id, team_id, created_by, title, description, difficulty, category,
@@ -297,7 +297,7 @@ export async function createTeamTask(
   const userId = await requireUserId();
 
   const { data, error } = await supabase
-    .from('team_tasks')
+    .from('team_tasks' as any)
     .insert({
       team_id: teamId,
       created_by: userId,
@@ -309,7 +309,7 @@ export async function createTeamTask(
       xp: task.xp ?? 10,
       min_no_required: task.min_no_required ?? 3,
       duration_minutes: task.duration_minutes ?? null,
-    })
+    } as any)
     .select('*')
     .single();
 
@@ -338,8 +338,8 @@ export async function updateTeamTask(
   console.log('[updateTeamTask] Updating task:', taskId, updates);
 
   const { data, error } = await supabase
-    .from('team_tasks')
-    .update(updates)
+    .from('team_tasks' as any)
+    .update(updates as any)
     .eq('id', taskId)
     .select('*')
     .single();
@@ -351,7 +351,7 @@ export async function updateTeamTask(
 export async function deleteTeamTask(taskId: string): Promise<void> {
   console.log('[deleteTeamTask] Deleting task:', taskId);
 
-  const { error } = await supabase.from('team_tasks').delete().eq('id', taskId);
+  const { error } = await (supabase as any).from('team_tasks').delete().eq('id', taskId);
   if (error) logAndThrow('deleteTeamTask', error);
 
   console.log('[deleteTeamTask] Task deleted');
@@ -366,12 +366,12 @@ export async function assignTaskToMember(taskId: string, userId: string): Promis
   await requireUserId();
 
   const { data, error } = await supabase
-    .from('team_task_assignments')
+    .from('team_task_assignments' as any)
     .insert({
       team_task_id: taskId,
       user_id: userId,
       status: 'assigned',
-    })
+    } as any)
     .select('*')
     .single();
 
@@ -384,7 +384,7 @@ export async function getUserTeamTaskAssignments(userId: string): Promise<TeamTa
   console.log('[getUserTeamTaskAssignments] Fetching assignments for user:', userId);
 
   const { data, error } = await supabase
-    .from('team_task_assignments')
+    .from('team_task_assignments' as any)
     .select(
       `
       id, team_task_id, user_id, status, no_count, yes_count,
@@ -413,8 +413,8 @@ export async function updateTeamTaskAssignment(
   console.log('[updateTeamTaskAssignment] Updating assignment:', assignmentId, updates);
 
   const { data, error } = await supabase
-    .from('team_task_assignments')
-    .update(updates)
+    .from('team_task_assignments' as any)
+    .update(updates as any)
     .eq('id', assignmentId)
     .select('*')
     .single();
@@ -433,13 +433,13 @@ export async function createTeamInvite(teamId: string, inviteeEmail?: string): P
   console.log('[createTeamInvite] Creating invite:', { teamId, inviteCode, inviteeEmail });
 
   const { data, error } = await supabase
-    .from('team_invites')
+    .from('team_invites' as any)
     .insert({
       team_id: teamId,
       inviter_id: inviterId,
       invitee_email: inviteeEmail ?? null,
       invite_code: inviteCode,
-    })
+    } as any)
     .select('*')
     .single();
 
@@ -453,7 +453,7 @@ export async function acceptTeamInvite(inviteCode: string): Promise<TeamMember> 
   const userId = await requireUserId();
 
   const { data: invite, error: inviteError } = await supabase
-    .from('team_invites')
+    .from('team_invites' as any)
     .select('*')
     .eq('invite_code', inviteCode)
     .eq('status', 'pending')
@@ -472,12 +472,12 @@ export async function acceptTeamInvite(inviteCode: string): Promise<TeamMember> 
 
   // Add membership
   const { data: member, error: memberError } = await supabase
-    .from('team_members')
+    .from('team_members' as any)
     .insert({
       team_id: invite.team_id,
       user_id: userId,
       role: 'member',
-    })
+    } as any)
     .select('*')
     .single();
 
@@ -485,8 +485,8 @@ export async function acceptTeamInvite(inviteCode: string): Promise<TeamMember> 
 
   // Mark accepted
   const { error: updError } = await supabase
-    .from('team_invites')
-    .update({ status: 'accepted', invitee_id: userId })
+    .from('team_invites' as any)
+    .update({ status: 'accepted', invitee_id: userId } as any)
     .eq('id', invite.id);
 
   if (updError) logAndThrow('acceptTeamInvite.updateInvite', updError);
@@ -499,7 +499,7 @@ export async function getTeamAssignments(teamId: string): Promise<TeamTaskAssign
   console.log('[getTeamAssignments] Fetching assignments for team:', teamId);
 
   const { data: tasks, error: tasksError } = await supabase
-    .from('team_tasks')
+    .from('team_tasks' as any)
     .select('id')
     .eq('team_id', teamId);
 
@@ -509,7 +509,7 @@ export async function getTeamAssignments(teamId: string): Promise<TeamTaskAssign
   const taskIds = tasks.map((t) => t.id);
 
   const { data, error } = await supabase
-    .from('team_task_assignments')
+    .from('team_task_assignments' as any)
     .select(
       `
       id, team_task_id, user_id, status, no_count, yes_count,

@@ -4,7 +4,7 @@
  * Tests the new SQLite storage implementation
  */
 
-import { initAppStorage, guardedStorage, typedStorage, batchStorage, devMode } from './lib/storage';
+import { initAppStorage, guardedStorage, typedStorage, batchStorage } from './lib/storage';
 
 async function testSQLiteStorage() {
   console.log('=== SQLite Storage Test ===\n');
@@ -47,9 +47,7 @@ async function testSQLiteStorage() {
     console.log(`✓ Found ${allKeys.length} keys in storage`);
     console.log('  Keys:', allKeys);
 
-    console.log('7. Testing storage stats...');
-    const stats = await devMode.getStats();
-    console.log('✓ Storage stats:', stats);
+  // (Removed devMode stats - not available in MMKV-only implementation)
 
     console.log('8. Testing removeItem...');
     await guardedStorage.removeItem('test_key');

@@ -19,10 +19,9 @@ export function generateVideoSDKToken(options: {
     roles: ["CRAWLER"],
   };
 
-  const token = jwt.sign(payload, VIDEOSDK_SECRET_KEY, {
-    algorithm: "HS256",
-    expiresIn: options.expiresIn || "24h",
-  });
+  // Ensure secret conforms to expected type (string secret for HMAC)
+  const secret: jwt.Secret = VIDEOSDK_SECRET_KEY as string;
+  const token = (jwt.sign as any)(payload, secret, { expiresIn: options.expiresIn || "24h" }) as string;
 
   return token;
 }

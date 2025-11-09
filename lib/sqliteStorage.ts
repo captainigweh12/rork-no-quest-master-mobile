@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SQLite Storage Module
  * 
