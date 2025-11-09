@@ -1,16 +1,15 @@
 import { Storage } from './adapter';
 
-type Validator<T> = (value: unknown) => value is T;
-
-const isObject: Validator<Record<string, unknown>> = (v): v is Record<string, unknown> =>
+type Validator<T> = (v: unknown) => v is T;
+const isObj: Validator<Record<string, unknown>> = (v): v is any =>
   !!v && typeof v === 'object' && !Array.isArray(v);
 
-const safeParse = <T = unknown>(raw: string | null): { ok: true; value: T } | { ok: false } => {
-  if (raw == null || raw === '') return { ok: false };
+const safeParse = <T = unknown>(raw: string | null) => {
+  if (raw == null || raw === '') return { ok: false as const };
   try {
-    return { ok: true, value: JSON.parse(raw) as T };
+    return { ok: true as const, value: JSON.parse(raw) as T };
   } catch {
-    return { ok: false };
+    return { ok: false as const };
   }
 };
 
@@ -19,6 +18,11 @@ export const KEYS = {
   session: 'auth:session',
   user: 'app:user',
   profile: 'app:profile',
+  onboarding: 'onboarding:completed',
+  theme: 'app:theme',
+  categories: 'app:categories',
+  quests: 'app:quests',
+  journals: 'app:journals',
 } as const;
 
 const TTL: Partial<Record<string, number>> = {
@@ -29,107 +33,141 @@ const DEFAULTS: Partial<Record<string, unknown>> = {
   [KEYS.baseUrlOverride]: undefined,
 };
 
-const isValidBaseUrl = (v: unknown): v is string | undefined =>
-  v === undefined || (typeof v === 'string' && /^https?:\/\/.+/.test(v));
-
-const VALIDATORS: Partial<Record<string, Validator<unknown>>> = {
-  [KEYS.baseUrlOverride]: isValidBaseUrl,
-  [KEYS.session]: isObject,
-  [KEYS.user]: isObject,
-  [KEYS.profile]: isObject,
+const VALIDATORS: Partial<Record<string, Validator<any>>> = {
+  [KEYS.baseUrlOverride]: (v): v is string | undefined =>
+    v === undefined || (typeof v === 'string' && /^https?:\/\/.+/.test(v)),
+  [KEYS.session]: isObj,
+  [KEYS.user]: isObj,
+  [KEYS.profile]: isObj,
+  [KEYS.onboarding]: (v): v is boolean => typeof v === 'boolean',
+  [KEYS.theme]: (v): v is string => typeof v === 'string',
+  [KEYS.categories]: (v): v is any[] => Array.isArray(v),
+  [KEYS.quests]: (v): v is any[] => Array.isArray(v),
+  [KEYS.journals]: (v): v is any[] => Array.isArray(v),
 };
 
-const SCHEMA_KEY = '__storage_schema__';
-const CURRENT_SCHEMA = 1;
-
-type SchemaState = { version: number };
-
-async function migrateIfNeeded() {
-  const raw = await Storage.getString(SCHEMA_KEY);
-  const parsed = safeParse<SchemaState>(raw);
-  const version = parsed.ok && typeof parsed.value?.version === 'number' ? parsed.value.version : 0;
-
-  if (version >= CURRENT_SCHEMA) return;
-
-  await Storage.set(SCHEMA_KEY, JSON.stringify({ version: CURRENT_SCHEMA }));
+function wrapForTTL(key: string, value: unknown) {
+  return TTL[key] ? { value, ts: Date.now() } : value;
 }
 
-async function validateKey(key: string) {
-  const raw = await Storage.getString(key);
-
-  const parsed = safeParse<unknown>(raw);
-  if (!parsed.ok) {
-    if (key in DEFAULTS) {
-      const val = DEFAULTS[key];
-      if (val === undefined) await Storage.del(key);
-      else await Storage.set(key, JSON.stringify(val));
-    } else {
-      await Storage.del(key);
-    }
-    return { key, action: 'deleted-invalid' as const };
-  }
-
-  const ttl = TTL[key];
-  if (ttl) {
-    const envelopeOk = isObject(parsed.value) && 'value' in parsed.value && 'ts' in parsed.value;
-    if (envelopeOk) {
-      const { ts } = parsed.value as { value: unknown; ts: number };
-      if (typeof ts === 'number' && Date.now() - ts > ttl) {
-        await Storage.del(key);
-        return { key, action: 'expired' as const };
-      }
-    }
-  }
-
-  const validator = VALIDATORS[key];
-  if (validator) {
-    const envelope = parsed.value;
-    const candidate = TTL[key] ? (envelope as { value: unknown }).value : envelope;
-    if (!validator(candidate)) {
-      await Storage.del(key);
-      return { key, action: 'deleted-bad-shape' as const };
-    }
-  }
-
-  return { key, action: 'ok' as const };
+function unwrapForTTL(key: string, parsed: any) {
+  return TTL[key] ? parsed?.value : parsed;
 }
 
-export async function setJSONWithTTL(key: string, value: unknown) {
-  const ttl = TTL[key];
-  if (ttl) {
-    await Storage.set(key, JSON.stringify({ value, ts: Date.now() }));
-  } else {
-    await Storage.set(key, JSON.stringify(value));
-  }
+export async function setJSON(key: string, value: unknown) {
+  await Storage.set(key, JSON.stringify(wrapForTTL(key, value)));
 }
 
 export async function getJSON<T = unknown>(key: string): Promise<T | null> {
   const raw = await Storage.getString(key);
-  const parsed = safeParse<unknown>(raw);
+  const parsed = safeParse<any>(raw);
   if (!parsed.ok) return null;
-
-  const ttl = TTL[key];
-  if (ttl) {
-    const envelope = parsed.value as { value: T; ts: number };
-    return envelope.value ?? null;
-  }
-  return (parsed.value as T) ?? null;
+  const val = unwrapForTTL(key, parsed.value);
+  return (val ?? null) as T | null;
 }
 
-export async function runStorageHealthCheck() {
-  await migrateIfNeeded();
+export async function runStorageHealthGuard(opts?: {
+  autoErase?: boolean;
+  scanAllUnknownKeys?: boolean;
+}) {
+  const autoErase = opts?.autoErase ?? true;
 
-  const keys = Object.values(KEYS);
-  const results = await Promise.all(keys.map(validateKey));
-  const summary = results.reduce<Record<string, string[]>>((acc, r) => {
-    (acc[r.action] ??= []).push(r.key);
-    return acc;
-  }, {});
-  if (__DEV__) console.log('[StorageHealth]', summary);
-  return summary;
+  const knownKeys = Object.values(KEYS) as string[];
+
+  let extraKeys: string[] = [];
+  if (opts?.scanAllUnknownKeys && Storage.allKeys) {
+    try {
+      const all = await Storage.allKeys();
+      extraKeys = all.filter((k) => !knownKeys.includes(k));
+    } catch (e) {
+      console.warn('[HealthGuard] Failed to scan all keys', e);
+    }
+  }
+
+  const keys = [...knownKeys, ...extraKeys] as string[];
+
+  const report: Record<string, string[]> = {
+    ok: [],
+    fixed_defaulted: [],
+    deleted_invalid_json: [],
+    deleted_bad_shape: [],
+    expired: [],
+  };
+
+  for (const key of keys) {
+    const raw = await Storage.getString(key);
+
+    const parsed = safeParse<any>(raw);
+    if (!parsed.ok) {
+      if (autoErase) {
+        if (key in DEFAULTS) {
+          const dv = DEFAULTS[key];
+          if (dv === undefined) {
+            await Storage.del(key);
+          } else {
+            await Storage.set(key, JSON.stringify(wrapForTTL(key, dv)));
+          }
+          report.fixed_defaulted.push(key);
+        } else {
+          await Storage.del(key);
+          report.deleted_invalid_json.push(key);
+        }
+      }
+      continue;
+    }
+
+    const ttl = TTL[key];
+    if (ttl) {
+      const env = parsed.value;
+      const ts = isObj(env) ? (env.ts as number | undefined) : undefined;
+      if (typeof ts === 'number' && Date.now() - ts > ttl) {
+        if (autoErase) {
+          await Storage.del(key);
+          report.expired.push(key);
+        }
+        continue;
+      }
+    }
+
+    const validator = VALIDATORS[key];
+    const candidate = unwrapForTTL(key, parsed.value);
+    if (validator && !validator(candidate)) {
+      if (autoErase) {
+        if (key in DEFAULTS) {
+          const dv = DEFAULTS[key];
+          if (dv === undefined) {
+            await Storage.del(key);
+          } else {
+            await Storage.set(key, JSON.stringify(wrapForTTL(key, dv)));
+          }
+          report.fixed_defaulted.push(key);
+        } else {
+          await Storage.del(key);
+          report.deleted_bad_shape.push(key);
+        }
+      }
+      continue;
+    }
+
+    report.ok.push(key);
+  }
+
+  if (__DEV__) {
+    console.log('[StorageHealthGuard] Report:', report);
+    const totalIssues = 
+      report.deleted_invalid_json.length +
+      report.deleted_bad_shape.length +
+      report.expired.length;
+    if (totalIssues > 0) {
+      console.log(`[StorageHealthGuard] ✅ Auto-cleared ${totalIssues} corrupt/stale items`);
+    }
+  }
+  
+  return report;
 }
 
 export async function nuclearClear() {
+  console.log('[StorageHealthGuard] 💣 Nuclear clear initiated');
   await Storage.clear();
-  await Storage.set(SCHEMA_KEY, JSON.stringify({ version: CURRENT_SCHEMA }));
+  console.log('[StorageHealthGuard] ✅ All storage cleared');
 }
