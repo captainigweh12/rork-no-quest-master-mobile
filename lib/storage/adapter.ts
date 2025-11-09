@@ -30,7 +30,7 @@ try {
     set: (k, v) => AsyncStorage.setItem(k, v),
     del: (k) => AsyncStorage.removeItem(k),
     clear: () => AsyncStorage.clear(),
-    allKeys: async () => (await AsyncStorage.getAllKeys()) as string[],
+    allKeys: async () => [...(await AsyncStorage.getAllKeys())],
   };
   console.log('[Storage] Using AsyncStorage (Expo Go compatible)');
 }
