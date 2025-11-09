@@ -31,6 +31,7 @@ import { getBaseUrl } from "@/lib/baseUrl";
 import { localStorageService } from "@/lib/localStorage";
 import { useAppInit } from "@/hooks/useAppInit";
 import { runFullHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
+import { RorkDevMaybe } from '@/lib/rorkDevWrapper';
 import React from "react";
 
 LogBox.ignoreLogs([
@@ -379,8 +380,9 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <AppInitializer>
-      <TrpcProvider>
+    <RorkDevMaybe>
+      <AppInitializer>
+        <TrpcProvider>
         <AuthProvider>
           <SchemaProvider>
             <SubscriptionProvider>
@@ -410,7 +412,8 @@ export default function RootLayout() {
             </SubscriptionProvider>
           </SchemaProvider>
         </AuthProvider>
-      </TrpcProvider>
-    </AppInitializer>
+        </TrpcProvider>
+      </AppInitializer>
+    </RorkDevMaybe>
   );
 }
