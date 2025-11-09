@@ -33,6 +33,44 @@ const OVERRIDE_KEY = 'EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE';
 /**
  * Load any persisted override from storage into global state and return it.
  */
+/**
+ * Validate that a URL string is well-formed and doesn't contain syntax issues
+ */
+function isValidUrl(urlString: string): boolean {
+  if (!urlString || typeof urlString !== 'string') return false;
+  
+  try {
+    const trimmed = urlString.trim();
+    
+    // Check for common corruption patterns that cause SyntaxError
+    // Pattern 1: https;// instead of https://
+    if (/https?;/.test(trimmed)) {
+      console.error('[baseUrl] Invalid URL: semicolon instead of colon detected');
+      return false;
+    }
+    
+    // Pattern 2: Unexpected semicolons or control characters
+    if (/[\x00-\x1F;]/.test(trimmed.substring(0, 20))) {
+      console.error('[baseUrl] Invalid URL: control characters or semicolons detected');
+      return false;
+    }
+    
+    // Pattern 3: Must start with http:// or https://
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      console.error('[baseUrl] Invalid URL: must start with http:// or https://');
+      return false;
+    }
+    
+    // Pattern 4: Try to parse as URL
+    new URL(trimmed);
+    
+    return true;
+  } catch (e) {
+    console.error('[baseUrl] URL validation failed:', e);
+    return false;
+  }
+}
+
 export async function loadBaseUrlOverride(): Promise<string | undefined> {
   try {
     if (!isStorageReady()) {
@@ -49,7 +87,7 @@ export async function loadBaseUrlOverride(): Promise<string | undefined> {
       console.warn('[baseUrl] Storage read failed (likely corrupted):', storageError.message || storageError);
       
       // If we got a syntax error, clear the corrupted key directly
-      if (storageError.message?.includes('SyntaxError') || storageError.message?.includes("';' expected")) {
+      if (storageError.message?.includes('SyntaxError') || storageError.message?.includes("';' expected") || storageError.message?.includes("':' expected")) {
         console.log('[baseUrl] Clearing corrupted override key...');
         try {
           await guardedStorage.removeItem(OVERRIDE_KEY);
@@ -66,6 +104,18 @@ export async function loadBaseUrlOverride(): Promise<string | undefined> {
     }
     
     if (val && val.trim().length > 0) {
+      // CRITICAL: Validate the URL before using it
+      if (!isValidUrl(val)) {
+        console.error('[baseUrl] Stored URL is corrupted, clearing it:', val);
+        try {
+          await guardedStorage.removeItem(OVERRIDE_KEY);
+          console.log('[baseUrl] Corrupted URL cleared');
+        } catch (clearError) {
+          console.error('[baseUrl] Failed to clear corrupted URL:', clearError);
+        }
+        return undefined;
+      }
+      
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripTrailingSlash(val.trim());
       return (globalThis as any).__RORK_BASE_URL_OVERRIDE;
     }
@@ -88,11 +138,20 @@ export async function setBaseUrlOverride(url?: string | undefined): Promise<void
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
       return;
     }
+    
     const stripped = stripTrailingSlash(url.trim());
+    
+    // CRITICAL: Validate URL before storing
+    if (!isValidUrl(stripped)) {
+      console.error('[baseUrl] Cannot set invalid URL:', stripped);
+      throw new Error('Invalid URL format');
+    }
+    
     await guardedStorage.setItem(OVERRIDE_KEY, stripped);
     (globalThis as any).__RORK_BASE_URL_OVERRIDE = stripped;
   } catch (e) {
     console.warn('[baseUrl] Error setting override:', e);
+    throw e;
   }
 }
 
