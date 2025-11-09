@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, createTrpcClient } from "@/lib/trpc";
 import { View, Text, ActivityIndicator, Pressable, Platform } from "react-native";
 import { loadBaseUrlOverride, clearStaleUrlIfNeeded, getBaseUrl, setBaseUrlOverride, DEFAULT_RENDER_BASE_URL } from "@/lib/baseUrl";
-import { configureLiveStreaming, isLiveStreamConfigured } from "@/lib/liveConfig";
 import React from "react";
 
 export default function TrpcProvider({ children }: { children: ReactNode }) {
@@ -49,23 +48,9 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Step 3: Auto-configure live streaming if not already configured
-        try {
-          const liveConfigured = await isLiveStreamConfigured();
-          if (!liveConfigured) {
-            console.log('[TrpcProvider] 🎥 Auto-configuring live streaming...');
-            const result = await configureLiveStreaming();
-            if (result.success) {
-              console.log('[TrpcProvider] ✅ Live streaming auto-configured successfully');
-            } else {
-              console.warn('[TrpcProvider] ⚠️ Live streaming auto-configuration failed:', result.error);
-            }
-          } else {
-            console.log('[TrpcProvider] ✅ Live streaming already configured');
-          }
-        } catch (err) {
-          console.warn('[TrpcProvider] ⚠️ Live streaming configuration check failed (non-critical):', err);
-        }
+        // Note: Live streaming configuration moved to lazy initialization
+        // It now happens when the user actually tries to use streaming features
+        // This prevents blocking app startup
 
         const url = getBaseUrl();
         console.log('[TrpcProvider] 🚀 Initialized with URL:', url);
@@ -123,7 +108,7 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
         console.log('[TrpcProvider] 🎬 Prefetching VideoSDK token...');
         // Using queryClient to prefetch - this will cache the token
         await queryClient!.prefetchQuery({
-          queryKey: ['videosdk', 'getToken'],
+          queryKey: ['videosdk', 'getToken', readyBaseUrl],
           queryFn: async () => {
             const client = createTrpcClient({ baseUrl: readyBaseUrl! });
             return await client.videosdk.getToken.query();
@@ -147,10 +132,7 @@ export default function TrpcProvider({ children }: { children: ReactNode }) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
         <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={{ marginTop: 10, color: "#fff", fontSize: 16 }}>Initializing...</Text>
-        <Text style={{ marginTop: 4, color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
-          Setting up live streaming
-        </Text>
+        <Text style={{ marginTop: 10, color: "#fff", fontSize: 16 }}>Initializing app...</Text>
       </View>
     );
   }

@@ -1,8 +1,9 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { typedStorage, isStorageReady } from '@/lib/storage';
+import { configureLiveStreaming, isLiveStreamConfigured } from '@/lib/liveConfig';
 import type { StreamMessage } from '@/types';
 import {
   createStream,
@@ -22,6 +23,7 @@ export const [StreamProvider, useStream] = createContextHook(() => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeStreamId, setActiveStreamId] = useState<string | null>(null);
+  const liveStreamConfigInitialized = useRef(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [messages, setMessages] = useState<StreamMessage[]>([]);
   const [viewerCount, setViewerCount] = useState(0);
@@ -173,6 +175,27 @@ export const [StreamProvider, useStream] = createContextHook(() => {
         const error = new Error('User not authenticated');
         console.error('[STREAM_CONTEXT] User not authenticated');
         throw error;
+      }
+
+      // Lazy initialize live streaming configuration on first use
+      if (!liveStreamConfigInitialized.current) {
+        try {
+          const liveConfigured = await isLiveStreamConfigured();
+          if (!liveConfigured) {
+            console.log('[STREAM_CONTEXT] 🎥 Auto-configuring live streaming...');
+            const result = await configureLiveStreaming();
+            if (result.success) {
+              console.log('[STREAM_CONTEXT] ✅ Live streaming configured successfully');
+            } else {
+              console.warn('[STREAM_CONTEXT] ⚠️ Live streaming auto-configuration failed:', result.error);
+            }
+          } else {
+            console.log('[STREAM_CONTEXT] ✅ Live streaming already configured');
+          }
+          liveStreamConfigInitialized.current = true;
+        } catch (err) {
+          console.warn('[STREAM_CONTEXT] ⚠️ Live streaming configuration failed (non-critical):', err);
+        }
       }
 
       const nextVisibility = data.visibility ?? visibility;
