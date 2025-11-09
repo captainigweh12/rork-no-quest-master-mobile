@@ -2,6 +2,39 @@
 import 'react-native-url-polyfill/auto';
 import { Platform } from 'react-native';
 
+// CRITICAL: Pre-emptive corruption check before ANY storage reads
+if (Platform.OS !== 'web') {
+  (async () => {
+    try {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      
+      // Nuclear option: if we get any storage-related error in the next 100ms,
+      // we'll clear everything
+      const originalError = console.error;
+      let detectedStorageError = false;
+      
+      console.error = (...args: any[]) => {
+        const errorStr = args.join(' ');
+        if ((errorStr.includes('SyntaxError') || errorStr.includes("';' expected")) && !detectedStorageError) {
+          detectedStorageError = true;
+          console.log('[PRE-INIT] 🚨 Detected storage corruption, clearing ALL storage immediately...');
+          AsyncStorage.clear()
+            .then(() => console.log('[PRE-INIT] ✅ Emergency clear successful'))
+            .catch((err: any) => console.error('[PRE-INIT] ❌ Emergency clear failed:', err));
+        }
+        originalError(...args);
+      };
+      
+      // Restore after 2 seconds
+      setTimeout(() => {
+        console.error = originalError;
+      }, 2000);
+    } catch (e) {
+      // Silently ignore - this is best-effort
+    }
+  })();
+}
+
 import { useEffect, useState, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -265,6 +298,7 @@ function RootLayoutNav() {
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const { isInitializing, isReady, error } = useAppInit();
   const [showError, setShowError] = useState(false);
+  const [emergencyClearTriggered, setEmergencyClearTriggered] = useState(false);
   
   // Global error handler for uncaught errors during initialization
   useEffect(() => {
@@ -275,15 +309,27 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       
       // Check if it's a syntax error related to JSON parsing
       const errorStr = args.join(' ');
-      if (errorStr.includes('SyntaxError') || errorStr.includes("';' expected")) {
-        console.warn('[APP] 🚨 Detected SyntaxError during initialization - storage may be corrupted');
+      if ((errorStr.includes('SyntaxError') || errorStr.includes("';' expected")) && !emergencyClearTriggered) {
+        console.warn('[APP] 🚨 Detected SyntaxError during initialization - triggering nuclear clear');
+        setEmergencyClearTriggered(true);
+        
+        // Nuclear option: clear all storage immediately
+        (async () => {
+          try {
+            const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+            await AsyncStorage.clear();
+            console.log('[APP] ✅ Nuclear storage clear successful - please reload the app');
+          } catch (clearError) {
+            console.error('[APP] ❌ Nuclear clear failed:', clearError);
+          }
+        })();
       }
     };
     
     return () => {
       console.error = originalError;
     };
-  }, []);
+  }, [emergencyClearTriggered]);
 
   // Show loading screen during initialization
   if (isInitializing) {
