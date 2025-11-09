@@ -59,7 +59,24 @@ async function migrateFromAsyncStorage(): Promise<void> {
     const storage = AsyncStorage.default;
     
     console.log('[SQLITE] Starting migration from AsyncStorage...');
-    const allKeys = await storage.getAllKeys();
+    
+    // Try to get keys - if this fails with SyntaxError, AsyncStorage is corrupted
+    let allKeys: readonly string[];
+    try {
+      allKeys = await storage.getAllKeys();
+    } catch (keysError: any) {
+      console.error('[SQLITE] Failed to read AsyncStorage keys:', keysError.message);
+      if (keysError.message?.includes('SyntaxError') || keysError.message?.includes("';' expected")) {
+        console.log('[SQLITE] AsyncStorage appears corrupted, clearing it...');
+        try {
+          await storage.clear();
+          console.log('[SQLITE] AsyncStorage cleared due to corruption');
+        } catch (clearError) {
+          console.error('[SQLITE] Failed to clear corrupted AsyncStorage:', clearError);
+        }
+      }
+      return;
+    }
     
     if (!allKeys || allKeys.length === 0) {
       console.log('[SQLITE] No keys to migrate');
@@ -73,7 +90,14 @@ async function migrateFromAsyncStorage(): Promise<void> {
     
     for (const key of allKeys) {
       try {
-        const value = await storage.getItem(key);
+        let value: string | null;
+        try {
+          value = await storage.getItem(key);
+        } catch (getError: any) {
+          console.warn(`[SQLITE] Failed to read key "${key}":`, getError.message);
+          errorCount++;
+          continue;
+        }
         
         if (value === null || value === undefined) {
           skippedCount++;
@@ -109,11 +133,16 @@ async function migrateFromAsyncStorage(): Promise<void> {
     
     if (migratedCount > 0) {
       console.log('[SQLITE] Clearing old AsyncStorage data...');
-      await storage.clear();
-      console.log('[SQLITE] AsyncStorage cleared');
+      try {
+        await storage.clear();
+        console.log('[SQLITE] AsyncStorage cleared');
+      } catch (clearError) {
+        console.error('[SQLITE] Failed to clear AsyncStorage after migration:', clearError);
+      }
     }
-  } catch (error) {
-    console.error('[SQLITE] Migration failed:', error);
+  } catch (error: any) {
+    console.error('[SQLITE] Migration failed:', error.message || error);
+    // Don't throw - we want the app to continue even if migration fails
   }
 }
 

@@ -5,6 +5,8 @@
  * Used when AsyncStorage is corrupted and causes SyntaxError during parsing.
  */
 
+import * as SQLite from 'expo-sqlite';
+
 let clearingComplete = false;
 let clearAttempted = false;
 
@@ -22,19 +24,29 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
   console.log('[EMERGENCY] 🚨 Nuclear storage clear initiated');
 
   try {
-    // Import AsyncStorage
+    // Step 1: Nuclear clear SQLite database
+    console.log('[EMERGENCY] Step 1: Clearing SQLite database...');
+    try {
+      const db = await SQLite.openDatabaseAsync('app_storage.db');
+      await db.execAsync('DROP TABLE IF EXISTS storage');
+      await db.closeAsync();
+      console.log('[EMERGENCY] ✅ SQLite database cleared');
+    } catch (sqliteError: any) {
+      console.error('[EMERGENCY] SQLite clear failed:', sqliteError.message);
+    }
+
+    // Step 2: Clear AsyncStorage
+    console.log('[EMERGENCY] Step 2: Clearing AsyncStorage...');
     const AsyncStorage = await import('@react-native-async-storage/async-storage');
     const storage = AsyncStorage.default;
     
     // IMPORTANT: Do NOT try to read anything - just clear everything
     // Reading corrupted data can throw SyntaxError and crash the app
     
-    console.log('[EMERGENCY] Clearing ALL storage without reading...');
-    
     try {
       // Method 1: Use clear() - fastest but removes everything
       await storage.clear();
-      console.log('[EMERGENCY] ✅ Storage cleared using clear()');
+      console.log('[EMERGENCY] ✅ AsyncStorage cleared using clear()');
       clearingComplete = true;
       return;
     } catch (clearError: any) {
@@ -68,7 +80,7 @@ export async function emergencyClearCorruptedStorage(): Promise<void> {
           }
         }
         
-        console.log('[EMERGENCY] ✅ Storage cleared using key removal');
+        console.log('[EMERGENCY] ✅ AsyncStorage cleared using key removal');
         clearingComplete = true;
         return;
       } catch (keysError: any) {
