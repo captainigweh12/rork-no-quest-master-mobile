@@ -76,25 +76,66 @@ async function getItem<T>(key: string): Promise<T | null> {
     const item = await guardedStorage.getItem(key);
     if (!item) return null;
     
-  const parsed = jsonSafe.parse<T | null>(item, null);
+    // Additional safety: check if item is valid before parsing
+    const trimmed = item.trim();
+    if (trimmed.length === 0) {
+      console.warn(`[localStorage] Empty value for ${key}, removing`);
+      await guardedStorage.removeItem(key);
+      return null;
+    }
+    
+    // Detect obviously corrupted data
+    if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && trimmed.length < 10) {
+      // Suspiciously short JSON - likely corrupted
+      console.warn(`[localStorage] Suspiciously short JSON for ${key}, removing`);
+      await guardedStorage.removeItem(key);
+      return null;
+    }
+    
+    const parsed = jsonSafe.parse<T | null>(item, null);
     if (parsed === null) {
+      console.warn(`[localStorage] Failed to parse ${key}, removing`);
       await guardedStorage.removeItem(key);
     }
     return parsed;
   } catch (error) {
     console.error(`[localStorage] Error getting ${key}:`, error);
+    // Remove corrupted key
+    try {
+      await guardedStorage.removeItem(key);
+    } catch (removeError) {
+      console.error(`[localStorage] Failed to remove corrupted key ${key}:`, removeError);
+    }
     return null;
   }
 }
 
 async function setItem<T>(key: string, value: T): Promise<void> {
   try {
-  const serialized = jsonSafe.stringify(value);
-    if (serialized) {
-      await guardedStorage.setItem(key, serialized);
+    const serialized = jsonSafe.stringify(value);
+    if (!serialized) {
+      console.error(`[localStorage] Failed to serialize value for ${key}`);
+      return;
     }
+    
+    // Validate serialized data before storing
+    if (serialized.trim().length === 0) {
+      console.error(`[localStorage] Empty serialized value for ${key}, aborting`);
+      return;
+    }
+    
+    // Extra validation: ensure it can be parsed back
+    try {
+      JSON.parse(serialized);
+    } catch (parseError) {
+      console.error(`[localStorage] Serialized value is not valid JSON for ${key}, aborting`);
+      return;
+    }
+    
+    await guardedStorage.setItem(key, serialized);
   } catch (error) {
     console.error(`[localStorage] Error setting ${key}:`, error);
+    throw error;
   }
 }
 

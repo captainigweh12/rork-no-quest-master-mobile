@@ -138,65 +138,123 @@ export const isStorageAvailable = (): boolean => {
  */
 export const guardedStorage = {
   /**
-   * Get item from storage
+   * Get item from storage with corruption protection
    */
   async getItem(key: string): Promise<string | null> {
-    // Secrets → SecureStore on native (except web)
-    if (SECRET_KEYS.has(key) && !isWeb) {
-      try {
-        const value = await SecureStore.getItemAsync(key);
-        return value ?? null;
-      } catch (error) {
-        console.warn(`SecureStore.getItem failed for ${key}, falling through to regular storage:`, error);
-        // Fall through to regular storage
+    try {
+      // Secrets → SecureStore on native (except web)
+      if (SECRET_KEYS.has(key) && !isWeb) {
+        try {
+          const value = await SecureStore.getItemAsync(key);
+          return value ?? null;
+        } catch (error) {
+          console.warn(`SecureStore.getItem failed for ${key}, falling through to regular storage:`, error);
+          // Fall through to regular storage
+        }
       }
-    }
 
-    // Native with MMKV (custom dev client / production)
-    if (mmkv) {
-      try {
-        return mmkv.getString(key) ?? null;
-      } catch (error) {
-        console.warn(`MMKV read error for key ${key}, falling back to AsyncStorage:`, error);
-        // Fallback to AsyncStorage if MMKV fails (rare but possible on corrupted storage)
-        return (await AsyncStorage.getItem(key)) as string | null;
+      // Native with MMKV (custom dev client / production)
+      if (mmkv) {
+        try {
+          const value = mmkv.getString(key) ?? null;
+          // Validate it's not corrupted by attempting to parse if it looks like JSON
+          if (value && value.trim().startsWith('{') || value?.trim().startsWith('[')) {
+            try {
+              JSON.parse(value);
+            } catch (parseError) {
+              console.warn(`[STORAGE] Corrupted JSON in MMKV for key ${key}, removing`);
+              mmkv.delete(key);
+              return null;
+            }
+          }
+          return value;
+        } catch (error) {
+          console.warn(`MMKV read error for key ${key}, falling back to AsyncStorage:`, error);
+          // Fallback to AsyncStorage if MMKV fails
+          try {
+            const value = await AsyncStorage.getItem(key);
+            // Validate AsyncStorage value too
+            if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
+              try {
+                JSON.parse(value);
+              } catch (parseError) {
+                console.warn(`[STORAGE] Corrupted JSON in AsyncStorage for key ${key}, removing`);
+                await AsyncStorage.removeItem(key);
+                return null;
+              }
+            }
+            return value;
+          } catch (asyncError) {
+            console.error(`[STORAGE] Both MMKV and AsyncStorage failed for ${key}:`, asyncError);
+            return null;
+          }
+        }
       }
-    }
 
-    // Web or Expo Go → AsyncStorage
-    return (await AsyncStorage.getItem(key)) as string | null;
+      // Web or Expo Go → AsyncStorage
+      const value = await AsyncStorage.getItem(key);
+      // Validate for corruption
+      if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
+        try {
+          JSON.parse(value);
+        } catch (parseError) {
+          console.warn(`[STORAGE] Corrupted JSON in AsyncStorage for key ${key}, removing`);
+          await AsyncStorage.removeItem(key);
+          return null;
+        }
+      }
+      return value;
+    } catch (error) {
+      console.error(`[STORAGE] Fatal error getting ${key}:`, error);
+      return null;
+    }
   },
 
   /**
-   * Set item in storage
+   * Set item in storage with validation
    */
   async setItem(key: string, value: string): Promise<void> {
-    // Secrets → SecureStore on native (except web)
-    if (SECRET_KEYS.has(key) && !isWeb) {
-      try {
-        await SecureStore.setItemAsync(key, value);
-        return;
-      } catch (error) {
-        console.warn(`SecureStore.setItem failed for ${key}, falling through to regular storage:`, error);
-        // Fall through to regular storage
+    try {
+      // Validate value is not corrupted before storing
+      if (value && (value.trim().startsWith('{') || value.trim().startsWith('['))) {
+        try {
+          JSON.parse(value);
+        } catch (parseError) {
+          console.error(`[STORAGE] Attempted to store invalid JSON for key ${key}, aborting`);
+          throw new Error(`Invalid JSON value for key ${key}`);
+        }
       }
-    }
 
-    // Native with MMKV
-    if (mmkv) {
-      try {
-        mmkv.set(key, value);
-        return;
-      } catch (error) {
-        console.warn(`MMKV write error for key ${key}, falling back to AsyncStorage:`, error);
-        // Fallback to AsyncStorage if MMKV fails
-        await AsyncStorage.setItem(key, value);
-        return;
+      // Secrets → SecureStore on native (except web)
+      if (SECRET_KEYS.has(key) && !isWeb) {
+        try {
+          await SecureStore.setItemAsync(key, value);
+          return;
+        } catch (error) {
+          console.warn(`SecureStore.setItem failed for ${key}, falling through to regular storage:`, error);
+          // Fall through to regular storage
+        }
       }
-    }
 
-    // Web or Expo Go → AsyncStorage
-    await AsyncStorage.setItem(key, value);
+      // Native with MMKV
+      if (mmkv) {
+        try {
+          mmkv.set(key, value);
+          return;
+        } catch (error) {
+          console.warn(`MMKV write error for key ${key}, falling back to AsyncStorage:`, error);
+          // Fallback to AsyncStorage if MMKV fails
+          await AsyncStorage.setItem(key, value);
+          return;
+        }
+      }
+
+      // Web or Expo Go → AsyncStorage
+      await AsyncStorage.setItem(key, value);
+    } catch (error) {
+      console.error(`[STORAGE] Fatal error setting ${key}:`, error);
+      throw error;
+    }
   },
 
   /**
