@@ -78,7 +78,7 @@ export async function runStorageHealthGuard(opts?: {
   if (opts?.scanAllUnknownKeys && Storage.allKeys) {
     try {
       const all = await Storage.allKeys();
-      extraKeys = all.filter((k) => !knownKeys.includes(k));
+      extraKeys = [...all].filter((k) => !knownKeys.includes(k));
     } catch (e) {
       console.warn('[HealthGuard] Failed to scan all keys', e);
     }
