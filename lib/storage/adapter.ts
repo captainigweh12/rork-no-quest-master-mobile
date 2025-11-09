@@ -6,7 +6,7 @@ type KV = {
   set(k: string, v: string): Promise<void> | void;
   del(k: string): Promise<void> | void;
   clear(): Promise<void> | void;
-  allKeys?(): Promise<readonly string[]>;
+  allKeys?(): Promise<string[]>;
 };
 
 let Storage: KV;

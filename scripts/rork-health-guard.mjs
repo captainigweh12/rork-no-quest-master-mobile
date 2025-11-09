@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 
 const FIX_MODE = process.argv.includes('--fix');
 const CLEAN_ONLY = process.argv.includes('--clean-only');
+const SKIP_NATIVE_CHECK = process.argv.includes('--assume-dev-client');
+const SKIP_TSC = process.argv.includes('--skip-tsc');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const SRC_DIRS = ['app', 'src', 'packages', 'components'].map(p => path.join(PROJECT_ROOT, p));
@@ -134,7 +136,7 @@ for (const file of ['tsconfig.json','package.json','eas.json'].map(p => path.joi
   }
 }
 
-if (exists(path.join(PROJECT_ROOT, 'tsconfig.json'))) {
+if (exists(path.join(PROJECT_ROOT, 'tsconfig.json')) && !SKIP_TSC) {
   const tsc = spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['tsc', '--noEmit'], { stdio: 'pipe', cwd: PROJECT_ROOT });
   if (tsc.status !== 0) {
     logProb('TSC', 'TypeScript errors detected (tsc --noEmit failed).', '(run npx tsc --noEmit to view)');
@@ -157,10 +159,10 @@ if (usesMMKV) {
 if (usesAsyncStorage) {
   console.log(gray('AsyncStorage detected - runtime storage health guard active'));
 }
-if (usesNative) {
-  const usingExpoGo = !process.env.EXPO_DEV_CLIENT && !process.argv.includes('--assume-dev-client');
+if (usesNative && !SKIP_NATIVE_CHECK) {
+  const usingExpoGo = !process.env.EXPO_DEV_CLIENT;
   if (usingExpoGo) {
-    logProb('EXPO_GO', 'Native modules present but EXPO Go assumed.', 'Use a Custom Dev Client via EAS or set a dynamic fallback.');
+    logProb('EXPO_GO', 'Native modules present but EXPO Go assumed.', 'Add --assume-dev-client if using custom dev client');
   }
 }
 
