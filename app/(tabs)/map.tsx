@@ -1,4 +1,4 @@
-// @ts-nocheck
+// Type-checked
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Platform, TextInput, ScrollView, Modal, Linking, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Modal, Alert, Share, FlatList, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -277,7 +276,8 @@ export default function CommunityScreen() {
     setIsAnalyzing(true);
     
     try {
-      const result = await generateObject({
+  const result = await generateObject({
+        model: process.env.EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
@@ -303,8 +303,10 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         })
       });
       
-      setAnalyzedSkills(result.skills);
-      setAiExplanation(result.explanation);
+  // Access object shape defensively
+  const obj: any = (result as any).object || result;
+  if (obj?.skills && Array.isArray(obj.skills)) setAnalyzedSkills(obj.skills as Skill[]);
+  if (typeof obj?.explanation === 'string') setAiExplanation(obj.explanation);
       setShowCreateJournal(false);
       setShowSkillsModal(true);
     } catch (e) {

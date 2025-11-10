@@ -90,7 +90,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       const key = `BACKFILL_V1_DONE_${uid}`;
       try {
-        const storage: any = (await import('@react-native-async-storage/async-storage')).default;
+        const { storage } = await import('@/lib/storage');
         const done = await storage.getItem(key);
         if (!done) {
           await storage.setItem(key, '1');

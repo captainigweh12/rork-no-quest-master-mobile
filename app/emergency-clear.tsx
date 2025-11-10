@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import { useEffect, useState } from 'react';
 import { loadBaseUrlOverride, setBaseUrlOverride } from '@/lib/baseUrl';
 
@@ -41,7 +41,7 @@ export default function EmergencyClearScreen() {
       
       // Method 1: Try clear() first (fastest)
       try {
-        await AsyncStorage.clear();
+  await storage.clearAll();
         console.log('[Emergency Clear] ✅ AsyncStorage.clear() successful');
         clearSuccess = true;
       } catch (clearError: any) {
@@ -49,7 +49,7 @@ export default function EmergencyClearScreen() {
         
         // Method 2: Try to get keys and remove individually
         try {
-          const keys = await AsyncStorage.getAllKeys();
+          const keys = await storage.getAllKeys();
           console.log(`[Emergency Clear] Found ${keys.length} keys, removing individually...`);
           
           // Remove in small batches
@@ -58,7 +58,7 @@ export default function EmergencyClearScreen() {
             const batch = keys.slice(i, i + BATCH_SIZE);
             for (const key of batch) {
               try {
-                await AsyncStorage.removeItem(key);
+                await storage.removeItem(key);
               } catch (removeError) {
                 console.warn(`[Emergency Clear] Failed to remove key: ${key}`);
               }
@@ -83,7 +83,7 @@ export default function EmergencyClearScreen() {
       const renderUrl = 'https://rork-no-quest-master-mobile.onrender.com';
       
       try {
-        await AsyncStorage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', renderUrl);
+  await storage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', renderUrl);
         (globalThis as any).__RORK_BASE_URL_OVERRIDE = renderUrl;
         console.log('[Emergency Clear] ✅ New URL set:', renderUrl);
       } catch (setError) {

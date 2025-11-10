@@ -2,6 +2,10 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// In-memory emergency fallback (extremely rare path: if AsyncStorage itself consistently fails).
+// Helps prevent cascading null reads if the underlying native module is temporarily unavailable.
+const memoryFallback = new Map<string, string>();
+
 type Store = {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
@@ -51,11 +55,24 @@ async function ensureInitialized(): Promise<void> {
 
     const buildAsyncBackend = (): Store => {
       const base: Store = {
-        async getItem(k) { return SECRET_KEYS.has(k) ? secureGet(k) : AsyncStorage.getItem(k); },
-        async setItem(k, v) { return SECRET_KEYS.has(k) ? secureSet(k, v) : AsyncStorage.setItem(k, v); },
-        async removeItem(k) { return SECRET_KEYS.has(k) ? secureDel(k) : AsyncStorage.removeItem(k); },
-        async getAllKeys() { return [...(await AsyncStorage.getAllKeys())]; },
-        async clearAll() { await AsyncStorage.clear(); },
+        async getItem(k) {
+          if (SECRET_KEYS.has(k)) return secureGet(k);
+          try { return await AsyncStorage.getItem(k); } catch (e) { return memoryFallback.get(k) ?? null; }
+        },
+        async setItem(k, v) {
+          if (SECRET_KEYS.has(k)) return secureSet(k, v);
+          try { await AsyncStorage.setItem(k, v); } catch (e) { memoryFallback.set(k, v); }
+        },
+        async removeItem(k) {
+          if (SECRET_KEYS.has(k)) return secureDel(k);
+          try { await AsyncStorage.removeItem(k); } catch (e) { memoryFallback.delete(k); }
+        },
+        async getAllKeys() {
+          try { return [...(await AsyncStorage.getAllKeys())]; } catch { return Array.from(new Set([...memoryFallback.keys()])); }
+        },
+        async clearAll() {
+          try { await AsyncStorage.clear(); } catch { memoryFallback.clear(); }
+        },
       };
       base.multiGet = async (keys) => Promise.all(keys.map(async (k) => [k, await base.getItem(k)] as [string, string | null]));
       base.multiSet = async (pairs) => { await Promise.all(pairs.map(([k, v]) => base.setItem(k, v))); };
@@ -79,27 +96,32 @@ async function ensureInitialized(): Promise<void> {
       return;
     }
 
-    // --- Native MMKV builds ---
-    try {
-      const mod = await import('react-native-mmkv');
-      const { MMKV } = mod as any;
-      const mmkv = new MMKV({ id: 'app-storage' });
+    const forceAsync = process.env.FORCE_ASYNC_STORAGE === 'true' || (Constants?.expoConfig?.extra as any)?.forceAsyncStorage === true;
+    if (!forceAsync) {
+      try {
+        const mod = await import('react-native-mmkv');
+        const { MMKV } = mod as any;
+        const mmkv = new MMKV({ id: 'app-storage' });
 
-      const base: Store = {
-        async getItem(k) { return SECRET_KEYS.has(k) ? secureGet(k) : (mmkv.getString(k) ?? null); },
-        async setItem(k, v) { if (SECRET_KEYS.has(k)) return secureSet(k, v); mmkv.set(k, v); },
-        async removeItem(k) { if (SECRET_KEYS.has(k)) return secureDel(k); mmkv.delete(k); },
-        async getAllKeys() { return mmkv.getAllKeys() as string[]; },
-        async clearAll() { mmkv.clearAll(); },
-      };
-      base.multiGet = async (keys) => keys.map((k) => [k, mmkv.getString(k) ?? null] as [string, string | null]);
-      base.multiSet = async (pairs) => { for (const [k, v] of pairs) mmkv.set(k, v); };
-      base.multiRemove = async (keys) => { for (const k of keys) mmkv.delete(k); };
-      impl = base;
-      console.log('✅ Storage backend: MMKV + SecureStore (Native)');
-    } catch {
+        const base: Store = {
+          async getItem(k) { return SECRET_KEYS.has(k) ? secureGet(k) : (mmkv.getString(k) ?? null); },
+          async setItem(k, v) { if (SECRET_KEYS.has(k)) return secureSet(k, v); mmkv.set(k, v); },
+          async removeItem(k) { if (SECRET_KEYS.has(k)) return secureDel(k); mmkv.delete(k); },
+          async getAllKeys() { return mmkv.getAllKeys() as string[]; },
+          async clearAll() { mmkv.clearAll(); },
+        };
+        base.multiGet = async (keys) => keys.map((k) => [k, mmkv.getString(k) ?? null] as [string, string | null]);
+        base.multiSet = async (pairs) => { for (const [k, v] of pairs) mmkv.set(k, v); };
+        base.multiRemove = async (keys) => { for (const k of keys) mmkv.delete(k); };
+        impl = base;
+        console.log('✅ Storage backend: MMKV + SecureStore (Native)');
+      } catch {
+        impl = buildAsyncBackend();
+        console.log('⚠️ Storage backend: AsyncStorage + SecureStore (MMKV unavailable)');
+      }
+    } else {
       impl = buildAsyncBackend();
-      console.log('⚠️ Storage backend: AsyncStorage + SecureStore (MMKV unavailable)');
+      console.log('🚫 FORCE_ASYNC_STORAGE active: Skipping MMKV import, using AsyncStorage backend');
     }
     _isReady = true;
   })();

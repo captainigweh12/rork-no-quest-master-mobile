@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { emergencyClearCorruptedStorage } from '@/lib/emergencyStorageClear';
+import emergencyStorageClear from '@/lib/emergencyStorageClear';
 import { initAppStorage, isStorageReady, isStorageAvailable } from '@/lib/storage';
 import { getBaseUrl } from '@/lib/baseUrl';
 
@@ -43,7 +43,7 @@ export function useAppInit() {
         // Step 0: Emergency clear of corrupted storage FIRST
         console.log('[APP_INIT] Step 0: Running emergency storage clear...');
         try {
-          await emergencyClearCorruptedStorage();
+          await emergencyStorageClear();
           console.log('[APP_INIT] Emergency clear completed ✓');
         } catch (clearError: any) {
           // Even if emergency clear fails, continue - we wrap everything in try-catch
@@ -120,7 +120,7 @@ export function useAppInit() {
           console.error('[APP_INIT] 🚨 SyntaxError detected - storage corruption');
           console.error('[APP_INIT] Attempting additional emergency clear...');
           try {
-            await emergencyClearCorruptedStorage();
+            await emergencyStorageClear();
             console.log('[APP_INIT] ✅ Additional clear completed');
           } catch (secondError: any) {
             console.error('[APP_INIT] Additional clear failed:', secondError?.message || String(secondError));

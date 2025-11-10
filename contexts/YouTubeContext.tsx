@@ -1,7 +1,7 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getYouTubeApiKey } from '@/lib/env';
 import * as AuthSession from 'expo-auth-session';
@@ -135,7 +135,7 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
     let mounted = true;
     const loadState = async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
         let parsed: YouTubeLinkState | null = null;
         
         if (raw) {
@@ -143,7 +143,7 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
             parsed = JSON.parse(raw);
           } catch (parseError) {
             console.error('[YouTubeContext] Invalid JSON in storage, clearing corrupted data:', parseError);
-            await AsyncStorage.removeItem(STORAGE_KEY);
+            await storage.removeItem(STORAGE_KEY);
           }
         }
         
@@ -164,8 +164,8 @@ export const [YouTubeProvider, useYouTube] = createContextHook(() => {
 
   const persist = useCallback(async (next: YouTubeLinkState | null) => {
     try {
-      if (next) await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      else await AsyncStorage.removeItem(STORAGE_KEY);
+  if (next) await storage.setItem(STORAGE_KEY, JSON.stringify(next));
+  else await storage.removeItem(STORAGE_KEY);
     } catch (e) {
       console.error('[YouTube] Persist error', e);
     }

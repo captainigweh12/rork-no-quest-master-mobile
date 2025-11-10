@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import type { Quest } from '@/types';
 
@@ -22,7 +22,7 @@ export function useQuestCovers(quests: Quest[]) {
   useEffect(() => {
     const load = async () => {
       try {
-        const raw = await AsyncStorage.getItem('questCovers');
+  const raw = await storage.getItem('questCovers');
         const parsed = raw ? JSON.parse(raw) as QuestCoverMap : {};
         setCovers(parsed);
       } catch (e) {
@@ -43,7 +43,7 @@ export function useQuestCovers(quests: Quest[]) {
       const dataUrl = await generateCoverBase64(prompt);
       const next = { ...covers, [quest.id]: dataUrl } as QuestCoverMap;
       setCovers(next);
-      await AsyncStorage.setItem('questCovers', JSON.stringify(next));
+  await storage.setItem('questCovers', JSON.stringify(next));
       return dataUrl;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'gen error');

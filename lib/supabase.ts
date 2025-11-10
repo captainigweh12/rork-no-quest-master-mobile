@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage as appStorage } from '@/lib/storage';
 
 // ✅ Reads variables from your .env (Expo public vars)
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -18,6 +18,11 @@ export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false, // prevents web URL issues on mobile
-    storage: AsyncStorage,     // required for React Native
+    // Provide adapter matching AsyncStorage interface for Supabase auth persistence
+    storage: {
+      getItem: (key: string) => appStorage.getItem(key),
+      setItem: (key: string, value: string) => appStorage.setItem(key, value),
+      removeItem: (key: string) => appStorage.removeItem(key),
+    } as any,
   },
 });

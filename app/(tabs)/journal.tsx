@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { View, Text, StyleSheet, TextInput, Pressable, Animated, FlatList, Alert, Modal, ActivityIndicator, Platform, ScrollView } from 'react-native';
 import { useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -6,7 +5,7 @@ import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/Journal
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen, X, Sparkles, Lock, Users, Globe, Share2, ImagePlus } from 'lucide-react-native';
 import { Stack } from 'expo-router';
-import { generateObject } from 'ai';
+import { generateObject, GenerateObjectResult } from 'ai';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import * as communityService from '@/services/supabase/community';
@@ -42,7 +41,8 @@ export default function JournalScreen() {
     setIsAnalyzing(true);
     
     try {
-      const result = await generateObject({
+      const result: GenerateObjectResult<{ skills: Skill[]; explanation: string }> = await generateObject({
+        model: process.env.EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
@@ -68,8 +68,8 @@ Provide a brief encouraging explanation of the skills they developed and why.`
         })
       });
       
-      setAnalyzedSkills(result.skills);
-      setAiExplanation(result.explanation);
+  setAnalyzedSkills(result.object.skills);
+  setAiExplanation(result.object.explanation);
       setShowSkillsModal(true);
     } catch (e) {
       console.error('AI analysis error:', e);

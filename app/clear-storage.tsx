@@ -2,7 +2,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useCallback, useEffect } from 'react';
 import { getBaseUrl, getDefaultBaseUrl, isStaleUrl, clearStaleUrlIfNeeded } from '@/lib/baseUrl';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Unified storage adapter (routes secrets to SecureStore, uses MMKV when available)
+import { storage } from '@/lib/storage';
 import { runFullHealthCheck, nuclearClear } from '@/lib/storage/healthGuard';
 import { createTrpcClient } from '@/lib/trpc';
 
@@ -22,7 +23,7 @@ export default function ClearStorageScreen() {
   useEffect(() => {
     const checkStaleUrl = async () => {
       try {
-        const override = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+  const override = await storage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
         if (override && isStaleUrl(override)) {
           setHasStaleUrl(true);
           setStaleUrlDetected(override);
@@ -37,8 +38,8 @@ export default function ClearStorageScreen() {
 
   const handleViewStorage = useCallback(async () => {
     try {
-      const override = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
-      const allKeys = await AsyncStorage.getAllKeys();
+  const override = await storage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+  const allKeys = await storage.getAllKeys();
       console.log('[AsyncStorage] All keys:', allKeys);
       console.log('[AsyncStorage] Override value:', override);
       setTestResult(`📦 AsyncStorage Contents:\n\nOverride: ${override || 'none'}\n\nAll keys: ${allKeys.join(', ')}`);
@@ -79,12 +80,12 @@ export default function ClearStorageScreen() {
     setTestResult(null);
     try {
       console.log('[Clear Storage] Removing override key EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE ...');
-      await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+  await storage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = undefined;
       if (typeof (globalThis as any).memoryOverride !== 'undefined') {
         (globalThis as any).memoryOverride = undefined;
       }
-      const stored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+  const stored = await storage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
       console.log('[Clear Storage] Verify override now:', stored);
       const newUrl = getDefaultBaseUrl();
       setCurrentBase(newUrl);
@@ -106,9 +107,9 @@ export default function ClearStorageScreen() {
     setTestResult(null);
     try {
       console.log('[Clear Storage] Force setting Render URL...');
-      await AsyncStorage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', RENDER_URL);
+  await storage.setItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE', RENDER_URL);
       (globalThis as any).__RORK_BASE_URL_OVERRIDE = RENDER_URL;
-      const stored = await AsyncStorage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+  const stored = await storage.getItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
       console.log('[Clear Storage] Verify override now:', stored);
       setCurrentBase(RENDER_URL);
       setTestResult(`✅ Render URL set: ${RENDER_URL}\n\nPlease restart the app for changes to take effect.`);

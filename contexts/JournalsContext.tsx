@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -36,7 +36,7 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
     const load = async () => {
       setIsLoading(true);
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
         if (raw) {
           try {
             const parsed = JSON.parse(raw) as JournalEntry[];
@@ -44,11 +44,11 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
               setJournals(parsed);
             } else {
               console.warn('[JournalsContext] Parsed data is not an array, clearing');
-              await AsyncStorage.removeItem(STORAGE_KEY);
+              await storage.removeItem(STORAGE_KEY);
             }
           } catch (parseError) {
             console.error('[JournalsContext] Invalid JSON in storage, clearing corrupted data:', parseError);
-            await AsyncStorage.removeItem(STORAGE_KEY);
+            await storage.removeItem(STORAGE_KEY);
             setError('Corrupted data cleared');
           }
         }
@@ -64,7 +64,7 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
 
   const persist = useCallback(async (data: JournalEntry[]) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       console.error('Journals persist error', e);
     }
@@ -95,7 +95,7 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
   const clearAll = useCallback(async () => {
     setJournals([]);
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY);
+  await storage.removeItem(STORAGE_KEY);
     } catch (e) {
       console.error('Journals clear error', e);
     }

@@ -125,10 +125,12 @@ class BundlingAuditor {
         }
       }
 
-      // Check for common React Native incompatibilities
-      if (line.includes('document.') || line.includes('window.') && !line.includes('//')) {
-        if (!file.includes('web') && !file.includes('.web.')) {
-          this.addWarning(`Browser API usage detected at line ${lineNum} (not web-specific file)`, file);
+      // Check for common React Native incompatibilities (skip if heuristics disabled)
+      if (!disableHeuristics) {
+        if ((line.includes('document.') || line.includes('window.')) && !line.includes('//')) {
+          if (!file.includes('web') && !file.includes('.web.')) {
+            this.addWarning(`Browser API usage detected at line ${lineNum} (not web-specific file)`, file);
+          }
         }
       }
 
@@ -346,10 +348,15 @@ class BundlingAuditor {
         'react-native-screens',
       ];
 
-      for (const pkg of incompatibleWithExpoGo) {
-        if (packageJson.dependencies?.[pkg]) {
-          this.addWarning(`Package '${pkg}' requires a custom dev client (not compatible with Expo Go)`);
+      const ignoreDevClientWarnings = process.env.AUDIT_IGNORE_DEV_CLIENT_WARNINGS === '1';
+      if (!ignoreDevClientWarnings) {
+        for (const pkg of incompatibleWithExpoGo) {
+          if (packageJson.dependencies?.[pkg]) {
+            this.addWarning(`Package '${pkg}' requires a custom dev client (not compatible with Expo Go)`);
+          }
         }
+      } else {
+        this.log('⚙ Dev client compatibility warnings suppressed (clean mode)', 'yellow');
       }
 
       this.log('✓ Version compatibility check complete', 'green');
@@ -467,6 +474,11 @@ class BundlingAuditor {
   async checkInvariants() {
     this.logSection('CHECKING CODE INVARIANTS');
     
+    if (process.env.AUDIT_DISABLE_INVARIANTS === '1') {
+      this.log('⚙ Invariant checks skipped (clean mode)', 'yellow');
+      return; // Skip invariant scanning entirely in clean mode
+    }
+
     const files = this.getAllSourceFiles();
     let tsNocheckCount = 0;
     
@@ -610,10 +622,35 @@ class BundlingAuditor {
   async run() {
     const jsonOutput = process.argv.includes('--json');
     const jsonFile = process.argv.find(arg => arg.startsWith('--json='))?.split('=')[1] || 'audit-report.json';
+    const cleanMode = process.argv.includes('--clean');
+    const noInvariantsFlag = process.argv.includes('--no-invariants');
+    const ignoreDevFlag = process.argv.includes('--ignore-dev');
+    const disableHeuristicsFlag = process.argv.includes('--no-heuristics');
     
     if (!jsonOutput) {
       this.log('\n🔍 RORK BUNDLING AUDIT SYSTEM', 'bold');
       this.log('Starting comprehensive bundling audit...\n', 'cyan');
+    }
+
+    // Apply clean mode environment overrides BEFORE running checks
+    if (cleanMode) {
+      process.env.AUDIT_DISABLE_HEURISTICS = '1';
+      process.env.AUDIT_DISABLE_INVARIANTS = '1';
+      process.env.AUDIT_IGNORE_DEV_CLIENT_WARNINGS = '1';
+      if (!jsonOutput) this.log('🧹 Clean mode enabled: heuristics, invariants, dev-client warnings suppressed', 'yellow');
+    } else {
+      // Granular flags (can be combined)
+      if (noInvariantsFlag) process.env.AUDIT_DISABLE_INVARIANTS = '1';
+      if (ignoreDevFlag) process.env.AUDIT_IGNORE_DEV_CLIENT_WARNINGS = '1';
+      if (disableHeuristicsFlag) process.env.AUDIT_DISABLE_HEURISTICS = '1';
+      if (!jsonOutput && (noInvariantsFlag || ignoreDevFlag || disableHeuristicsFlag)) {
+        const active = [
+          noInvariantsFlag && 'no-invariants',
+          ignoreDevFlag && 'ignore-dev',
+          disableHeuristicsFlag && 'no-heuristics'
+        ].filter(Boolean).join(', ');
+        this.log(`⚙ Granular suppression active: ${active}`, 'yellow');
+      }
     }
     
     const failOnWarnings = process.env.FAIL_ON_WARNINGS === '1';

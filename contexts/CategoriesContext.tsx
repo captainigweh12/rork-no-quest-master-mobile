@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -50,7 +50,7 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
           setTimeout(() => reject(new Error('Categories load timeout')), 500);
         });
 
-        const dataPromise = AsyncStorage.getItem('categories:selected');
+  const dataPromise = storage.getItem('categories:selected');
 
         const raw = await Promise.race([dataPromise, timeoutPromise]);
         if (raw) {
@@ -61,7 +61,7 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
             }
           } catch (parseError) {
             console.error('[CategoriesContext] Invalid JSON in storage, clearing corrupted data:', parseError);
-            await AsyncStorage.removeItem('categories:selected');
+            await storage.removeItem('categories:selected');
           }
         }
       } catch (e) {
@@ -75,7 +75,7 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
 
   const persist = useCallback(async (ids: string[]) => {
     try {
-      await AsyncStorage.setItem('categories:selected', JSON.stringify(ids));
+  await storage.setItem('categories:selected', JSON.stringify(ids));
     } catch (e) {
       console.error('Failed to save categories', e);
     }

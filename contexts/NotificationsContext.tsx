@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
@@ -109,7 +109,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         trigger: { type: 'calendar', hour: 9, minute: 0, repeats: true } as Notifications.CalendarTriggerInput,
       });
       setRemindersEnabled(true);
-      await AsyncStorage.setItem('questReminders', 'enabled');
+  await storage.setItem('questReminders', 'enabled');
     } catch (e) {
       console.error('Failed to schedule reminder', e);
     }
@@ -119,13 +119,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
     if (Platform.OS === 'web') {
       console.log('Scheduling not supported on web');
       setRemindersEnabled(false);
-      await AsyncStorage.setItem('questReminders', 'disabled');
+  await storage.setItem('questReminders', 'disabled');
       return;
     }
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
       setRemindersEnabled(false);
-      await AsyncStorage.setItem('questReminders', 'disabled');
+  await storage.setItem('questReminders', 'disabled');
     } catch (e) {
       console.error('Failed to cancel reminders', e);
     }
@@ -152,7 +152,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
   }, [registerForPushNotifications, scheduleDailyQuestReminder]);
 
   useEffect(() => {
-    AsyncStorage.getItem('questReminders').then((v) => {
+  storage.getItem('questReminders').then((v) => {
       const enabled = v === 'enabled';
       setRemindersEnabled(enabled);
     }).catch(() => {});

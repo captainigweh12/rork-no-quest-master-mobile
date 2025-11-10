@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
 import { Alert } from 'react-native';
@@ -10,7 +9,7 @@ import { Alert } from 'react-native';
  * Usage: Call this after app initialization, preferably 3-5 seconds after launch
  * to ensure the app is stable before checking for updates.
  */
-export async function checkAndApplyUpdates() {
+export async function checkAndApplyUpdates(): Promise<void> {
   // Skip in development mode
   if (__DEV__) {
     console.log('[Updates] Skipping - running in development mode');
@@ -19,6 +18,11 @@ export async function checkAndApplyUpdates() {
 
   // Check if OTA is enabled at build time (from app.config.ts)
   const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
+  const hardOff = Constants.expoConfig?.extra?.alwaysDisableOta;
+  if (hardOff) {
+    console.log('[Updates] Skipping - ALWAYS_DISABLE_OTA flag set');
+    return;
+  }
   
   if (!otaEnabled) {
     console.log('[Updates] Skipping - OTA updates disabled in config');
@@ -28,9 +32,8 @@ export async function checkAndApplyUpdates() {
   try {
     console.log('[Updates] Checking for available updates...');
     
-    const update = await Updates.checkForUpdateAsync();
-    
-    if (update.isAvailable) {
+  const updateResult = await Updates.checkForUpdateAsync();
+  if (updateResult.isAvailable) {
       console.log('[Updates] Update available, fetching...');
       
       await Updates.fetchUpdateAsync();
@@ -80,16 +83,14 @@ export function wasUpdateJustApplied(): boolean {
     // Skip in dev or if OTA disabled
     if (__DEV__) return false;
     
-    const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
-    if (!otaEnabled) return false;
+  const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
+  const hardOff = Constants.expoConfig?.extra?.alwaysDisableOta;
+  if (!otaEnabled || hardOff) return false;
 
     // Check if we just loaded a new update
-    const updateInfo = Updates.createdAt;
-    if (!updateInfo) return false;
-
-    // Consider an update "just applied" if it was created in the last 5 minutes
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    return new Date(updateInfo).getTime() > fiveMinutesAgo;
+  // Expo Updates API doesn't expose createdAt; we approximate via recently downloaded manifest metadata.
+  // For now return false (can be enhanced with persistent flag on reloadAsync path).
+  return false;
   } catch (error) {
     console.warn('[Updates] Error checking if update was applied:', error);
     return false;
@@ -99,7 +100,24 @@ export function wasUpdateJustApplied(): boolean {
 /**
  * Get current update information for debugging/display
  */
-export function getCurrentUpdateInfo() {
+interface UpdateInfoProduction {
+  mode: 'production';
+  otaEnabled: boolean;
+}
+
+interface UpdateInfoDev {
+  mode: 'development';
+  updateId: null;
+  createdAt: null;
+  otaEnabled: boolean;
+}
+
+interface UpdateInfoError {
+  mode: 'unknown';
+  error: string;
+}
+
+export function getCurrentUpdateInfo(): UpdateInfoProduction | UpdateInfoDev | UpdateInfoError {
   try {
     if (__DEV__) {
       return {
@@ -114,11 +132,7 @@ export function getCurrentUpdateInfo() {
 
     return {
       mode: 'production',
-      updateId: Updates.updateId,
-      createdAt: Updates.createdAt,
       otaEnabled,
-      runtimeVersion: Updates.runtimeVersion,
-      isEmbeddedLaunch: Updates.isEmbeddedLaunch,
     };
   } catch (error) {
     console.warn('[Updates] Error getting update info:', error);

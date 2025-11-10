@@ -1,9 +1,11 @@
 import { ExpoConfig } from '@expo/config';
 
 export default (): ExpoConfig => {
-  // OTA updates disabled by default for stability during development
-  // Set OTA_ENABLED=true when ready for production OTA updates
+  // OTA updates controllable via environment flag for CI safety.
+  // In GitHub Actions set OTA_ENABLED=true in the Update job to publish.
+  // Local dev defaults to disabled unless explicitly exported.
   const OTA_ENABLED = process.env.OTA_ENABLED === 'true';
+  const ALWAYS_DISABLE_OTA = process.env.ALWAYS_DISABLE_OTA === 'true';
 
   return ({
     name: 'No Quest Master Mobile',
@@ -127,21 +129,14 @@ export default (): ExpoConfig => {
       },
       // Pass OTA status to runtime for guarded checks
       otaEnabled: OTA_ENABLED,
+      alwaysDisableOta: ALWAYS_DISABLE_OTA,
     },
-    // Dynamic OTA configuration based on environment
-    // Runtime uses checkOnLaunch/ERROR_RECOVERY (casting to bypass outdated TypeScript types)
-    updates: (OTA_ENABLED
-      ? {
-          enabled: true,
-          url: 'https://u.expo.dev/c23bcbuqrsjmkdoaxiu6y',
-          checkOnLaunch: 'ERROR_RECOVERY', // Only check after crashes
-          fallbackToCacheTimeout: 0,
-        }
-      : {
-          enabled: false,
-          checkOnLaunch: 'NEVER',
-          fallbackToCacheTimeout: 0,
-        }) as any,
+    // OTA update settings (dynamic). Disable entirely if OTA_ENABLED=false.
+    updates: {
+      enabled: OTA_ENABLED && !ALWAYS_DISABLE_OTA,
+      checkAutomatically: (OTA_ENABLED && !ALWAYS_DISABLE_OTA) ? 'ON_LOAD' : 'NEVER',
+      fallbackToCacheTimeout: 0,
+    },
     runtimeVersion: {
       policy: 'appVersion', // Stable runtime versioning
     },

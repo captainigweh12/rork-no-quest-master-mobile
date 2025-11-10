@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useState, useMemo } from 'react';
 
@@ -32,7 +32,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
           setTimeout(() => reject(new Error('Onboarding load timeout')), 1000);
         });
 
-        const storagePromise = AsyncStorage.getItem('onboarding');
+          const storagePromise = storage.getItem('onboarding');
         
         const raw = await Promise.race([storagePromise, timeoutPromise]);
         
@@ -42,7 +42,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
             setPrefs({ ...DEFAULT_PREFS, ...parsed });
           } catch (parseError) {
             console.error('[OnboardingContext] Invalid JSON in storage, clearing corrupted data:', parseError);
-            await AsyncStorage.removeItem('onboarding');
+            await storage.removeItem('onboarding');
           }
         }
       } catch (e) {
@@ -58,7 +58,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
   const update = useCallback(async (patch: Partial<OnboardingPreferences>) => {
     setPrefs((p) => {
       const next = { ...p, ...patch } as OnboardingPreferences;
-      AsyncStorage.setItem('onboarding', JSON.stringify(next)).catch((e) =>
+          storage.setItem('onboarding', JSON.stringify(next)).catch((e) =>
         console.error('Failed to persist onboarding', e)
       );
       return next;
@@ -68,7 +68,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
   const complete = useCallback(async () => {
     setPrefs((p) => {
       const next = { ...p, completed: true };
-      AsyncStorage.setItem('onboarding', JSON.stringify(next)).catch((e) =>
+          storage.setItem('onboarding', JSON.stringify(next)).catch((e) =>
         console.error('Failed to persist onboarding completion', e)
       );
       return next;
@@ -77,7 +77,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
 
   const reset = useCallback(async () => {
     setPrefs(DEFAULT_PREFS);
-    await AsyncStorage.setItem('onboarding', JSON.stringify(DEFAULT_PREFS));
+    await storage.setItem('onboarding', JSON.stringify(DEFAULT_PREFS));
   }, []);
 
   return useMemo(

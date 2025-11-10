@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getBaseUrl, getDefaultBaseUrl } from '@/lib/baseUrl';
 import { Stack } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage as appStorage, batchStorage } from '@/lib/storage';
 
 export default function DebugBaseUrlScreen() {
   const insets = useSafeAreaInsets();
@@ -28,7 +28,7 @@ export default function DebugBaseUrlScreen() {
 
   const handleClearCache = async () => {
     try {
-      await AsyncStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
+  await appStorage.removeItem('EXPO_PUBLIC_RORK_API_BASE_URL_OVERRIDE');
       setStorageCleared(true);
       Alert.alert(
         '✅ Storage cleared!',
@@ -59,10 +59,10 @@ export default function DebugBaseUrlScreen() {
 
   const viewAsyncStorage = async () => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const items = await AsyncStorage.multiGet(keys);
-      const storage = items.map(([key, value]) => `${key}: ${value}`).join('\n\n');
-      Alert.alert('AsyncStorage Contents', storage || '(empty)', [{ text: 'OK' }]);
+  const keys = await appStorage.getAllKeys();
+  const items = await batchStorage.multiGet(keys);
+    const dump = items.map(([key, value]) => `${key}: ${value}`).join('\n\n');
+    Alert.alert('AsyncStorage Contents', dump || '(empty)', [{ text: 'OK' }]);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }

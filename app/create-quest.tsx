@@ -1,4 +1,4 @@
-// @ts-nocheck
+// Type-checked
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -53,7 +53,7 @@ export default function CreateQuestScreen() {
           difficulty: z.enum(['easy', 'medium', 'hard', 'extreme']).describe('The difficulty level'),
           customRequest: z.string().optional().describe('Any custom requirements from the user'),
         }),
-        async execute(input) {
+  async execute(input: { difficulty: 'easy' | 'medium' | 'hard' | 'extreme'; customRequest?: string }) {
           console.log('[AI] Creating quest with input:', input);
           setShowChatModal(false);
           setShowLoadingModal(true);
@@ -83,10 +83,10 @@ export default function CreateQuestScreen() {
     },
   });
 
-  const messages = agentResult.messages;
+  const messages = agentResult.messages as Array<{ role: 'user' | 'assistant' | string; parts: Array<any> }>;
   const sendMessage = agentResult.sendMessage;
-  const isGenerating = agentResult.error ? false : messages.some(m => 
-    m.parts.some(p => p.type === 'tool' && (p.state === 'input-streaming' || p.state === 'input-available'))
+  const isGenerating = agentResult.error ? false : messages.some((m: { parts: Array<any> }) => 
+    m.parts.some((p: any) => p.type === 'tool' && (p.state === 'input-streaming' || p.state === 'input-available'))
   );
 
   useEffect(() => {
@@ -399,9 +399,9 @@ export default function CreateQuestScreen() {
               style={styles.chatMessages}
               contentContainerStyle={styles.chatMessagesContent}
             >
-              {messages.map((message, index) => (
+              {messages.map((message: any, index: number) => (
                 <View key={index} style={styles.messageContainer}>
-                  {message.parts.map((part, partIndex) => {
+                  {message.parts.map((part: any, partIndex: number) => {
                     if (part.type === 'text') {
                       return (
                         <View

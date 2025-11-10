@@ -12,7 +12,7 @@ import { useLocalization } from '@/contexts/LocalizationContext';
 import { pickImage, takePhoto, generateAIAvatar, uploadAvatar } from '@/services/avatarService';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import { DEFAULT_RENDER_BASE_URL, setBaseUrlOverride } from '@/lib/baseUrl';
 
 const LANGUAGES = [
@@ -61,7 +61,7 @@ export default function AccountScreen() {
     let mounted = true;
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem('liveFeaturesEnabled');
+  const raw = await storage.getItem('liveFeaturesEnabled');
         if (!mounted) return;
         setLiveEnabled(raw === 'true');
       } catch (e) {
@@ -76,7 +76,7 @@ export default function AccountScreen() {
     setEnablingLive(true);
     try {
       await setBaseUrlOverride(DEFAULT_RENDER_BASE_URL);
-      await AsyncStorage.setItem('liveFeaturesEnabled', 'true');
+  await storage.setItem('liveFeaturesEnabled', 'true');
       setLiveEnabled(true);
       const reinit = (globalThis as any).__RORK_INIT_BASE_URL__ as (() => Promise<void>) | undefined;
       if (reinit) {

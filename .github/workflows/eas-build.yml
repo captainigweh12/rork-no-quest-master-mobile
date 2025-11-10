@@ -1,89 +1,102 @@
-name: EAS Build & Update
+name: EAS Build (disabled)
 
 on:
-  push:
-    branches: [main, master]
+  # Temporarily disable automatic builds by removing push triggers.
+  # Keep manual dispatch available, but jobs below are hard-skipped unconditionally.
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Custom Dev Client
+  build-dev-client:
+    name: Build Dev Client
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build]')
+    if: ${{ false }} # Disabled for now
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: 'npm'
-      
+          bun-version: latest
+
       - name: Install dependencies
-        run: npm ci
-      
-      - name: Setup Expo and EAS
+        run: bun install --frozen-lockfile
+
+      - name: Setup Expo and EAS (disabled)
+        if: ${{ false }}
         uses: expo/expo-github-action@v8
         with:
+          expo-version: latest
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-      
-      - name: Build iOS development client
+          # Re-add `token: ${{ secrets.EXPO_TOKEN }}` when re-enabling builds
+
+      - name: Build iOS dev client
         run: eas build --platform ios --profile development --non-interactive
         continue-on-error: true
-      
-      - name: Build Android development client
+
+      - name: Build Android dev client
         run: eas build --platform android --profile development --non-interactive
         continue-on-error: true
 
-  preview:
-    name: Build Preview Builds
+  build-preview:
+    name: Build Preview
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview]')
+    if: ${{ false }} # Disabled for now
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: 'npm'
-      
+          bun-version: latest
+
       - name: Install dependencies
-        run: npm ci
-      
-      - name: Setup Expo and EAS
+        run: bun install --frozen-lockfile
+
+      - name: Setup Expo and EAS (disabled)
+        if: ${{ false }}
         uses: expo/expo-github-action@v8
         with:
+          expo-version: latest
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-      
+          # Re-add `token: ${{ secrets.EXPO_TOKEN }}` when re-enabling builds
+
       - name: Build iOS preview
         run: eas build --platform ios --profile preview --non-interactive
         continue-on-error: true
-      
+
       - name: Build Android preview
         run: eas build --platform android --profile preview --non-interactive
         continue-on-error: true
 
-  update:
-    name: Publish OTA Update
+  build-production:
+    name: Build Production
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[build]') && !contains(github.event.head_commit.message, '[preview]')
+    if: ${{ false }} # Disabled for now
     steps:
       - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: 'npm'
-      
+          bun-version: latest
+
       - name: Install dependencies
-        run: npm ci
-      
-      - name: Setup Expo and EAS
+        run: bun install --frozen-lockfile
+
+      - name: Setup Expo and EAS (disabled)
+        if: ${{ false }}
         uses: expo/expo-github-action@v8
         with:
+          expo-version: latest
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-      
-      - name: Publish update
-        run: eas update --branch main --message "${{ github.event.head_commit.message }}" --non-interactive
+          # Re-add `token: ${{ secrets.EXPO_TOKEN }}` when re-enabling builds
+
+      - name: Build iOS production (App Store / TestFlight)
+        run: eas build --platform ios --profile production --non-interactive
+        continue-on-error: true
+
+      - name: Build Android production (Play Store)
+        run: eas build --platform android --profile production --non-interactive
+        continue-on-error: true
+
+  # OTA updates disabled globally; update job removed. Re-enable by restoring this job and setting OTA_ENABLED / ALWAYS_DISABLE_OTA appropriately.

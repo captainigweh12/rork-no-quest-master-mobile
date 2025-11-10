@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage as appStorage } from '@/lib/storage';
 import { AppState } from "react-native";
 import { getSupabaseEnv } from "./env";
 
@@ -12,7 +12,11 @@ console.log("🔑 Key present:", !!key);
 
 export const supabase = createClient(url, key, {
   auth: {
-    storage: AsyncStorage,
+    storage: {
+      getItem: (k: string) => appStorage.getItem(k),
+      setItem: (k: string, v: string) => appStorage.setItem(k, v),
+      removeItem: (k: string) => appStorage.removeItem(k),
+    } as any,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

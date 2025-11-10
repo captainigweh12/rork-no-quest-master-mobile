@@ -1,4 +1,4 @@
-import { localStorageService } from '@/lib/localStorage';
+import localStorageService from '@/lib/localStorage';
 import type { CommunityPost, CommunityPostJournal, CommunityPostQuest } from '@/types';
 
 export async function shareJournal(params: {
@@ -28,7 +28,9 @@ export async function shareJournal(params: {
     likes: 0,
     comments: 0,
   };
-  await localStorageService.addCommunityPost(post);
+  const feed = (await localStorageService.getJSON<CommunityPost[]>('community_feed', [])) || [];
+  feed.unshift(post);
+  await localStorageService.setJSON('community_feed', feed);
   return post;
 }
 
@@ -55,10 +57,12 @@ export async function shareQuest(params: {
     likes: 0,
     comments: 0,
   };
-  await localStorageService.addCommunityPost(post);
+  const feed2 = (await localStorageService.getJSON<CommunityPost[]>('community_feed', [])) || [];
+  feed2.unshift(post);
+  await localStorageService.setJSON('community_feed', feed2);
   return post;
 }
 
 export async function getFeed(userId: string) {
-  return await localStorageService.getCommunityFeed(userId);
+  return (await localStorageService.getJSON<CommunityPost[]>('community_feed', [])) || [];
 }

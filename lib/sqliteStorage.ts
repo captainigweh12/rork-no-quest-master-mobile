@@ -55,8 +55,8 @@ async function migrateFromAsyncStorage(): Promise<void> {
   }
 
   try {
-    const AsyncStorage = await import('@react-native-async-storage/async-storage');
-    const storage = AsyncStorage.default;
+  const AsyncStorageModule = await import('@react-native-async-storage/async-storage');
+  const storage = AsyncStorageModule.default;
     
     console.log('[SQLITE] Starting migration from AsyncStorage...');
     
@@ -230,10 +230,14 @@ export const guardedStorage = {
     
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const result = await db.getFirstAsync<{ value: string }>(
-          'SELECT value FROM storage WHERE key = ?',
-          [key]
-        );
+        const result = await new Promise<{ value: string } | null>((resolve, reject) => {
+          db!.transaction(tx => {
+            tx.executeSql('SELECT value FROM storage WHERE key = ?', [key], (_, rs) => {
+              if (rs.rows.length === 0) return resolve(null);
+              resolve({ value: rs.rows.item(0).value as string });
+            }, (_, err) => { reject(err); return false; });
+          });
+        });
         
         if (!result) {
           return null;
@@ -243,7 +247,11 @@ export const guardedStorage = {
         
         if (typeof value !== 'string' || value.trim().length === 0) {
           console.warn(`[SQLITE] Invalid value for "${key}", cleaning up`);
-          await db.runAsync('DELETE FROM storage WHERE key = ?', [key]);
+          await new Promise<void>((resolve, reject) => {
+            db!.transaction(tx => {
+              tx.executeSql('DELETE FROM storage WHERE key = ?', [key], () => resolve(), (_, err) => { reject(err); return false; });
+            });
+          });
           return null;
         }
         
@@ -282,10 +290,16 @@ export const guardedStorage = {
     
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO storage (key, value, updated_at) VALUES (?, ?, strftime(\'%s\', \'now\'))',
-          [key, value]
-        );
+        await new Promise<void>((resolve, reject) => {
+          db!.transaction(tx => {
+            tx.executeSql(
+              'INSERT OR REPLACE INTO storage (key, value, updated_at) VALUES (?, ?, strftime(\'%s\', \'now\'))',
+              [key, value],
+              () => resolve(),
+              (_, err) => { reject(err); return false; }
+            );
+          });
+        });
         return;
       } catch (error: any) {
         console.error(`[SQLITE] Error setting item "${key}" (attempt ${attempt + 1}/${MAX_RETRIES}):`, error);
@@ -306,7 +320,11 @@ export const guardedStorage = {
     }
     
     try {
-      await db.runAsync('DELETE FROM storage WHERE key = ?', [key]);
+      await new Promise<void>((resolve, reject) => {
+        db!.transaction(tx => {
+          tx.executeSql('DELETE FROM storage WHERE key = ?', [key], () => resolve(), (_, err) => { reject(err); return false; });
+        });
+      });
     } catch (error) {
       console.error(`[SQLITE] Error removing item "${key}":`, error);
     }
@@ -323,13 +341,25 @@ export const guardedStorage = {
     
     try {
       const placeholders = keys.map(() => '?').join(',');
-      const results = await db.getAllAsync<{ key: string; value: string }>(
-        `SELECT key, value FROM storage WHERE key IN (${placeholders})`,
-        keys
-      );
-      
+      const results = await new Promise<Array<{ key: string; value: string }>>((resolve, reject) => {
+        db!.transaction(tx => {
+          tx.executeSql(
+            `SELECT key, value FROM storage WHERE key IN (${placeholders})`,
+            keys,
+            (_, rs) => {
+              const arr: Array<{ key: string; value: string }> = [];
+              for (let i = 0; i < rs.rows.length; i++) {
+                const row = rs.rows.item(i) as any;
+                arr.push({ key: row.key as string, value: row.value as string });
+              }
+              resolve(arr);
+            },
+            (_, err) => { reject(err); return false; }
+          );
+        });
+      });
       const resultMap = new Map(results.map(r => [r.key, r.value]));
-      return keys.map(key => [key, resultMap.get(key) || null] as [string, string | null]);
+      return keys.map(key => [key, resultMap.get(key) ?? null] as [string, string | null]);
     } catch (error) {
       console.error(`[SQLITE] Error in multiGet:`, error);
       return keys.map(key => [key, null] as [string, null]);
@@ -346,13 +376,15 @@ export const guardedStorage = {
     }
     
     try {
-      await db.withTransactionAsync(async () => {
-        for (const [key, value] of keyValuePairs) {
-          await db!.runAsync(
-            'INSERT OR REPLACE INTO storage (key, value, updated_at) VALUES (?, ?, strftime(\'%s\', \'now\'))',
-            [key, value]
-          );
-        }
+      await new Promise<void>((resolve, reject) => {
+        db!.transaction(tx => {
+          for (const [key, value] of keyValuePairs) {
+            tx.executeSql(
+              'INSERT OR REPLACE INTO storage (key, value, updated_at) VALUES (?, ?, strftime(\'%s\', \'now\'))',
+              [key, value]
+            );
+          }
+        }, err => reject(err), () => resolve());
       });
     } catch (error) {
       console.error(`[SQLITE] Error in multiSet:`, error);
@@ -370,10 +402,11 @@ export const guardedStorage = {
     
     try {
       const placeholders = keys.map(() => '?').join(',');
-      await db.runAsync(
-        `DELETE FROM storage WHERE key IN (${placeholders})`,
-        keys
-      );
+      await new Promise<void>((resolve, reject) => {
+        db!.transaction(tx => {
+          tx.executeSql(`DELETE FROM storage WHERE key IN (${placeholders})`, keys, () => resolve(), (_, err) => { reject(err); return false; });
+        });
+      });
     } catch (error) {
       console.error(`[SQLITE] Error in multiRemove:`, error);
     }
@@ -389,7 +422,11 @@ export const guardedStorage = {
     }
     
     try {
-      await db.runAsync('DELETE FROM storage');
+      await new Promise<void>((resolve, reject) => {
+        db!.transaction(tx => {
+          tx.executeSql('DELETE FROM storage', [], () => resolve(), (_, err) => { reject(err); return false; });
+        });
+      });
     } catch (error) {
       console.error(`[SQLITE] Error clearing storage:`, error);
     }
@@ -405,7 +442,18 @@ export const guardedStorage = {
     }
     
     try {
-      const results = await db.getAllAsync<{ key: string }>('SELECT key FROM storage');
+      const results = await new Promise<Array<{ key: string }>>((resolve, reject) => {
+        db!.transaction(tx => {
+          tx.executeSql('SELECT key FROM storage', [], (_, rs) => {
+            const arr: Array<{ key: string }> = [];
+            for (let i = 0; i < rs.rows.length; i++) {
+              const row = rs.rows.item(i) as any;
+              arr.push({ key: row.key as string });
+            }
+            resolve(arr);
+          }, (_, err) => { reject(err); return false; });
+        });
+      });
       return results.map(r => r.key);
     } catch (error) {
       console.error(`[SQLITE] Error getting all keys:`, error);

@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Trophy } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { localStorageService } from '@/lib/localStorage';
+import { storage } from '@/lib/storage';
+import localStorageService from '@/lib/localStorage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGame } from '@/contexts/GameContext';
 
@@ -57,8 +57,8 @@ export default function RanksScreen() {
       setIsLoading(true);
       console.log('[Leaderboard] Loading user data...');
       
-      const storedUsersStr = await localStorageService.getCurrentUser();
-      const allUsersStr = await AsyncStorage.getItem('local_users');
+  const storedUsersStr = await localStorageService.getJSON<any>('current_user');
+  const allUsersStr = await storage.getItem('local_users');
       const allUsers = allUsersStr ? JSON.parse(allUsersStr) : [];
       
       const currentUserId = user?.id || storedUsersStr?.id;
@@ -69,8 +69,8 @@ export default function RanksScreen() {
 
       const leaderboardData: LeaderboardEntry[] = await Promise.all(
         allUsers.map(async (u: any) => {
-          const userQuests = await localStorageService.getUserQuests(u.id);
-          const userCompletedQuests = userQuests.filter(q => q.completed).length;
+          const userQuests = (await localStorageService.getJSON<any[]>(`quests_${u.id}`, [])) || [];
+          const userCompletedQuests = userQuests.filter((q: any) => q?.completed).length;
           
           const tokens = u.id === currentUserId ? currentUserTokens : (u.totalPoints || 0);
           const quests = u.id === currentUserId ? completedQuests : userCompletedQuests;
