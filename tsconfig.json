@@ -9,9 +9,9 @@
     "lib": ["ES2022", "DOM"],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@rork-ai/toolkit-sdk": ["./stubs/rork-toolkit-sdk.ts"],
+      "@rork-ai/toolkit-dev-sdk": ["./stubs/rork-ai-toolkit-dev-sdk.ts"]
     }
   },
   "include": [
