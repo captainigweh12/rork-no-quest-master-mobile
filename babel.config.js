@@ -1,4 +1,6 @@
 // babel.config.js
+console.log('>> Using babel config at:', __filename);
+
 const makeConfig = function (api) {
   api && api.cache && api.cache(true);
 
