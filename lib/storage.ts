@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,7 +21,8 @@ const SECRET_KEYS = new Set<string>([
 let impl: Store | null = null;
 let initPromise: Promise<void> | null = null;
 
-const isExpoGo = () => Constants?.appOwnership === 'expo';
+// Expo Go returns "expo", dev client sometimes returns "guest"
+const isExpoGo = () => Constants?.appOwnership === 'expo' || Constants?.appOwnership === 'guest';
 
 async function ensureInitialized(): Promise<void> {
   if (impl) return;
@@ -34,14 +36,15 @@ async function ensureInitialized(): Promise<void> {
       SecureStore = null;
     }
 
-    if (isExpoGo()) {
-      const secureGet = async (k: string) =>
-        (await SecureStore?.getItemAsync?.(k)) ?? null;
-      const secureSet = async (k: string, v: string) =>
-        void (await SecureStore?.setItemAsync?.(k, v));
-      const secureDel = async (k: string) =>
-        void (await SecureStore?.deleteItemAsync?.(k));
+    const secureGet = async (k: string) =>
+      (await SecureStore?.getItemAsync?.(k)) ?? null;
+    const secureSet = async (k: string, v: string) =>
+      void (await SecureStore?.setItemAsync?.(k, v));
+    const secureDel = async (k: string) =>
+      void (await SecureStore?.deleteItemAsync?.(k));
 
+    // --- Expo Go or guest dev client ---
+    if (isExpoGo()) {
       impl = {
         async getItem(k) {
           return SECRET_KEYS.has(k) ? secureGet(k) : AsyncStorage.getItem(k);
@@ -59,21 +62,38 @@ async function ensureInitialized(): Promise<void> {
           await AsyncStorage.clear();
         },
       };
-      console.log('📱 Storage backend: AsyncStorage + SecureStore (Expo Go)');
+      console.log('📱 Storage backend: AsyncStorage + SecureStore (Expo Go/Guest)');
       return;
     }
 
+    // --- Web builds: never import MMKV ---
+    if (Platform.OS === 'web') {
+      impl = {
+        async getItem(k) {
+          return SECRET_KEYS.has(k) ? secureGet(k) : AsyncStorage.getItem(k);
+        },
+        async setItem(k, v) {
+          return SECRET_KEYS.has(k) ? secureSet(k, v) : AsyncStorage.setItem(k, v);
+        },
+        async removeItem(k) {
+          return SECRET_KEYS.has(k) ? secureDel(k) : AsyncStorage.removeItem(k);
+        },
+        async getAllKeys() {
+          return [...(await AsyncStorage.getAllKeys())];
+        },
+        async clearAll() {
+          await AsyncStorage.clear();
+        },
+      };
+      console.log('🌐 Storage backend: AsyncStorage + SecureStore (Web)');
+      return;
+    }
+
+    // --- Native MMKV builds ---
     try {
       const mod = await import('react-native-mmkv');
       const { MMKV } = mod as any;
-      const mmkv = new MMKV();
-
-      const secureGet = async (k: string) =>
-        (await SecureStore?.getItemAsync?.(k)) ?? null;
-      const secureSet = async (k: string, v: string) =>
-        void (await SecureStore?.setItemAsync?.(k, v));
-      const secureDel = async (k: string) =>
-        void (await SecureStore?.deleteItemAsync?.(k));
+      const mmkv = new MMKV({ id: 'app-storage' });
 
       impl = {
         async getItem(k) {
@@ -95,7 +115,7 @@ async function ensureInitialized(): Promise<void> {
           mmkv.clearAll();
         },
       };
-      console.log('✅ Storage backend: MMKV + SecureStore (high-performance)');
+      console.log('✅ Storage backend: MMKV + SecureStore (Native)');
     } catch {
       impl = {
         async getItem(k) {
