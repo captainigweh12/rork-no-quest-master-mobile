@@ -15,7 +15,7 @@ import type { CommunityPost } from '@/types';
 import { useGame } from '@/contexts/GameContext';
 import { Avatar } from '@/components/SafeImage';
 import { useJournals, type Skill, type JournalPrivacy } from '@/contexts/JournalsContext';
-import { generateObject } from '@rork/toolkit-sdk';
+import { generateObject } from '@rork-ai/toolkit-sdk';
 import { z } from 'zod';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';

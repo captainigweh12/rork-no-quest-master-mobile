@@ -11,7 +11,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { QuestDifficulty } from '@/types';
 import type { CategoryId } from '@/services/questAI';
 import * as Haptics from 'expo-haptics';
-import { useRorkAgent, createRorkTool } from '@rork/toolkit-sdk';
+import { useRorkAgent, createRorkTool } from '@rork-ai/toolkit-sdk';
 import { z } from 'zod';
 import React from "react";
 

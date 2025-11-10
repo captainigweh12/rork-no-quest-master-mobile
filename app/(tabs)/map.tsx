@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { useAuth } from '@/contexts/AuthContext';
 import { addPlaceToQueue, getPlaceQueue, removePlaceFromQueue, markPlaceAsCompleted } from '@/services/supabase/map';
-import { generateText } from '@rork/toolkit-sdk';
+import { generateText } from '@rork-ai/toolkit-sdk';
 import type { Quest } from '@/types';
 import OpenAI from 'openai';
 import { QuestLoadingModal } from '@/components/QuestLoadingModal';
