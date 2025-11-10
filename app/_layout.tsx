@@ -1,13 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Stack } from 'expo-router';
-import { LogBox, Platform } from 'react-native';
+import { LogBox } from 'react-native';
 
-/**
- * Safe wrapper for Rork Dev SDK.
- * Returns children directly since dev SDK is optional.
- */
 function OptionalRorkDev({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  const Wrapper = useMemo(() => {
+    try {
+      const mod = require('@rork-ai/toolkit-dev-sdk');
+      return mod.RorkDevWrapper ?? ((p: any) => p.children);
+    } catch {
+      return (p: any) => p.children;
+    }
+  }, []);
+  return <Wrapper>{children}</Wrapper>;
 }
 
 export default function RootLayout() {
