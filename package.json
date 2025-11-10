@@ -24,6 +24,10 @@
 
   "doctor": "node scripts/doctor.mjs",
   "doctor:tunnel": "node scripts/doctor.mjs --tunnel",
+  "doctor:force": "node scripts/doctor.mjs --force",
+  "doctor:tunnel:force": "node scripts/doctor.mjs --tunnel --force",
+  "sync": "node scripts/auto-sync.mjs",
+  "sync:diagnose": "node scripts/auto-sync.mjs --diagnose",
 
     "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
     "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",

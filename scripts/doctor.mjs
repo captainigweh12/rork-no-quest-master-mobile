@@ -35,6 +35,7 @@ function parseArgs(argv) {
   return {
     web: raw.includes('--web'),
     tunnel: raw.includes('--tunnel'),
+    force: raw.includes('--force'),
     extras,
   };
 }
@@ -51,9 +52,14 @@ async function main() {
   try {
     run('node scripts/bundle-fix.mjs');
   } catch (e) {
-    log('\n✗ Fix/diagnose reported issues. Aborting start.', 'red');
-    log('  Tip: run "bun run diagnose" and resolve errors, or rerun with --force (not yet implemented).', 'yellow');
-    process.exit(1);
+    const { force } = parseArgs(process.argv);
+    if (force) {
+      log('\n⚠ Fix/diagnose reported issues, continuing due to --force.', 'yellow');
+    } else {
+      log('\n✗ Fix/diagnose reported issues. Aborting start.', 'red');
+      log('  Tip: run "bun run diagnose" and resolve errors, or rerun with --force.', 'yellow');
+      process.exit(1);
+    }
   }
 
   // 2) Start

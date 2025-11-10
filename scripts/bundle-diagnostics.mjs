@@ -122,9 +122,37 @@ class BundleDiagnostics {
       return;
     }
 
-  const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
+    // Check for encoding issues (UTF-16, BOMs, or NUL bytes)
+    try {
+      const rawBuffer = readFileSync(babelConfigPath);
+      const hasBOM = rawBuffer[0] === 0xEF && rawBuffer[1] === 0xBB && rawBuffer[2] === 0xBF;
+      const hasUTF16LE = rawBuffer[0] === 0xFF && rawBuffer[1] === 0xFE;
+      const hasUTF16BE = rawBuffer[0] === 0xFE && rawBuffer[1] === 0xFF;
+      const hasNUL = rawBuffer.includes(0x00);
 
-    // Try to load the config
+      if (hasBOM) {
+        this.warnings.push('babel.config.js has UTF-8 BOM; may cause issues on some systems');
+        this.log('⚠ babel.config.js has UTF-8 BOM (should be UTF-8 without BOM)', 'yellow');
+      }
+      if (hasUTF16LE || hasUTF16BE) {
+        this.issues.push({
+          type: 'ENCODING_ERROR',
+          message: 'babel.config.js is UTF-16 encoded (must be UTF-8)',
+          file: 'babel.config.js',
+        });
+        this.log('✗ babel.config.js is UTF-16 encoded!', 'red');
+        this.log('  → Re-save as UTF-8 (no BOM) in your editor or use iconv/dos2unix', 'yellow');
+        return;
+      }
+      if (hasNUL && !hasUTF16LE && !hasUTF16BE) {
+        this.warnings.push('babel.config.js contains NUL bytes; may indicate corruption or wrong encoding');
+        this.log('⚠ babel.config.js contains NUL bytes (possible encoding/corruption issue)', 'yellow');
+      }
+    } catch (e) {
+      this.log(`⚠ Could not check encoding: ${e.message}`, 'yellow');
+    }
+
+    const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];    // Try to load the config
     const cfg = await this.loadBabelConfig(babelConfigPath);
 
     if (cfg && typeof cfg === 'object') {
