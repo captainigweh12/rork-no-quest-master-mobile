@@ -106,9 +106,11 @@ class BundleDiagnostics {
 
       const missingAliases = [];
       for (const alias of requiredAliases) {
-        const escapedName = alias.name.replace(/[.*+?^${}()|[\]\\@/-]/g, '\\$&');
-        const aliasPattern = new RegExp(`['"]${escapedName}['"]\\s*:\\s*['"]`);
-        if (!aliasPattern.test(content)) {
+        const aliasName = alias.name;
+        const simplePattern = `'${aliasName}'`;
+        const doubleQuotePattern = `"${aliasName}"`;
+        
+        if (!content.includes(simplePattern) && !content.includes(doubleQuotePattern)) {
           missingAliases.push(alias);
         }
       }
