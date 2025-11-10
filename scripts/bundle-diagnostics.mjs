@@ -124,7 +124,7 @@ class BundleDiagnostics {
 
     const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
 
-    // Preferred: load the real config and read plugins
+    // Try to load the config
     const cfg = await this.loadBabelConfig(babelConfigPath);
 
     if (cfg && typeof cfg === 'object') {
@@ -158,52 +158,58 @@ class BundleDiagnostics {
         if (alias['@rork/toolkit-sdk']) {
           this.issues.push({
             type: 'INCORRECT_ALIAS',
-            message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+            message: "babel.config.js uses '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
             file: 'babel.config.js',
           });
-          this.log("✗ Found incorrect legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
+          this.log("✗ Found incorrect alias '@rork/toolkit-sdk' in babel.config.js", 'red');
           this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
         }
         return;
       }
-      // If config loaded but no module-resolver found, fall through to text scan as a hint
     }
 
-    // Fallback: text scan (less accurate)
+    // Fallback: if we can't load the config, do a text search
+    this.log('⚠ Could not load babel config dynamically, using text search fallback', 'yellow');
+    
     try {
       const content = readFileSync(babelConfigPath, 'utf-8');
+      
+      const requiredAliases = [
+        { name: '@', description: 'Project root alias', patterns: ["'@':", '"@":'] },
+        { name: '@rork-ai/toolkit-sdk', description: 'Rork AI SDK stub', patterns: ["'@rork-ai/toolkit-sdk':", '"@rork-ai/toolkit-sdk":'] },
+      ];
 
       const missingAliases = [];
-      for (const key of requiredAliasKeys) {
-        const patterns = [`'${key}':`, `"${key}":`];
-        const found = patterns.some((p) => content.includes(p));
-        if (!found) missingAliases.push(key);
+      for (const alias of requiredAliases) {
+        const found = alias.patterns.some(pattern => content.includes(pattern));
+        if (!found) {
+          missingAliases.push(alias);
+        }
+      }
+
+      // Check for incorrect alias (old package name)
+      if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
+        this.issues.push({
+          type: 'INCORRECT_ALIAS',
+          message: "babel.config.js uses '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+          file: 'babel.config.js',
+        });
+        this.log("✗ Found incorrect alias '@rork/toolkit-sdk' in babel.config.js", 'red');
+        this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
       }
 
       if (missingAliases.length > 0) {
         this.issues.push({
           type: 'MISSING_ALIAS',
           message: 'Missing required aliases in babel.config.js',
-          aliases: missingAliases,
+          aliases: missingAliases.map(a => a.name),
         });
         this.log(`✗ Missing ${missingAliases.length} required alias(es) in babel.config.js:`, 'red');
-        missingAliases.forEach((name) => {
-          const description =
-            name === '@' ? 'Project root alias' : (name === '@rork-ai/toolkit-sdk' ? 'Rork AI SDK stub' : '');
-          this.log(`  - ${name}${description ? ` (${description})` : ''}`, 'yellow');
+        missingAliases.forEach(alias => {
+          this.log(`  - ${alias.name} (${alias.description})`, 'yellow');
         });
       } else {
-        this.log('✓ All required babel aliases present and correct (text scan)', 'green');
-      }
-
-      if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
-        this.issues.push({
-          type: 'INCORRECT_ALIAS',
-          message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
-          file: 'babel.config.js',
-        });
-        this.log("✗ Found incorrect legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
-        this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
+        this.log('✓ All required babel aliases present and correct', 'green');
       }
     } catch (error) {
       this.issues.push({
