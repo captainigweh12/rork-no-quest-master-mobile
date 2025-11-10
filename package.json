@@ -137,5 +137,11 @@
     "expo-camera": "17.0.9",
     "expo-router": "6.0.14",
     "eslint-config-expo": "10.0.0"
+  },
+
+  "expo": {
+    "install": {
+      "exclude": ["react", "react-dom", "react-native"]
+    }
   }
 }
