@@ -6,7 +6,7 @@
  * 1. Detect encoding issues in babel.config.js and abort with instructions if UTF-16.
  * 2. Ensure module-resolver plugin present; inject or replace if missing.
  * 3. Verify stub files; recreate if missing.
- * 4. Scan for legacy Rork import '@rork/toolkit-sdk' and rewrite to '@rork-ai/toolkit-sdk'.
+ * 4. Scan for legacy Rork import '@rork-ai/toolkit-sdk' and rewrite to '@rork-ai/toolkit-sdk'.
  * 5. Run diagnostics; if issues remain, attempt force fix then re-run.
  * 6. Launch Expo (native/web/tunnel based on CLI flags).
  *
