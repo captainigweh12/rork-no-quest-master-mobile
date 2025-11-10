@@ -37,7 +37,6 @@ class BundleDiagnostics {
     this.log('='.repeat(60), 'cyan');
   }
 
-  // Check for correct Rork SDK imports
   async checkRorkImports() {
     this.logSection('CHECKING RORK SDK IMPORTS');
 
@@ -84,7 +83,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Verify babel aliases match expected patterns
   async checkBabelAliases() {
     this.logSection('CHECKING BABEL MODULE RESOLVER ALIASES');
 
@@ -101,7 +99,6 @@ class BundleDiagnostics {
     try {
       const content = readFileSync(babelConfigPath, 'utf-8');
       
-      // Check for required aliases (look for the key in alias object)
       const requiredAliases = [
         { name: '@', description: 'Project root alias' },
         { name: '@rork-ai/toolkit-sdk', description: 'Rork AI SDK stub' },
@@ -109,15 +106,13 @@ class BundleDiagnostics {
 
       const missingAliases = [];
       for (const alias of requiredAliases) {
-        // More flexible regex that handles quotes and whitespace variations
         const escapedName = alias.name.replace(/[.*+?^${}()|[\]\\@/-]/g, '\\$&');
-        const aliasPattern = new RegExp(`['"]${escapedName}['"]\\s*:`);
+        const aliasPattern = new RegExp(`['"]${escapedName}['"]\\s*:\\s*['"]`);
         if (!aliasPattern.test(content)) {
           missingAliases.push(alias);
         }
       }
 
-      // Check for incorrect alias
       if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
         this.issues.push({
           type: 'INCORRECT_ALIAS',
@@ -150,7 +145,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Check stub files exist
   async checkStubFiles() {
     this.logSection('CHECKING STUB FILES');
 
@@ -178,7 +172,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Verify TypeScript path mappings align with babel
   async checkTsConfig() {
     this.logSection('CHECKING TYPESCRIPT PATH MAPPINGS');
 
@@ -194,7 +187,6 @@ class BundleDiagnostics {
       const tsconfig = JSON.parse(content);
       const paths = tsconfig.compilerOptions?.paths || {};
 
-      // Check for @ alias
       if (!paths['@/*']) {
         this.warnings.push("tsconfig.json missing '@/*' path mapping");
         this.log("⚠ tsconfig.json missing '@/*' path mapping", 'yellow');
@@ -207,7 +199,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Try a quick Metro bundle health check
   async checkMetroHealth() {
     this.logSection('METRO BUNDLER HEALTH CHECK');
 
@@ -220,13 +211,11 @@ class BundleDiagnostics {
         return;
       }
 
-      // Just verify it can be read
       try {
         const content = readFileSync(metroConfigPath, 'utf-8');
         if (content.includes('getDefaultConfig') || content.includes('module.exports')) {
           this.log('✓ metro.config.js found and readable', 'green');
           
-          // Check if Metro also has the extraNodeModules configured
           if (content.includes('extraNodeModules') && content.includes('@rork-ai/toolkit-sdk')) {
             this.log('✓ Metro has Rork SDK aliases configured', 'green');
           } else {
@@ -246,7 +235,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Check for common bundling error patterns
   async checkCommonErrors() {
     this.logSection('CHECKING FOR COMMON BUNDLING ERRORS');
 
@@ -305,7 +293,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Check for cache issues
   async checkCacheHealth() {
     this.logSection('CHECKING CACHE DIRECTORIES');
 
@@ -333,7 +320,6 @@ class BundleDiagnostics {
     }
   }
 
-  // Generate final report
   generateReport() {
     this.logSection('DIAGNOSTIC REPORT');
 
@@ -428,7 +414,6 @@ class BundleDiagnostics {
   }
 }
 
-// Run diagnostics
 const diagnostics = new BundleDiagnostics();
 diagnostics.run().catch(error => {
   console.error('Diagnostic failed:', error);
