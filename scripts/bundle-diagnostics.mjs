@@ -349,12 +349,12 @@ class BundleDiagnostics {
       {
         pattern: /import\s+.*\s+from\s+['"]@rork\/toolkit-sdk['"]/,
         name: 'Wrong Rork SDK import path',
-        fix: "Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
       {
         pattern: /require\(['"]@rork\/toolkit-sdk['"]\)/,
         name: 'Wrong Rork SDK require path',
-        fix: "Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
     ]
 
@@ -497,7 +497,7 @@ class BundleDiagnostics {
 
       if (this.issues.some((i) => i.type === 'INCORRECT_IMPORT' || i.type === 'BUNDLING_ERROR_PATTERN')) {
         this.log('→ Import path mismatch detected', 'red');
-        this.log("  The most likely cause is using '@rork-ai/toolkit-sdk' instead of '@rork-ai/toolkit-sdk'", 'yellow');
+        this.log("  The most likely cause is using '@rork/toolkit-sdk' instead of '@rork-ai/toolkit-sdk'", 'yellow');
       }
 
       if (this.issues.some((i) => i.type === 'MISSING_ALIAS' || i.type === 'INCORRECT_ALIAS')) {

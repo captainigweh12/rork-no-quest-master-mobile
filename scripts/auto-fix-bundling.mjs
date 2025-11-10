@@ -50,7 +50,7 @@ class BundlingAutoFix {
       });
 
       let fixedFiles = 0;
-      const incorrectImport = '@rork/toolkit-sdk';
+      const incorrectImport = '@rork-ai/toolkit-sdk';
       const correctImport = '@rork-ai/toolkit-sdk';
 
       for (const file of files) {
