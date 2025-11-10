@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../../create-context';
+import { publicProcedure } from '../../../trpc';
 import { Resend } from 'resend';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
@@ -36,7 +36,6 @@ export const sendVerificationEmailProcedure = publicProcedure
     console.log('   API key preview:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
     
     try {
-
       const apiKey = process.env.RESEND_API_KEY ?? RESEND_API_KEY;
       
       if (!apiKey) {
