@@ -28,6 +28,10 @@
   "doctor:tunnel:force": "node scripts/doctor.mjs --tunnel --force",
   "sync": "node scripts/auto-sync.mjs",
   "sync:diagnose": "node scripts/auto-sync.mjs --diagnose",
+  "fix:babel": "node scripts/babel-fixer.mjs",
+  "fix:babel:force": "node scripts/babel-fixer.mjs --force",
+  "start:auto": "node scripts/start-auto.mjs",
+  "dev:auto": "bun run rork:guard && node scripts/start-auto.mjs",
 
     "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
     "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
