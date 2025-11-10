@@ -1,7 +1,7 @@
 # Rork SDK Import Fix Summary
 
 ## Problem
-Bundling was failing with "Unable to resolve '@rork/toolkit-sdk'" even though source files were using the correct import.
+Bundling was failing with "Unable to resolve '@rork-ai/toolkit-sdk'" even though source files were using the correct import.
 
 ## Root Cause
 Metro bundler had **cached the old babel.config.js** which had the incorrect module alias.

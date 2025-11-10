@@ -63,8 +63,8 @@ Non-critical issues that might affect bundling.
   CHECKING FOR COMMON BUNDLING ERRORS
 ============================================================
 ✗ Wrong Rork SDK import path in app/(tabs)/community.tsx:18
-  import { generateObject } from '@rork/toolkit-sdk';
-  Fix: Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'
+  import { generateObject } from '@rork-ai/toolkit-sdk';
+  Fix: Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'
 
 ============================================================
   DIAGNOSTIC REPORT
@@ -94,7 +94,7 @@ Total Issues: 1 (1 errors, 0 warnings)
 The script provides automatic root cause analysis:
 
 ### Import Path Mismatch
-**Symptom:** `Unable to resolve "@rork/toolkit-sdk"`
+**Symptom:** `Unable to resolve "@rork-ai/toolkit-sdk"`
 
 **Cause:** Using wrong package name
 
@@ -201,7 +201,7 @@ bun run audit:bundle
 ### Need to check a specific file
 The script automatically scans common source directories. To manually check:
 ```bash
-grep -r "@rork/toolkit-sdk" app components contexts services lib
+grep -r "@rork-ai/toolkit-sdk" app components contexts services lib
 ```
 
 ## Tips
