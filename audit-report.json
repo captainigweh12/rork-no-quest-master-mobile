@@ -1,0 +1,82 @@
+{
+  "timestamp": "2025-11-10T01:57:36.562Z",
+  "summary": {
+    "totalIssues": 12,
+    "errors": 0,
+    "warnings": 12,
+    "typeScriptPassed": true
+  },
+  "issues": {
+    "syntaxErrors": [],
+    "missingDependencies": [],
+    "circularDependencies": [],
+    "incompatibleVersions": [],
+    "nativeModuleIssues": [],
+    "configurationIssues": [],
+    "importIssues": [],
+    "encodingIssues": []
+  },
+  "errors": [],
+  "warnings": [
+    {
+      "message": "Browser API usage detected at line 596 (not web-specific file)",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\map.tsx",
+      "timestamp": "2025-11-10T01:57:27.558Z"
+    },
+    {
+      "message": "Browser API usage detected at line 749 (not web-specific file)",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\map.tsx",
+      "timestamp": "2025-11-10T01:57:27.558Z"
+    },
+    {
+      "message": "Browser API usage detected at line 757 (not web-specific file)",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\map.tsx",
+      "timestamp": "2025-11-10T01:57:27.558Z"
+    },
+    {
+      "message": "Browser API usage detected at line 765 (not web-specific file)",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\map.tsx",
+      "timestamp": "2025-11-10T01:57:27.558Z"
+    },
+    {
+      "message": "Package 'react-native-mmkv' requires a custom dev client (not compatible with Expo Go)",
+      "file": null,
+      "timestamp": "2025-11-10T01:57:27.742Z"
+    },
+    {
+      "message": "Package 'react-native-screens' requires a custom dev client (not compatible with Expo Go)",
+      "file": null,
+      "timestamp": "2025-11-10T01:57:27.742Z"
+    },
+    {
+      "message": "@ts-nocheck found in production code",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\community.tsx",
+      "timestamp": "2025-11-10T01:57:36.542Z"
+    },
+    {
+      "message": "@ts-nocheck found in production code",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\journal.tsx",
+      "timestamp": "2025-11-10T01:57:36.542Z"
+    },
+    {
+      "message": "@ts-nocheck found in production code",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\(tabs)\\map.tsx",
+      "timestamp": "2025-11-10T01:57:36.543Z"
+    },
+    {
+      "message": "@ts-nocheck found in production code",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\app\\create-quest.tsx",
+      "timestamp": "2025-11-10T01:57:36.544Z"
+    },
+    {
+      "message": "@ts-nocheck found in production code",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\lib\\sqliteStorage.ts",
+      "timestamp": "2025-11-10T01:57:36.551Z"
+    },
+    {
+      "message": "@ts-nocheck found in production code",
+      "file": "C:\\Users\\capta\\OneDrive\\Documents\\GitHub\\rork-no-quest-master-mobile\\lib\\updateManager.ts",
+      "timestamp": "2025-11-10T01:57:36.552Z"
+    }
+  ]
+}

@@ -37,5 +37,19 @@
   },
   "submit": {
     "production": {}
+  },
+  "update": {
+    "main": {
+      "channel": "main"
+    },
+    "production": {
+      "channel": "production"
+    },
+    "preview": {
+      "channel": "preview"
+    },
+    "development": {
+      "channel": "development"
+    }
   }
 }

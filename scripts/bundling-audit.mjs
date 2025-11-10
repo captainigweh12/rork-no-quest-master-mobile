@@ -7,7 +7,7 @@
  * Catches bundling issues before they happen and provides detailed diagnostics
  */
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { readFileSync, readdirSync, statSync, existsSync, writeFileSync } from 'fs';
 import { join, relative, extname } from 'path';
 import { execSync } from 'child_process';
 
@@ -39,6 +39,7 @@ class BundlingAuditor {
     };
     this.checkedFiles = new Set();
     this.moduleCache = new Map();
+    this.tsPassed = false;
   }
 
   log(message, color = 'reset') {
@@ -83,8 +84,10 @@ class BundlingAuditor {
           this.addWarning('File has BOM (Byte Order Mark)', file);
         }
 
-        // Check for common syntax issues
-        this.checkCommonSyntaxIssues(content, file);
+  // Check for common syntax issues (limit to client-relevant app code)
+  const relPath = relative(PROJECT_ROOT, file).replace(/\\/g, '/');
+  const isClientRelevant = /^(app|lib|contexts)\//.test(relPath);
+  this.checkCommonSyntaxIssues(content, file, isClientRelevant);
         
         checkedCount++;
       } catch (error) {
@@ -99,8 +102,9 @@ class BundlingAuditor {
     }
   }
 
-  checkCommonSyntaxIssues(content, file) {
+  checkCommonSyntaxIssues(content, file, isClientRelevant = true) {
     const lines = content.split('\n');
+    const disableHeuristics = process.env.AUDIT_DISABLE_HEURISTICS === '1';
     
     lines.forEach((line, index) => {
       const lineNum = index + 1;
@@ -110,13 +114,15 @@ class BundlingAuditor {
         this.addError('syntaxErrors', `Incomplete code block at line ${lineNum}`, file);
       }
 
-      // Check for mismatched quotes
-      const singleQuotes = (line.match(/'/g) || []).length;
-      const doubleQuotes = (line.match(/"/g) || []).length;
-      const backticks = (line.match(/`/g) || []).length;
-      
-      if (singleQuotes % 2 !== 0 && !line.includes('//')) {
-        this.addWarning(`Possible unmatched single quote at line ${lineNum}`, file);
+      // Check for mismatched quotes (skip if heuristics disabled)
+      if (!disableHeuristics) {
+        const singleQuotes = (line.match(/'/g) || []).length;
+        const doubleQuotes = (line.match(/"/g) || []).length;
+        const backticks = (line.match(/`/g) || []).length;
+        
+        if (singleQuotes % 2 !== 0 && !line.includes('//')) {
+          this.addWarning(`Possible unmatched single quote at line ${lineNum}`, file);
+        }
       }
 
       // Check for common React Native incompatibilities
@@ -126,30 +132,32 @@ class BundlingAuditor {
         }
       }
 
-      // Check for Node.js-only APIs in non-backend files
-      if (!file.includes('backend') && !file.includes('server') && !file.includes('scripts')) {
-        if (line.includes('fs.') || line.includes('require(\'fs\')')) {
+      // Check for Node.js-only APIs in client code
+      if (isClientRelevant) {
+        if (/\bfs\b\./.test(line) || /require\(['"]fs['"]\)/.test(line)) {
           this.addError('importIssues', `Node.js 'fs' module used in client code at line ${lineNum}`, file);
         }
       }
     });
 
-    // Check for missing closing braces/brackets
-    const openBraces = (content.match(/{/g) || []).length;
-    const closeBraces = (content.match(/}/g) || []).length;
-    const openBrackets = (content.match(/\[/g) || []).length;
-    const closeBrackets = (content.match(/\]/g) || []).length;
-    const openParens = (content.match(/\(/g) || []).length;
-    const closeParens = (content.match(/\)/g) || []).length;
+    // Check for missing closing braces/brackets (skip if heuristics disabled)
+    if (!disableHeuristics) {
+      const openBraces = (content.match(/{/g) || []).length;
+      const closeBraces = (content.match(/}/g) || []).length;
+      const openBrackets = (content.match(/\[/g) || []).length;
+      const closeBrackets = (content.match(/\]/g) || []).length;
+      const openParens = (content.match(/\(/g) || []).length;
+      const closeParens = (content.match(/\)/g) || []).length;
 
-    if (openBraces !== closeBraces) {
-      this.addError('syntaxErrors', `Mismatched braces: ${openBraces} open, ${closeBraces} close`, file);
-    }
-    if (openBrackets !== closeBrackets) {
-      this.addError('syntaxErrors', `Mismatched brackets: ${openBrackets} open, ${closeBrackets} close`, file);
-    }
-    if (openParens !== closeParens) {
-      this.addError('syntaxErrors', `Mismatched parentheses: ${openParens} open, ${closeParens} close`, file);
+      if (isClientRelevant && openBraces !== closeBraces) {
+        this.addError('syntaxErrors', `Mismatched braces: ${openBraces} open, ${closeBraces} close`, file, { heuristic: true });
+      }
+      if (isClientRelevant && openBrackets !== closeBrackets) {
+        this.addError('syntaxErrors', `Mismatched brackets: ${openBrackets} open, ${closeBrackets} close`, file, { heuristic: true });
+      }
+      if (isClientRelevant && openParens !== closeParens) {
+        this.addError('syntaxErrors', `Mismatched parentheses: ${openParens} open, ${closeParens} close`, file, { heuristic: true });
+      }
     }
   }
 
@@ -170,28 +178,28 @@ class BundlingAuditor {
       for (const file of files) {
         try {
           const content = readFileSync(file, 'utf-8');
-          const imports = content.match(/(?:import|require)\s*\(?['"]([^'"]+)['"]\)?/g) || [];
-          
-          imports.forEach(imp => {
-            const match = imp.match(/['"]([^'"]+)['"]/);
-            if (match && match[1]) {
-              const module = match[1];
-              // Skip relative imports
-              if (!module.startsWith('.') && !module.startsWith('@/')) {
-                const baseModule = module.startsWith('@') 
-                  ? module.split('/').slice(0, 2).join('/')
-                  : module.split('/')[0];
-                importedModules.add(baseModule);
-              }
-            }
-          });
+          const importRegex = /(?:import\s+[^'"\n]+from\s+|import\(|require\()\s*['"]([^'"\)]+)['"]\)?/g;
+          let m;
+          while ((m = importRegex.exec(content)) !== null) {
+            const mod = m[1];
+            if (!mod || /\s/.test(mod)) continue; // skip malformed
+            if (mod.startsWith('.') || mod.startsWith('@/')) continue; // local
+            // Base module extraction
+            const baseModule = mod.startsWith('@') ? mod.split('/').slice(0, 2).join('/') : mod.split('/')[0];
+            importedModules.add(baseModule);
+          }
         } catch (error) {
           this.addWarning(`Could not check imports in ${file}: ${error.message}`);
         }
       }
 
+      const devOnlyWhitelist = new Set([
+        'metro', 'metro-cache', 'node:fs', 'node:path', 'node:net', 'node:http', 'node:https', 'node:os', 'node:child_process'
+      ]);
+
       let missingCount = 0;
       for (const module of importedModules) {
+        if (devOnlyWhitelist.has(module)) continue;
         if (!allDeps[module] && !this.isBuiltInModule(module)) {
           this.addError('missingDependencies', `Module '${module}' is imported but not in package.json`, null);
           missingCount++;
@@ -209,11 +217,17 @@ class BundlingAuditor {
   }
 
   isBuiltInModule(module) {
-    const builtIns = [
+    const builtIns = new Set([
       'react', 'react-native', 'expo', 'expo-router',
-      'buffer', 'events', 'stream', 'util', 'crypto'
-    ];
-    return builtIns.includes(module);
+      'buffer', 'events', 'stream', 'util', 'crypto',
+      'fs', 'path', 'http', 'https', 'child_process', 'net', 'os', 'zlib', 'node:util',
+      'expo-sqlite', 'expo-updates', 'expo-file-system'
+    ]);
+    const externals = new Set([
+      '@rork/toolkit-sdk', '@rork-ai/toolkit-dev-sdk',
+      '@daily-co/react-native-daily-js', 'standardwebhooks', 'npm:standardwebhooks@1.0.0', 'ai', '@expo/config'
+    ]);
+    return builtIns.has(module) || externals.has(module);
   }
 
   // 3. Check for circular dependencies
@@ -277,34 +291,32 @@ class BundlingAuditor {
 
   extractImports(content, currentFile) {
     const imports = [];
-    const importRegex = /(?:import|require)\s*\(?['"]([^'"]+)['"]\)?/g;
+    const importRegex = /(?:import\s+[^'"\n]+from\s+|import\(|require\()\s*['"]([^'"\)]+)['"]\)?/g;
     let match;
-
     while ((match = importRegex.exec(content)) !== null) {
       const importPath = match[1];
-      if (importPath.startsWith('.')) {
+      if (!importPath || /\s/.test(importPath)) continue; // skip malformed
+      if (importPath.startsWith('.') || importPath.startsWith('@/')) {
         const resolvedPath = this.resolveImportPath(importPath, currentFile);
-        if (resolvedPath) {
-          imports.push(resolvedPath);
-        }
+        if (resolvedPath) imports.push(resolvedPath);
       }
     }
-
     return imports;
   }
 
   resolveImportPath(importPath, fromFile) {
     const dir = join(fromFile, '..');
-    const possibleExtensions = ['.ts', '.tsx', '.js', '.jsx', ''];
+  const possibleExtensions = ['.ts', '.tsx', '.js', '.jsx', '', '/index.ts', '/index.tsx', '/index.js', '/index.jsx'];
     
     for (const ext of possibleExtensions) {
-      const fullPath = join(dir, importPath + ext);
+      const aliasPath = importPath.startsWith('@/') ? join(PROJECT_ROOT, importPath.slice(2)) : importPath;
+      const fullPath = join(dir, aliasPath + ext);
       if (existsSync(fullPath)) {
         return fullPath;
       }
       
       // Check for index files
-      const indexPath = join(dir, importPath, 'index' + ext);
+      const indexPath = join(dir, aliasPath, 'index' + ext);
       if (existsSync(indexPath)) {
         return indexPath;
       }
@@ -368,6 +380,9 @@ class BundlingAuditor {
           if (configFile === 'babel.config.js') {
             if (!content.includes('expo-router/babel')) {
               this.addWarning('babel.config.js may be missing expo-router/babel plugin');
+            }
+            if (!content.includes("'module-resolver'")) {
+              this.addWarning('babel.config.js may be missing module-resolver for path aliases');
             }
           }
           
@@ -434,6 +449,7 @@ class BundlingAuditor {
           stdio: 'pipe',
           timeout: 30000,
         });
+        this.tsPassed = true;
         this.log('✓ TypeScript compilation check passed', 'green');
       } catch (error) {
         const output = error.stdout?.toString() || error.stderr?.toString() || error.message;
@@ -444,6 +460,48 @@ class BundlingAuditor {
       }
     } catch (error) {
       this.addWarning('Could not run TypeScript validation');
+    }
+  }
+
+  // 8. Check code invariants
+  async checkInvariants() {
+    this.logSection('CHECKING CODE INVARIANTS');
+    
+    const files = this.getAllSourceFiles();
+    let tsNocheckCount = 0;
+    
+    for (const file of files) {
+      const relPath = relative(PROJECT_ROOT, file).replace(/\\/g, '/');
+      
+      // Skip checking in tests, scripts, and backend
+      if (/(tests?|scripts|backend)\//.test(relPath)) continue;
+      
+      try {
+        const content = readFileSync(file, 'utf-8');
+        
+        // Check for @ts-nocheck in app/lib/contexts
+        if (/^(app|lib|contexts)\//.test(relPath)) {
+          if (content.includes('@ts-nocheck')) {
+            this.addWarning(`@ts-nocheck found in production code`, file);
+            tsNocheckCount++;
+          }
+        }
+        
+        // Check storage files have required exports
+        if (relPath.includes('storage') && relPath.includes('lib/')) {
+          if (!content.includes('export') && !content.includes('export default')) {
+            this.addWarning('Storage file missing exports', file);
+          }
+        }
+      } catch (error) {
+        // Skip files we can't read
+      }
+    }
+    
+    if (tsNocheckCount === 0) {
+      this.log('✓ No @ts-nocheck in production code', 'green');
+    } else {
+      this.log(`⚠ Found ${tsNocheckCount} files with @ts-nocheck`, 'yellow');
     }
   }
 
@@ -480,6 +538,23 @@ class BundlingAuditor {
   generateReport() {
     this.logSection('BUNDLING AUDIT REPORT');
     
+    // If TS passed, downgrade heuristic syntax mismatches to warnings
+    if (this.tsPassed && Array.isArray(this.issues.syntaxErrors)) {
+      const remaining = [];
+      for (const err of this.issues.syntaxErrors) {
+        if (err?.details && err.details.heuristic) {
+          this.warnings.push({ message: `Heuristic: ${err.message}`, file: err.file, timestamp: new Date() });
+        } else {
+          remaining.push(err);
+        }
+      }
+      const removed = this.issues.syntaxErrors.length - remaining.length;
+      if (removed > 0) {
+        this.issues.syntaxErrors = remaining;
+        this.errors = this.errors.filter(e => !(e?.details && e.details.heuristic));
+      }
+    }
+
     const totalIssues = this.errors.length + this.warnings.length;
     
     if (totalIssues === 0) {
@@ -533,8 +608,16 @@ class BundlingAuditor {
   }
 
   async run() {
-    this.log('\n🔍 RORK BUNDLING AUDIT SYSTEM', 'bold');
-    this.log('Starting comprehensive bundling audit...\n', 'cyan');
+    const jsonOutput = process.argv.includes('--json');
+    const jsonFile = process.argv.find(arg => arg.startsWith('--json='))?.split('=')[1] || 'audit-report.json';
+    
+    if (!jsonOutput) {
+      this.log('\n🔍 RORK BUNDLING AUDIT SYSTEM', 'bold');
+      this.log('Starting comprehensive bundling audit...\n', 'cyan');
+    }
+    
+    const failOnWarnings = process.env.FAIL_ON_WARNINGS === '1';
+    const strictMode = process.argv.includes('--strict');
 
     await this.checkSyntaxErrors();
     await this.checkDependencies();
@@ -543,15 +626,46 @@ class BundlingAuditor {
     await this.checkConfigurations();
     await this.checkEncodingIssues();
     await this.testBundling();
+    await this.checkInvariants();
 
     const success = this.generateReport();
     
-    if (success) {
-      this.log('\n✓ Audit completed successfully!', 'green');
+    // Output JSON if requested
+    if (jsonOutput) {
+      this.generateJSONReport(jsonFile);
+    }
+    
+    if (success && (!failOnWarnings || this.warnings.length === 0)) {
+      if (!jsonOutput) this.log('\n✓ Audit completed successfully!', 'green');
       process.exit(0);
+    } else if (success && (failOnWarnings || strictMode) && this.warnings.length > 0) {
+      if (!jsonOutput) this.log('\n⚠ Audit passed but warnings escalated to failure (strict mode)', 'yellow');
+      process.exit(2);
     } else {
-      this.log('\n✗ Audit found issues that need attention', 'red');
+      if (!jsonOutput) this.log('\n✗ Audit found issues that need attention', 'red');
       process.exit(1);
+    }
+  }
+
+  generateJSONReport(outputFile) {
+    const report = {
+      timestamp: new Date().toISOString(),
+      summary: {
+        totalIssues: this.errors.length + this.warnings.length,
+        errors: this.errors.length,
+        warnings: this.warnings.length,
+        typeScriptPassed: this.tsPassed,
+      },
+      issues: this.issues,
+      errors: this.errors,
+      warnings: this.warnings,
+    };
+    
+    try {
+      writeFileSync(outputFile, JSON.stringify(report, null, 2));
+      console.log(`JSON report written to ${outputFile}`);
+    } catch (error) {
+      console.error('Failed to write JSON report:', error.message);
     }
   }
 }

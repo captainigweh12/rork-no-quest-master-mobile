@@ -5,11 +5,12 @@ export default (): ExpoConfig => {
   // Set OTA_ENABLED=true when ready for production OTA updates
   const OTA_ENABLED = process.env.OTA_ENABLED === 'true';
 
-  return {
+  return ({
     name: 'No Quest Master Mobile',
     slug: 'no-quest-master-mobile',
     version: '1.0.0',
     orientation: 'portrait',
+    projectId: 'c23bcbuqrsjmkdoaxiu6y',
     icon: './assets/images/icon.png',
     scheme: 'noquest',
     userInterfaceStyle: 'automatic',
@@ -144,5 +145,5 @@ export default (): ExpoConfig => {
     runtimeVersion: {
       policy: 'appVersion', // Stable runtime versioning
     },
-  };
+  } as any); // Cast needed - ExpoConfig types outdated, but EAS requires projectId at root
 };
