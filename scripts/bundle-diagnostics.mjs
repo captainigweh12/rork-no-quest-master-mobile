@@ -100,21 +100,19 @@ class BundleDiagnostics {
       const content = readFileSync(babelConfigPath, 'utf-8');
       
       const requiredAliases = [
-        { name: '@', description: 'Project root alias' },
-        { name: '@rork-ai/toolkit-sdk', description: 'Rork AI SDK stub' },
+        { name: '@', description: 'Project root alias', patterns: ["'@':", '"@":'] },
+        { name: '@rork-ai/toolkit-sdk', description: 'Rork AI SDK stub', patterns: ["'@rork-ai/toolkit-sdk':", '"@rork-ai/toolkit-sdk":'] },
       ];
 
       const missingAliases = [];
       for (const alias of requiredAliases) {
-        const aliasName = alias.name;
-        const simplePattern = `'${aliasName}'`;
-        const doubleQuotePattern = `"${aliasName}"`;
-        
-        if (!content.includes(simplePattern) && !content.includes(doubleQuotePattern)) {
+        const found = alias.patterns.some(pattern => content.includes(pattern));
+        if (!found) {
           missingAliases.push(alias);
         }
       }
 
+      // Check for incorrect alias (old package name)
       if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
         this.issues.push({
           type: 'INCORRECT_ALIAS',
