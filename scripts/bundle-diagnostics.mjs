@@ -44,33 +44,30 @@ class BundleDiagnostics {
     const incorrectImport = '@rork/toolkit-sdk';
     const correctImport = '@rork-ai/toolkit-sdk';
     
-    // Skip git grep if not in a git repo
-    const isGitRepo = existsSync(join(PROJECT_ROOT, '.git'));
-    if (!isGitRepo) {
-      this.log('⚠ Not a git repository, skipping import check', 'yellow');
-      return;
-    }
-    
     try {
-      // Search for incorrect import pattern
-      let grepResult;
-      try {
-        grepResult = execSync(
-          `git grep -n "${incorrectImport}" -- "*.ts" "*.tsx" "*.js" "*.jsx"`,
-          { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: 'pipe' }
-        );
-      } catch (error) {
-        // git grep returns non-zero exit when no matches found
-        if (error.status === 1 && !error.stdout) {
-          grepResult = '';
-        } else {
-          throw error;
-        }
+      const { globSync } = await import('glob');
+      const files = globSync('{app,components,contexts,services,lib,hooks,providers}/**/*.{ts,tsx,js,jsx}', {
+        cwd: PROJECT_ROOT,
+        ignore: ['**/node_modules/**', '**/.expo/**', '**/dist/**'],
+      });
+
+      const matches = [];
+      for (const file of files) {
+        const fullPath = join(PROJECT_ROOT, file);
+        if (!existsSync(fullPath)) continue;
+        
+        const content = readFileSync(fullPath, 'utf-8');
+        const lines = content.split('\n');
+        
+        lines.forEach((line, idx) => {
+          if (line.includes(incorrectImport)) {
+            matches.push(`${file}:${idx + 1}: ${line.trim()}`);
+          }
+        });
       }
 
-      if (grepResult && grepResult.trim() !== '') {
-        const matches = grepResult.trim().split('\n').filter(m => m.length > 0);
-        this.log(`✗ Found ${matches.length} file(s) using incorrect import '${incorrectImport}'`, 'red');
+      if (matches.length > 0) {
+        this.log(`✗ Found ${matches.length} incorrect import(s) '${incorrectImport}'`, 'red');
         matches.forEach(match => {
           this.log(`  ${match}`, 'yellow');
         });
@@ -228,6 +225,14 @@ class BundleDiagnostics {
         const content = readFileSync(metroConfigPath, 'utf-8');
         if (content.includes('getDefaultConfig') || content.includes('module.exports')) {
           this.log('✓ metro.config.js found and readable', 'green');
+          
+          // Check if Metro also has the extraNodeModules configured
+          if (content.includes('extraNodeModules') && content.includes('@rork-ai/toolkit-sdk')) {
+            this.log('✓ Metro has Rork SDK aliases configured', 'green');
+          } else {
+            this.log('⚠ Metro missing extraNodeModules for Rork SDK', 'yellow');
+            this.warnings.push('Metro config should include extraNodeModules for @rork-ai/toolkit-sdk');
+          }
         }
       } catch (error) {
         this.issues.push({
@@ -238,6 +243,93 @@ class BundleDiagnostics {
       }
     } catch (error) {
       this.log(`⚠ Could not complete Metro health check: ${error.message}`, 'yellow');
+    }
+  }
+
+  // Check for common bundling error patterns
+  async checkCommonErrors() {
+    this.logSection('CHECKING FOR COMMON BUNDLING ERRORS');
+
+    const patterns = [
+      {
+        pattern: /import\s+.*\s+from\s+['"]@rork\/toolkit-sdk['"]/,
+        name: 'Wrong Rork SDK import path',
+        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+      },
+      {
+        pattern: /require\(['"]@rork\/toolkit-sdk['"]/,
+        name: 'Wrong Rork SDK require path',
+        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+      },
+    ];
+
+    try {
+      const { globSync } = await import('glob');
+      const files = globSync('{app,components,contexts,services,lib,hooks,providers}/**/*.{ts,tsx,js,jsx}', {
+        cwd: PROJECT_ROOT,
+        ignore: ['**/node_modules/**', '**/.expo/**', '**/dist/**'],
+      });
+
+      let foundIssues = false;
+      for (const file of files) {
+        const fullPath = join(PROJECT_ROOT, file);
+        if (!existsSync(fullPath)) continue;
+        
+        const content = readFileSync(fullPath, 'utf-8');
+        const lines = content.split('\n');
+        
+        for (const { pattern, name, fix } of patterns) {
+          lines.forEach((line, idx) => {
+            if (pattern.test(line)) {
+              this.log(`✗ ${name} in ${file}:${idx + 1}`, 'red');
+              this.log(`  ${line.trim()}`, 'yellow');
+              this.log(`  Fix: ${fix}`, 'cyan');
+              this.issues.push({
+                type: 'BUNDLING_ERROR_PATTERN',
+                message: `${name} in ${file}:${idx + 1}`,
+                file,
+                line: idx + 1,
+                fix,
+              });
+              foundIssues = true;
+            }
+          });
+        }
+      }
+
+      if (!foundIssues) {
+        this.log('✓ No common bundling error patterns found', 'green');
+      }
+    } catch (error) {
+      this.log(`⚠ Could not check for common errors: ${error.message}`, 'yellow');
+    }
+  }
+
+  // Check for cache issues
+  async checkCacheHealth() {
+    this.logSection('CHECKING CACHE DIRECTORIES');
+
+    const cacheDirs = [
+      { path: '.expo', name: 'Expo cache' },
+      { path: 'node_modules/.cache', name: 'Node modules cache' },
+      { path: '.cache', name: 'Metro cache' },
+    ];
+
+    let hasStaleCache = false;
+    for (const dir of cacheDirs) {
+      const fullPath = join(PROJECT_ROOT, dir.path);
+      if (existsSync(fullPath)) {
+        this.log(`⚠ ${dir.name} exists at ${dir.path}`, 'yellow');
+        hasStaleCache = true;
+      }
+    }
+
+    if (hasStaleCache) {
+      this.log('\n💡 Consider clearing caches:', 'cyan');
+      this.log('   rm -rf .expo .cache node_modules/.cache', 'cyan');
+      this.log('   bun x expo start -c', 'cyan');
+    } else {
+      this.log('✓ No stale cache directories found', 'green');
     }
   }
 
@@ -276,9 +368,20 @@ class BundleDiagnostics {
       });
     }
 
+    this.log('\n💡 QUICK FIXES:', 'cyan');
+    
+    if (this.issues.some(i => i.type === 'INCORRECT_IMPORT' || i.type === 'BUNDLING_ERROR_PATTERN')) {
+      this.log('  # Fix wrong imports:', 'cyan');
+      this.log('  find app components contexts services lib -type f \\( -name "*.ts" -o -name "*.tsx" \\) -exec sed -i "s/@rork\\/toolkit-sdk/@rork-ai\\/toolkit-sdk/g" {} +', 'cyan');
+    }
+    
+    this.log('\n  # Clear caches and restart:', 'cyan');
+    this.log('  rm -rf .expo .cache node_modules/.cache', 'cyan');
+    this.log('  bun x expo start -c', 'cyan');
+    
     this.log('\n💡 NEXT STEPS:', 'cyan');
-    this.log('1. Fix all errors listed above', 'cyan');
-    this.log('2. Run: bun run audit:bundle', 'cyan');
+    this.log('1. Apply quick fixes above', 'cyan');
+    this.log('2. Run: bun run diagnose (to verify)', 'cyan');
     this.log('3. Try bundling: bun run start', 'cyan');
 
     return this.issues.length === 0;
@@ -288,11 +391,13 @@ class BundleDiagnostics {
     this.log('\n🔬 BUNDLING FAILURE DIAGNOSTICS', 'bold');
     this.log('Checking for common bundling issues...\n', 'cyan');
 
+    await this.checkCommonErrors();
     await this.checkRorkImports();
     await this.checkBabelAliases();
     await this.checkStubFiles();
     await this.checkTsConfig();
     await this.checkMetroHealth();
+    await this.checkCacheHealth();
 
     const success = this.generateReport();
 
@@ -301,6 +406,23 @@ class BundleDiagnostics {
       process.exit(0);
     } else {
       this.log('\n✗ Found issues that may cause bundling to fail', 'red');
+      this.log('\n🎯 ROOT CAUSE ANALYSIS:', 'bold');
+      
+      if (this.issues.some(i => i.type === 'INCORRECT_IMPORT' || i.type === 'BUNDLING_ERROR_PATTERN')) {
+        this.log('→ Import path mismatch detected', 'red');
+        this.log('  The most likely cause is using @rork/toolkit-sdk instead of @rork-ai/toolkit-sdk', 'yellow');
+      }
+      
+      if (this.issues.some(i => i.type === 'MISSING_ALIAS' || i.type === 'INCORRECT_ALIAS')) {
+        this.log('→ Babel configuration issue', 'red');
+        this.log('  Module resolver aliases are not correctly configured', 'yellow');
+      }
+      
+      if (this.issues.some(i => i.type === 'MISSING_STUB')) {
+        this.log('→ Missing stub files', 'red');
+        this.log('  Required stub files for Rork SDK are missing', 'yellow');
+      }
+      
       process.exit(1);
     }
   }
