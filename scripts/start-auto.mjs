@@ -85,7 +85,7 @@ function ensureStubs(){
   }
 }
 
-function rewriteLegacyImports(){
+async function rewriteLegacyImports(){
   const patterns = [
     { dir:'app', exts:['ts','tsx','js','jsx'] },
     { dir:'lib', exts:['ts','tsx','js','jsx'] },
@@ -93,23 +93,28 @@ function rewriteLegacyImports(){
   ];
   const legacy = /@rork\/toolkit-sdk/;
   let changed=0, scanned=0;
-  for(const p of patterns){
-    const { globSync } = require('glob');
-    const globPattern = `{${p.dir}}/**/*.{${p.exts.join(',')}}`;
-    const files = globSync(globPattern,{ cwd: ROOT, ignore:['**/node_modules/**','**/.expo/**'] });
-    for(const file of files){
-      const full = join(ROOT,file);
-      if(!existsSync(full)) continue;
-      scanned++;
-      const content = readFileSync(full,'utf8');
-      if(legacy.test(content)){
-        if(DRY){ log(`✓ Would rewrite legacy import in ${file} (dry-run)`,'green'); continue; }
-        const updated = content.replace(legacy,'@rork-ai/toolkit-sdk');
-        if(updated!==content){ writeFileSync(full,updated,'utf8'); changed++; }
+  
+  try {
+    const { globSync } = await import('glob');
+    for(const p of patterns){
+      const globPattern = `{${p.dir}}/**/*.{${p.exts.join(',')}}`;
+      const files = globSync(globPattern,{ cwd: ROOT, ignore:['**/node_modules/**','**/.expo/**'] });
+      for(const file of files){
+        const full = join(ROOT,file);
+        if(!existsSync(full)) continue;
+        scanned++;
+        const content = readFileSync(full,'utf8');
+        if(legacy.test(content)){
+          if(DRY){ log(`✓ Would rewrite legacy import in ${file} (dry-run)`,'green'); continue; }
+          const updated = content.replace(legacy,'@rork-ai/toolkit-sdk');
+          if(updated!==content){ writeFileSync(full,updated,'utf8'); changed++; }
+        }
       }
     }
+    if(changed>0) log(`✓ Rewrote ${changed} file(s) with legacy imports`,'green'); else log('• No legacy imports found','yellow');
+  } catch (err) {
+    log(`⚠ Could not check for legacy imports (glob not available): ${err.message}`,'yellow');
   }
-  if(changed>0) log(`✓ Rewrote ${changed} file(s) with legacy imports`,'green'); else log('• No legacy imports found','yellow');
 }
 
 function runDiagnostics(){
@@ -130,12 +135,12 @@ function startExpo(){
   execSync(cmd,{stdio:'inherit'});
 }
 
-function main(){
+async function main(){
   log('\n⚙️  Preflight auto-fix starting','bold');
   if(!ensureEncoding()){ if(!FORCE){ process.exit(1); } else { log('⚠ Continuing despite encoding issue due to --force','yellow'); } }
   ensureStubs();
   if(!SKIP_FIX) ensureModuleResolver();
-  if(!SKIP_FIX) rewriteLegacyImports();
+  if(!SKIP_FIX) await rewriteLegacyImports();
 
   log('\n🔍 Running diagnostics (pass 1)','cyan');
   const ok1 = runDiagnostics();
