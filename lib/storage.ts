@@ -8,6 +8,9 @@ type Store = {
   removeItem(key: string): Promise<void>;
   getAllKeys(): Promise<string[]>;
   clearAll(): Promise<void>;
+  multiGet?(keys: string[]): Promise<[string, string | null][]>;
+  multiSet?(pairs: [string, string][]): Promise<void>;
+  multiRemove?(keys: string[]): Promise<void>;
 };
 
 const SECRET_KEYS = new Set<string>([
@@ -20,9 +23,12 @@ const SECRET_KEYS = new Set<string>([
 
 let impl: Store | null = null;
 let initPromise: Promise<void> | null = null;
+let _isReady = false;
 
-// Expo Go returns "expo", dev client sometimes returns "guest"
-const isExpoGo = () => Constants?.appOwnership === 'expo' || Constants?.appOwnership === 'guest';
+export const isStorageReady = () => _isReady;
+export const isStorageAvailable = () => Platform.OS !== 'web' || typeof window !== 'undefined';
+
+const isExpoGoOrGuest = () => Constants?.appOwnership === 'expo' || Constants?.appOwnership === 'guest';
 
 async function ensureInitialized(): Promise<void> {
   if (impl) return;
@@ -43,49 +49,33 @@ async function ensureInitialized(): Promise<void> {
     const secureDel = async (k: string) =>
       void (await SecureStore?.deleteItemAsync?.(k));
 
-    // --- Expo Go or guest dev client ---
-    if (isExpoGo()) {
-      impl = {
-        async getItem(k) {
-          return SECRET_KEYS.has(k) ? secureGet(k) : AsyncStorage.getItem(k);
-        },
-        async setItem(k, v) {
-          return SECRET_KEYS.has(k) ? secureSet(k, v) : AsyncStorage.setItem(k, v);
-        },
-        async removeItem(k) {
-          return SECRET_KEYS.has(k) ? secureDel(k) : AsyncStorage.removeItem(k);
-        },
-        async getAllKeys() {
-          return [...(await AsyncStorage.getAllKeys())];
-        },
-        async clearAll() {
-          await AsyncStorage.clear();
-        },
+    const buildAsyncBackend = (): Store => {
+      const base: Store = {
+        async getItem(k) { return SECRET_KEYS.has(k) ? secureGet(k) : AsyncStorage.getItem(k); },
+        async setItem(k, v) { return SECRET_KEYS.has(k) ? secureSet(k, v) : AsyncStorage.setItem(k, v); },
+        async removeItem(k) { return SECRET_KEYS.has(k) ? secureDel(k) : AsyncStorage.removeItem(k); },
+        async getAllKeys() { return [...(await AsyncStorage.getAllKeys())]; },
+        async clearAll() { await AsyncStorage.clear(); },
       };
+      base.multiGet = async (keys) => Promise.all(keys.map(async (k) => [k, await base.getItem(k)] as [string, string | null]));
+      base.multiSet = async (pairs) => { await Promise.all(pairs.map(([k, v]) => base.setItem(k, v))); };
+      base.multiRemove = async (keys) => { await Promise.all(keys.map((k) => base.removeItem(k))); };
+      return base;
+    };
+
+    // --- Expo Go or guest dev client ---
+    if (isExpoGoOrGuest()) {
+      impl = buildAsyncBackend();
       console.log('📱 Storage backend: AsyncStorage + SecureStore (Expo Go/Guest)');
+      _isReady = true;
       return;
     }
 
     // --- Web builds: never import MMKV ---
     if (Platform.OS === 'web') {
-      impl = {
-        async getItem(k) {
-          return SECRET_KEYS.has(k) ? secureGet(k) : AsyncStorage.getItem(k);
-        },
-        async setItem(k, v) {
-          return SECRET_KEYS.has(k) ? secureSet(k, v) : AsyncStorage.setItem(k, v);
-        },
-        async removeItem(k) {
-          return SECRET_KEYS.has(k) ? secureDel(k) : AsyncStorage.removeItem(k);
-        },
-        async getAllKeys() {
-          return [...(await AsyncStorage.getAllKeys())];
-        },
-        async clearAll() {
-          await AsyncStorage.clear();
-        },
-      };
+      impl = buildAsyncBackend();
       console.log('🌐 Storage backend: AsyncStorage + SecureStore (Web)');
+      _isReady = true;
       return;
     }
 
@@ -95,57 +85,32 @@ async function ensureInitialized(): Promise<void> {
       const { MMKV } = mod as any;
       const mmkv = new MMKV({ id: 'app-storage' });
 
-      impl = {
-        async getItem(k) {
-          if (SECRET_KEYS.has(k)) return secureGet(k);
-          return mmkv.getString(k) ?? null;
-        },
-        async setItem(k, v) {
-          if (SECRET_KEYS.has(k)) return secureSet(k, v);
-          mmkv.set(k, v);
-        },
-        async removeItem(k) {
-          if (SECRET_KEYS.has(k)) return secureDel(k);
-          mmkv.delete(k);
-        },
-        async getAllKeys() {
-          return mmkv.getAllKeys() as string[];
-        },
-        async clearAll() {
-          mmkv.clearAll();
-        },
+      const base: Store = {
+        async getItem(k) { return SECRET_KEYS.has(k) ? secureGet(k) : (mmkv.getString(k) ?? null); },
+        async setItem(k, v) { if (SECRET_KEYS.has(k)) return secureSet(k, v); mmkv.set(k, v); },
+        async removeItem(k) { if (SECRET_KEYS.has(k)) return secureDel(k); mmkv.delete(k); },
+        async getAllKeys() { return mmkv.getAllKeys() as string[]; },
+        async clearAll() { mmkv.clearAll(); },
       };
+      base.multiGet = async (keys) => keys.map((k) => [k, mmkv.getString(k) ?? null] as [string, string | null]);
+      base.multiSet = async (pairs) => { for (const [k, v] of pairs) mmkv.set(k, v); };
+      base.multiRemove = async (keys) => { for (const k of keys) mmkv.delete(k); };
+      impl = base;
       console.log('✅ Storage backend: MMKV + SecureStore (Native)');
     } catch {
-      impl = {
-        async getItem(k) {
-          return SECRET_KEYS.has(k)
-            ? (await SecureStore?.getItemAsync?.(k)) ?? null
-            : AsyncStorage.getItem(k);
-        },
-        async setItem(k, v) {
-          return SECRET_KEYS.has(k)
-            ? void (await SecureStore?.setItemAsync?.(k, v))
-            : AsyncStorage.setItem(k, v);
-        },
-        async removeItem(k) {
-          return SECRET_KEYS.has(k)
-            ? void (await SecureStore?.deleteItemAsync?.(k))
-            : AsyncStorage.removeItem(k);
-        },
-        async getAllKeys() {
-          return [...(await AsyncStorage.getAllKeys())];
-        },
-        async clearAll() {
-          await AsyncStorage.clear();
-        },
-      };
+      impl = buildAsyncBackend();
       console.log('⚠️ Storage backend: AsyncStorage + SecureStore (MMKV unavailable)');
     }
+    _isReady = true;
   })();
 
   await initPromise;
   initPromise = null;
+}
+
+export async function initAppStorage() {
+  await ensureInitialized();
+  return true;
 }
 
 export async function getItem(key: string) {
@@ -173,13 +138,13 @@ export async function clearAll() {
   return impl!.clearAll();
 }
 
-export async function getJSON<T = unknown>(key: string): Promise<T | null> {
+export async function getJSON<T = unknown>(key: string, defaultValue?: T): Promise<T | null> {
   const raw = await getItem(key);
-  if (raw == null) return null;
+  if (raw == null) return defaultValue ?? null;
   try {
     return JSON.parse(raw) as T;
   } catch {
-    return null;
+    return defaultValue ?? null;
   }
 }
 
@@ -187,12 +152,20 @@ export async function setJSON(key: string, value: unknown) {
   return setItem(key, JSON.stringify(value));
 }
 
+export const batchStorage = {
+  async multiGet(keys: string[]) { await ensureInitialized(); return impl!.multiGet!(keys); },
+  async multiSet(pairs: [string, string][]) { await ensureInitialized(); return impl!.multiSet!(pairs); },
+  async multiRemove(keys: string[]) { await ensureInitialized(); return impl!.multiRemove!(keys); },
+};
+
 export const guardedStorage = {
   getItem,
   setItem,
   removeItem,
   getAllKeys,
   clearAll,
+  async multiGet(keys: string[]) { return batchStorage.multiGet(keys); },
+  async multiRemove(keys: string[]) { return batchStorage.multiRemove(keys); },
 };
 
 export const typedStorage = {
