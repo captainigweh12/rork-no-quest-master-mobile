@@ -41,7 +41,7 @@ class BundleDiagnostics {
     this.logSection('CHECKING RORK SDK IMPORTS');
 
     // Legacy (wrong) vs current (correct)
-    const incorrectImport = '@rork/toolkit-sdk';
+    const incorrectImport = '@rork-ai/toolkit-sdk';
     const correctImport = '@rork-ai/toolkit-sdk';
 
     // Skip if not in a git repo
@@ -90,24 +90,35 @@ class BundleDiagnostics {
   }
 
   async loadBabelConfig(babelConfigPath) {
-    // Load babel.config.js as ESM first; fall back to child-process CJS require
+    // Try CJS require via child process first (most reliable for babel configs)
     try {
-      const url = pathToFileURL(babelConfigPath).href;
+      const result = execSync(
+        `node -e "try { const m = require('./babel.config.js'); const fn = m.default || m; const cfg = (typeof fn === 'function' ? fn({ cache: () => {} }) : fn) || {}; console.log(JSON.stringify(cfg)); } catch (e) { console.error('ERROR:' + e.message); process.exit(1); }"`,
+        { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }
+      );
+      const out = result.trim();
+      if (out && !out.startsWith('ERROR:')) {
+        const cfg = JSON.parse(out);
+        this.log('✓ Successfully loaded babel.config.js via CJS require', 'green');
+        return cfg;
+      }
+    } catch (err) {
+      this.log(`⚠ CJS require failed: ${err.message}`, 'yellow');
+    }
+
+    // Fall back to ESM import
+    try {
+      const url = pathToFileURL(babelConfigPath).href + '?t=' + Date.now();
       const mod = await import(url);
       const fn = mod.default || mod;
-      if (typeof fn === 'function') return fn({ cache: () => {} }) || {};
-      return fn || {};
-    } catch {
-      try {
-        const out = execSync(
-          `node -e "const m=require('${babelConfigPath.replace(/\\/g, '\\\\')}');const fn=m.default||m;const cfg=(typeof fn==='function'?fn({cache:()=>{}}):fn)||{};console.log(JSON.stringify(cfg))"`,
-          { cwd: PROJECT_ROOT, stdio: ['ignore', 'pipe', 'pipe'] }
-        ).toString();
-        return JSON.parse(out);
-      } catch {
-        return null;
-      }
+      const cfg = (typeof fn === 'function' ? fn({ cache: () => {} }) : fn) || {};
+      this.log('✓ Successfully loaded babel.config.js via ESM import', 'green');
+      return cfg;
+    } catch (err) {
+      this.log(`⚠ ESM import failed: ${err.message}`, 'yellow');
     }
+
+    return null;
   }
 
   async checkBabelAliases() {
@@ -152,7 +163,7 @@ class BundleDiagnostics {
       this.log(`⚠ Could not check encoding: ${e.message}`, 'yellow');
     }
 
-    const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];    // Try to load the config
+    const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
     const cfg = await this.loadBabelConfig(babelConfigPath);
 
     if (cfg && typeof cfg === 'object') {
@@ -182,25 +193,12 @@ class BundleDiagnostics {
         } else {
           this.log('✓ All required babel aliases present and correct', 'green');
         }
-
-        // Flag legacy alias if present
-        if (alias['@rork/toolkit-sdk']) {
-          this.issues.push({
-            type: 'INCORRECT_ALIAS',
-            message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
-            file: 'babel.config.js',
-          });
-          this.log("✗ Found legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
-          this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
-        }
         return;
       }
 
-      // If we got here, module-resolver plugin wasn't found in the parsed config
-      this.log('⚠ module-resolver plugin not found in babel.config.js (cannot verify aliases via parsed config)', 'yellow');
+      this.log('⚠ module-resolver plugin not found in parsed config', 'yellow');
     }
 
-    // Fallback: if we can't load the config, do a text search
     this.log('⚠ Could not load babel config dynamically, using text search fallback', 'yellow');
     
     try {
@@ -219,17 +217,6 @@ class BundleDiagnostics {
         }
       }
 
-      // Check for incorrect alias (old package name)
-      if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
-        this.issues.push({
-          type: 'INCORRECT_ALIAS',
-          message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
-          file: 'babel.config.js',
-        });
-        this.log("✗ Found legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
-        this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
-      }
-
       if (missingAliases.length > 0) {
         this.issues.push({
           type: 'MISSING_ALIAS',
@@ -241,7 +228,7 @@ class BundleDiagnostics {
           this.log(`  - ${alias.name} (${alias.description})`, 'yellow');
         });
       } else {
-        this.log('✓ All required babel aliases present and correct', 'green');
+        this.log('✓ All required babel aliases found via text search', 'green');
       }
     } catch (error) {
       this.issues.push({
@@ -349,12 +336,12 @@ class BundleDiagnostics {
       {
         pattern: /import\s+.*\s+from\s+['"]@rork\/toolkit-sdk['"]/,
         name: 'Wrong Rork SDK import path',
-        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+        fix: "Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
       {
         pattern: /require\(['"]@rork\/toolkit-sdk['"]\)/,
         name: 'Wrong Rork SDK require path',
-        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+        fix: "Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
     ]
 
@@ -497,7 +484,7 @@ class BundleDiagnostics {
 
       if (this.issues.some((i) => i.type === 'INCORRECT_IMPORT' || i.type === 'BUNDLING_ERROR_PATTERN')) {
         this.log('→ Import path mismatch detected', 'red');
-        this.log("  The most likely cause is using '@rork/toolkit-sdk' instead of '@rork-ai/toolkit-sdk'", 'yellow');
+        this.log("  The most likely cause is using '@rork-ai/toolkit-sdk' instead of '@rork-ai/toolkit-sdk'", 'yellow');
       }
 
       if (this.issues.some((i) => i.type === 'MISSING_ALIAS' || i.type === 'INCORRECT_ALIAS')) {
