@@ -36,6 +36,9 @@ yarn-error.*
 *.tsbuildinfo
 .vercel
 
+# Audit reports
+audit-report.json
+
 # Process management
 .backend-process.pid
 .backend-process.pid.tmp
