@@ -9,6 +9,7 @@
     "rork:guard": "node scripts/rork-health-guard.mjs",
     "rork:guard:fix": "node scripts/rork-health-guard.mjs --fix",
     "rork:clean": "node scripts/rork-health-guard.mjs --clean-only",
+    "rork:audit": "node scripts/bundling-audit.mjs",
 
     "start": "dotenv -e .env -- expo start -c",
     "start-web": "dotenv -e .env -- expo start --web -c",
