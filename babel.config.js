@@ -1,27 +1,36 @@
-module.exports = function(api) {
+module.exports = function (api) {
   api.cache(true);
-  const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+
+  const isTest =
+    process.env.JEST_WORKER_ID !== undefined ||
+    process.env.NODE_ENV === 'test';
 
   const plugins = [
+    // Your path aliases - must come before expo-router
     [
-      "module-resolver",
+      'module-resolver',
       {
-        root: ["."],
+        root: ['./'],
         alias: {
-          "@": "./",
+          '@': './',
+          '@rork/toolkit-sdk': './stubs/rork-toolkit-sdk',
+          '@rork-ai/toolkit-dev-sdk': './stubs/rork-ai-toolkit-dev-sdk',
         },
-        extensions: [".js", ".jsx", ".ts", ".tsx"],
+        extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
       },
     ],
+
+    // Required for expo-router
+    'expo-router/babel',
   ];
 
-  // Avoid react-native-reanimated plugin in test environment (it mutates globals)
+  // Reanimated MUST be last and is skipped in tests to avoid global mutations
   if (!isTest) {
     plugins.push('react-native-reanimated/plugin');
   }
 
   return {
-    presets: ["babel-preset-expo", "@babel/preset-typescript"],
+    presets: ['babel-preset-expo', '@babel/preset-typescript'],
     plugins,
   };
 };

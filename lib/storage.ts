@@ -156,6 +156,26 @@ export const batchStorage = {
   async multiGet(keys: string[]) { await ensureInitialized(); return impl!.multiGet!(keys); },
   async multiSet(pairs: [string, string][]) { await ensureInitialized(); return impl!.multiSet!(pairs); },
   async multiRemove(keys: string[]) { await ensureInitialized(); return impl!.multiRemove!(keys); },
+
+  // Convenience: accept an object map and JSON-stringify values
+  async setMultiple<T extends Record<string, any>>(values: T): Promise<void> {
+    const entries: [string, string][] = [];
+    for (const [k, v] of Object.entries(values)) {
+      try { entries.push([k, JSON.stringify(v)]); } catch (e) { console.warn(`Failed to stringify ${k}`, e); throw e; }
+    }
+    return this.multiSet(entries);
+  },
+
+  // Convenience: return parsed object with defaults
+  async getMultiple<T extends Record<string, any>>(keys: string[], defaults: T): Promise<T> {
+    const pairs = await this.multiGet(keys);
+    const out: Record<string, any> = {};
+    for (const [k, v] of pairs) {
+      if (v == null) { out[k] = (defaults as any)[k]; continue; }
+      try { out[k] = JSON.parse(v); } catch { out[k] = (defaults as any)[k]; }
+    }
+    return out as T;
+  },
 };
 
 export const guardedStorage = {

@@ -1,7 +1,8 @@
 /**
- * SQLite Storage Test Script
- * 
- * Tests the new SQLite storage implementation
+ * Adaptive Storage Test Script
+ *
+ * Verifies the unified storage layer (MMKV on native dev/prod, AsyncStorage fallback in Expo Go/Web,
+ * SecureStore for secret keys). Uses batch helpers and typed JSON access.
  */
 
 import { initAppStorage, guardedStorage, typedStorage, batchStorage } from './lib/storage';
@@ -27,14 +28,14 @@ async function testSQLiteStorage() {
     console.log('✓ Stored and retrieved object:', retrievedObj);
     console.assert(JSON.stringify(retrievedObj) === JSON.stringify(testObj), 'Object mismatch!\n');
 
-    console.log('4. Testing batch operations...');
+    console.log('4. Testing batch operations (object map)...');
     const batchData = {
       key1: 'value1',
       key2: { nested: 'object' },
       key3: [1, 2, 3],
     };
     await batchStorage.setMultiple(batchData);
-    const retrieved = await batchStorage.getMultiple(['key1', 'key2', 'key3'], {} as any);
+    const retrieved = await batchStorage.getMultiple(['key1', 'key2', 'key3'], { key1: '', key2: { nested: '' }, key3: [] } as any);
     console.log('✓ Batch stored and retrieved:', retrieved);
     console.assert((retrieved as any).key1 === 'value1', 'Batch value mismatch!\n');
 
@@ -55,8 +56,8 @@ async function testSQLiteStorage() {
     console.assert(removed === null, 'Key should be removed!\n');
     console.log('✓ Item removed successfully');
 
-    console.log('9. Testing multiRemove...');
-    await guardedStorage.multiRemove(['key1', 'key2', 'key3']);
+  console.log('9. Testing multiRemove...');
+  await batchStorage.multiRemove(['key1', 'key2', 'key3']);
     const afterRemove = await guardedStorage.getAllKeys();
     console.log(`✓ After multi-remove, ${afterRemove.length} keys remain`);
 

@@ -6,6 +6,12 @@ declare module '@rork/toolkit-sdk' {
   export function createRorkTool(...args: any[]): any;
 }
 
+// Dev wrapper SDK (optional, dynamically imported). Provides a wrapper component.
+declare module '@rork-ai/toolkit-dev-sdk' {
+  import React from 'react';
+  export const RorkDevWrapper: React.ComponentType<{ children: React.ReactNode }>;
+}
+
 declare module '@daily-co/react-native-daily-js' {
   export interface DailyParticipant {
     user_id?: string;
