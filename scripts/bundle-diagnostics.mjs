@@ -40,7 +40,7 @@ class BundleDiagnostics {
   async checkRorkImports() {
     this.logSection('CHECKING RORK SDK IMPORTS');
 
-    const incorrectImport = '@rork/toolkit-sdk';
+    const incorrectImport = '@rork-ai/toolkit-sdk';
     const correctImport = '@rork-ai/toolkit-sdk';
     
     try {
@@ -113,13 +113,13 @@ class BundleDiagnostics {
       }
 
       // Check for incorrect alias (old package name)
-      if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
+      if (content.includes("'@rork-ai/toolkit-sdk':") || content.includes('"@rork-ai/toolkit-sdk":')) {
         this.issues.push({
           type: 'INCORRECT_ALIAS',
-          message: "babel.config.js uses '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+          message: "babel.config.js uses '@rork-ai/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
           file: 'babel.config.js',
         });
-        this.log("✗ Found incorrect alias '@rork/toolkit-sdk' in babel.config.js", 'red');
+        this.log("✗ Found incorrect alias '@rork-ai/toolkit-sdk' in babel.config.js", 'red');
         this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
       }
 
@@ -242,12 +242,12 @@ class BundleDiagnostics {
       {
         pattern: /import\s+.*\s+from\s+['"]@rork\/toolkit-sdk['"]/,
         name: 'Wrong Rork SDK import path',
-        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+        fix: "Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
       {
         pattern: /require\(['"]@rork\/toolkit-sdk['"]/,
         name: 'Wrong Rork SDK require path',
-        fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
+        fix: "Change '@rork-ai/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
     ];
 
