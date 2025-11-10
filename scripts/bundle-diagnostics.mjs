@@ -163,7 +163,7 @@ class BundleDiagnostics {
       this.log(`⚠ Could not check encoding: ${e.message}`, 'yellow');
     }
 
-    const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
+    const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk', '@rork-ai/toolkit-dev-sdk'];
   const cfg = await this.loadBabelConfig(babelConfigPath);
 
     if (cfg && typeof cfg === 'object') {

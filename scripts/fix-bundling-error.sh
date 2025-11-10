@@ -1,86 +1,62 @@
 #!/bin/bash
 
-# Fix Bundling Error - Complete automated fix script
-# This script fixes the "Bundling failed" and "Cannot determine Expo SDK version" errors
+# Bundling Error Fix Script
+# Comprehensive fix for "Bundling failed without error" issues
 
 set -e
 
-echo "🔧 BUNDLING ERROR FIX"
-echo "=================================="
+echo "🔧 Bundling Error Fix Script"
+echo "=============================="
 echo ""
 
-# Step 1: Clean babel.config.js (remove debug console.log)
-echo "🧹 Step 1/5: Cleaning babel.config.js..."
-if [ -f "babel.config.js" ]; then
-  # Check if console.log line exists
-  if grep -q "console\.log('>> Using babel config at:'," babel.config.js; then
-    # Create backup
-    cp babel.config.js babel.config.js.backup
-    # Remove the console.log line
-    grep -v "console\.log('>> Using babel config at:'," babel.config.js > babel.config.js.tmp
-    mv babel.config.js.tmp babel.config.js
-    echo "✓ Removed debug console.log from babel.config.js"
-  else
-    echo "✓ babel.config.js is already clean"
-  fi
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Step 1: Remove debug console.log from babel.config.js
+echo "📝 Step 1: Cleaning babel.config.js..."
+if grep -q "console.log('>> Using babel config" babel.config.js 2>/dev/null; then
+    sed -i '/console\.log.*Using babel config/d' babel.config.js
+    echo -e "${GREEN}✓ Removed debug console.log from babel.config.js${NC}"
 else
-  echo "❌ babel.config.js not found!"
-  exit 1
+    echo -e "${GREEN}✓ babel.config.js is already clean${NC}"
 fi
-echo ""
 
 # Step 2: Clear all caches
-echo "📦 Step 2/5: Clearing all caches..."
+echo ""
+echo "🗑️  Step 2: Clearing caches..."
 rm -rf .expo .cache node_modules/.cache 2>/dev/null || true
-echo "✓ Caches cleared"
-echo ""
+echo -e "${GREEN}✓ Caches cleared${NC}"
 
-# Step 3: Reinstall node_modules
-echo "📥 Step 3/5: Reinstalling dependencies..."
-echo "This may take a few minutes..."
-rm -rf node_modules 2>/dev/null || true
-bun install
-echo "✓ Dependencies reinstalled"
+# Step 3: Verify node_modules
 echo ""
-
-# Step 4: Verify expo is installed
-echo "🔍 Step 4/5: Verifying Expo installation..."
-if [ -d "node_modules/expo" ]; then
-  echo "✓ Expo module found"
-  EXPO_VERSION=$(node -e "console.log(require('./node_modules/expo/package.json').version)" 2>/dev/null || echo "unknown")
-  echo "✓ Expo version: $EXPO_VERSION"
+echo "📦 Step 3: Verifying dependencies..."
+if [ ! -d "node_modules" ] || [ ! -d "node_modules/expo" ]; then
+    echo -e "${YELLOW}⚠ node_modules missing or incomplete, installing...${NC}"
+    bun install
+    echo -e "${GREEN}✓ Dependencies installed${NC}"
 else
-  echo "❌ Expo module not found in node_modules!"
-  exit 1
+    echo -e "${GREEN}✓ Dependencies present${NC}"
 fi
-echo ""
 
-# Step 5: Verify babel config
-echo "🔍 Step 5/5: Verifying babel config..."
-node -e "
-try {
-  const m = require('./babel.config.js');
-  const fn = m.default || m;
-  const cfg = typeof fn === 'function' ? fn({cache: () => {}}) : fn;
-  const plugins = cfg.plugins || [];
-  const mr = plugins.find(p => Array.isArray(p) && p[0] === 'module-resolver');
-  if (mr && mr[1] && mr[1].alias) {
-    console.log('✓ Babel config is valid');
-    console.log('✓ Found aliases:', Object.keys(mr[1].alias).join(', '));
-  } else {
-    console.log('⚠ Module resolver not found (but may be OK)');
-  }
-} catch (e) {
-  console.log('⚠ Babel config warning:', e.message);
-}
-"
+# Step 4: Run diagnostics
 echo ""
+echo "🔬 Step 4: Running diagnostics..."
+if bun run diagnose; then
+    echo -e "${GREEN}✓ All diagnostics passed${NC}"
+else
+    echo -e "${YELLOW}⚠ Some diagnostics failed (check output above)${NC}"
+fi
 
-echo "=================================="
-echo "✅ FIX COMPLETE!"
-echo "=================================="
+# Step 5: Final instructions
+echo ""
+echo "=============================="
+echo -e "${GREEN}✅ Fix script completed!${NC}"
 echo ""
 echo "Next steps:"
-echo "1. Run: bun x expo start -c"
-echo "2. Or run: bun run start"
+echo "1. Run: bun run start"
+echo "2. If bundling still fails, check the error message"
+echo "3. Run: bun run diagnose for detailed analysis"
 echo ""
