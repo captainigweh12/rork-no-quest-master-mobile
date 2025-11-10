@@ -8,7 +8,7 @@ module.exports = defineConfig([
     settings: {
       // Treat these as core modules so import/no-unresolved doesn't flag them
       'import/core-modules': [
-        '@rork/toolkit-sdk',
+        '@rork-ai/toolkit-sdk',
         '@rork-ai/toolkit-dev-sdk',
       ],
     },

@@ -226,7 +226,7 @@ class BundlingAuditor {
       'expo-sqlite', 'expo-updates', 'expo-file-system'
     ]);
     const externals = new Set([
-      '@rork/toolkit-sdk', '@rork-ai/toolkit-dev-sdk',
+      '@rork-ai/toolkit-sdk', '@rork-ai/toolkit-dev-sdk',
       '@daily-co/react-native-daily-js', 'standardwebhooks', 'npm:standardwebhooks@1.0.0', 'ai', '@expo/config'
     ]);
     return builtIns.has(module) || externals.has(module);

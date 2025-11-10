@@ -1,0 +1,305 @@
+#!/usr/bin/env node
+
+/**
+ * BUNDLING FAILURE DIAGNOSTICS
+ * 
+ * Identifies and diagnoses common bundling failures before they happen.
+ * Catches module resolution errors, missing aliases, and configuration issues.
+ */
+
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { execSync } from 'child_process';
+
+const PROJECT_ROOT = process.cwd();
+const COLORS = {
+  reset: '\x1b[0m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  cyan: '\x1b[36m',
+  bold: '\x1b[1m',
+};
+
+class BundleDiagnostics {
+  constructor() {
+    this.issues = [];
+    this.warnings = [];
+  }
+
+  log(message, color = 'reset') {
+    console.log(`${COLORS[color]}${message}${COLORS.reset}`);
+  }
+
+  logSection(title) {
+    this.log(`\n${'='.repeat(60)}`, 'cyan');
+    this.log(`  ${title}`, 'cyan');
+    this.log('='.repeat(60), 'cyan');
+  }
+
+  // Check for correct Rork SDK imports
+  async checkRorkImports() {
+    this.logSection('CHECKING RORK SDK IMPORTS');
+
+    const incorrectImport = '@rork/toolkit-sdk';
+    const correctImport = '@rork-ai/toolkit-sdk';
+    
+    try {
+      // Search for incorrect import pattern
+      let grepResult;
+      try {
+        grepResult = execSync(
+          `git grep -n "${incorrectImport}" -- "*.ts" "*.tsx" "*.js" "*.jsx"`,
+          { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: 'pipe' }
+        );
+      } catch (error) {
+        // git grep returns non-zero exit when no matches found
+        if (error.status === 1 && !error.stdout) {
+          grepResult = '';
+        } else {
+          throw error;
+        }
+      }
+
+      if (grepResult && grepResult.trim() !== '') {
+        const matches = grepResult.trim().split('\n').filter(m => m.length > 0);
+        this.log(`✗ Found ${matches.length} file(s) using incorrect import '${incorrectImport}'`, 'red');
+        matches.forEach(match => {
+          this.log(`  ${match}`, 'yellow');
+        });
+        this.issues.push({
+          type: 'INCORRECT_IMPORT',
+          message: `Use '${correctImport}' instead of '${incorrectImport}'`,
+          files: matches,
+        });
+      } else {
+        this.log(`✓ All Rork SDK imports use correct package name`, 'green');
+      }
+    } catch (error) {
+      this.log(`⚠ Could not check imports: ${error.message}`, 'yellow');
+    }
+  }
+
+  // Verify babel aliases match expected patterns
+  async checkBabelAliases() {
+    this.logSection('CHECKING BABEL MODULE RESOLVER ALIASES');
+
+    const babelConfigPath = join(PROJECT_ROOT, 'babel.config.js');
+    if (!existsSync(babelConfigPath)) {
+      this.issues.push({
+        type: 'MISSING_CONFIG',
+        message: 'babel.config.js not found',
+      });
+      this.log('✗ babel.config.js not found', 'red');
+      return;
+    }
+
+    try {
+      const content = readFileSync(babelConfigPath, 'utf-8');
+      
+      // Check for required aliases
+      const requiredAliases = [
+        { name: '@', description: 'Project root alias' },
+        { name: '@rork-ai/toolkit-sdk', description: 'Rork AI SDK stub' },
+      ];
+
+      const missingAliases = [];
+      for (const alias of requiredAliases) {
+        const aliasPattern = new RegExp(`['"]${alias.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]\\s*:`);
+        if (!aliasPattern.test(content)) {
+          missingAliases.push(alias);
+        }
+      }
+
+      // Check for incorrect alias
+      if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
+        this.issues.push({
+          type: 'INCORRECT_ALIAS',
+          message: "babel.config.js uses '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+          file: 'babel.config.js',
+        });
+        this.log("✗ Found incorrect alias '@rork/toolkit-sdk' in babel.config.js", 'red');
+        this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
+      }
+
+      if (missingAliases.length > 0) {
+        this.issues.push({
+          type: 'MISSING_ALIAS',
+          message: 'Missing required aliases in babel.config.js',
+          aliases: missingAliases.map(a => a.name),
+        });
+        this.log(`✗ Missing ${missingAliases.length} required alias(es) in babel.config.js:`, 'red');
+        missingAliases.forEach(alias => {
+          this.log(`  - ${alias.name} (${alias.description})`, 'yellow');
+        });
+      } else if (this.issues.filter(i => i.file === 'babel.config.js').length === 0) {
+        this.log('✓ All required babel aliases present and correct', 'green');
+      }
+    } catch (error) {
+      this.issues.push({
+        type: 'CONFIG_READ_ERROR',
+        message: `Cannot read babel.config.js: ${error.message}`,
+      });
+      this.log(`✗ Cannot read babel.config.js: ${error.message}`, 'red');
+    }
+  }
+
+  // Check stub files exist
+  async checkStubFiles() {
+    this.logSection('CHECKING STUB FILES');
+
+    const stubFiles = [
+      { path: 'stubs/rork-toolkit-sdk.ts', name: '@rork-ai/toolkit-sdk stub' },
+      { path: 'stubs/rork-ai-toolkit-dev-sdk.ts', name: '@rork-ai/toolkit-dev-sdk stub' },
+    ];
+
+    let allPresent = true;
+    for (const stub of stubFiles) {
+      const fullPath = join(PROJECT_ROOT, stub.path);
+      if (!existsSync(fullPath)) {
+        this.issues.push({
+          type: 'MISSING_STUB',
+          message: `Stub file missing: ${stub.path}`,
+          file: stub.path,
+        });
+        this.log(`✗ Missing stub file: ${stub.path}`, 'red');
+        allPresent = false;
+      }
+    }
+
+    if (allPresent) {
+      this.log('✓ All required stub files present', 'green');
+    }
+  }
+
+  // Verify TypeScript path mappings align with babel
+  async checkTsConfig() {
+    this.logSection('CHECKING TYPESCRIPT PATH MAPPINGS');
+
+    const tsconfigPath = join(PROJECT_ROOT, 'tsconfig.json');
+    if (!existsSync(tsconfigPath)) {
+      this.warnings.push('tsconfig.json not found');
+      this.log('⚠ tsconfig.json not found', 'yellow');
+      return;
+    }
+
+    try {
+      const content = readFileSync(tsconfigPath, 'utf-8');
+      const tsconfig = JSON.parse(content);
+      const paths = tsconfig.compilerOptions?.paths || {};
+
+      // Check for @ alias
+      if (!paths['@/*']) {
+        this.warnings.push("tsconfig.json missing '@/*' path mapping");
+        this.log("⚠ tsconfig.json missing '@/*' path mapping", 'yellow');
+      } else {
+        this.log("✓ TypeScript '@/*' path mapping present", 'green');
+      }
+    } catch (error) {
+      this.warnings.push(`Cannot parse tsconfig.json: ${error.message}`);
+      this.log(`⚠ Cannot parse tsconfig.json: ${error.message}`, 'yellow');
+    }
+  }
+
+  // Try a quick Metro bundle health check
+  async checkMetroHealth() {
+    this.logSection('METRO BUNDLER HEALTH CHECK');
+
+    try {
+      this.log('Checking if Metro config is valid...', 'cyan');
+      const metroConfigPath = join(PROJECT_ROOT, 'metro.config.js');
+      
+      if (!existsSync(metroConfigPath)) {
+        this.warnings.push('metro.config.js not found');
+        this.log('⚠ metro.config.js not found', 'yellow');
+        return;
+      }
+
+      // Just verify it can be required without syntax errors
+      try {
+        require(metroConfigPath);
+        this.log('✓ metro.config.js loads without errors', 'green');
+      } catch (error) {
+        this.issues.push({
+          type: 'METRO_CONFIG_ERROR',
+          message: `metro.config.js has errors: ${error.message}`,
+        });
+        this.log(`✗ metro.config.js has errors: ${error.message}`, 'red');
+      }
+    } catch (error) {
+      this.warnings.push(`Metro health check failed: ${error.message}`);
+      this.log(`⚠ Could not complete Metro health check: ${error.message}`, 'yellow');
+    }
+  }
+
+  // Generate final report
+  generateReport() {
+    this.logSection('DIAGNOSTIC REPORT');
+
+    const totalIssues = this.issues.length + this.warnings.length;
+
+    if (totalIssues === 0) {
+      this.log('✓ No bundling issues detected! Ready to bundle.', 'green');
+      return true;
+    }
+
+    this.log(`\nTotal Issues: ${totalIssues} (${this.issues.length} errors, ${this.warnings.length} warnings)`, 'yellow');
+
+    if (this.issues.length > 0) {
+      this.log('\n❌ ERRORS:', 'red');
+      this.issues.forEach((issue, index) => {
+        this.log(`  ${index + 1}. [${issue.type}] ${issue.message}`, 'red');
+        if (issue.files) {
+          issue.files.forEach(file => {
+            this.log(`     ${file}`, 'yellow');
+          });
+        }
+        if (issue.file) {
+          this.log(`     File: ${issue.file}`, 'yellow');
+        }
+      });
+    }
+
+    if (this.warnings.length > 0) {
+      this.log('\n⚠ WARNINGS:', 'yellow');
+      this.warnings.forEach((warning, index) => {
+        this.log(`  ${index + 1}. ${warning}`, 'yellow');
+      });
+    }
+
+    this.log('\n💡 NEXT STEPS:', 'cyan');
+    this.log('1. Fix all errors listed above', 'cyan');
+    this.log('2. Run: bun run audit:bundle', 'cyan');
+    this.log('3. Try bundling: bun run start', 'cyan');
+
+    return this.issues.length === 0;
+  }
+
+  async run() {
+    this.log('\n🔬 BUNDLING FAILURE DIAGNOSTICS', 'bold');
+    this.log('Checking for common bundling issues...\n', 'cyan');
+
+    await this.checkRorkImports();
+    await this.checkBabelAliases();
+    await this.checkStubFiles();
+    await this.checkTsConfig();
+    await this.checkMetroHealth();
+
+    const success = this.generateReport();
+
+    if (success) {
+      this.log('\n✓ All checks passed!', 'green');
+      process.exit(0);
+    } else {
+      this.log('\n✗ Found issues that may cause bundling to fail', 'red');
+      process.exit(1);
+    }
+  }
+}
+
+// Run diagnostics
+const diagnostics = new BundleDiagnostics();
+diagnostics.run().catch(error => {
+  console.error('Diagnostic failed:', error);
+  process.exit(1);
+});

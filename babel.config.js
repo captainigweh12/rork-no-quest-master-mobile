@@ -13,7 +13,7 @@ module.exports = function (api) {
         root: ['./'],
         alias: {
           '@': './',
-          '@rork/toolkit-sdk': './stubs/rork-toolkit-sdk',
+          '@rork-ai/toolkit-sdk': './stubs/rork-toolkit-sdk',
           '@rork-ai/toolkit-dev-sdk': './stubs/rork-ai-toolkit-dev-sdk',
         },
         extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],

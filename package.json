@@ -7,6 +7,7 @@
 
   "scripts": {
   "audit:bundle": "node scripts/bundling-audit.mjs",
+    "diagnose": "node scripts/bundle-diagnostics.mjs",
     "rork:guard": "node scripts/rork-health-guard.mjs",
     "rork:guard:fix": "node scripts/rork-health-guard.mjs --fix",
     "rork:clean": "node scripts/rork-health-guard.mjs --clean-only",
