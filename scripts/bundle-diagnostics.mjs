@@ -40,9 +40,9 @@ class BundleDiagnostics {
   async checkRorkImports() {
     this.logSection('CHECKING RORK SDK IMPORTS');
 
-    // ✅ Fix: “incorrect” should be the legacy package, not the correct one.
-    const incorrectImport = '@rork/toolkit-sdk';         // legacy/wrong
-    const correctImport = '@rork-ai/toolkit-sdk';        // correct
+    // Legacy (wrong) vs current (correct)
+    const incorrectImport = '@rork/toolkit-sdk';
+    const correctImport = '@rork-ai/toolkit-sdk';
 
     try {
       const { globSync } = await import('glob');
@@ -75,37 +75,29 @@ class BundleDiagnostics {
           files: matches,
         });
       } else {
-        this.log(`✓ All Rork SDK imports use correct package name`, 'green');
+        this.log('✓ All Rork SDK imports use correct package name', 'green');
       }
     } catch (error) {
       this.log(`⚠ Could not check imports: ${error.message}`, 'yellow');
     }
   }
 
-  /**
-   * Load babel.config.js in a way that works for both CJS and ESM, then
-   * normalize to a plain config object: { presets, plugins }
-   */
   async loadBabelConfig(babelConfigPath) {
+    // Load babel.config.js as ESM first; fall back to child-process CJS require
     try {
-      // Prefer native dynamic import (works in .mjs)
       const url = pathToFileURL(babelConfigPath).href;
       const mod = await import(url);
-      const fn = mod.default || mod; // some configs export function directly
-      if (typeof fn === 'function') {
-        return fn({ cache: () => {} }) || {};
-      }
+      const fn = mod.default || mod;
+      if (typeof fn === 'function') return fn({ cache: () => {} }) || {};
       return fn || {};
     } catch {
-      // Fallback to require via a child Node process to avoid ESM/CJS mismatch
       try {
         const out = execSync(
           `node -e "const m=require('${babelConfigPath.replace(/\\/g, '\\\\')}');const fn=m.default||m;const cfg=(typeof fn==='function'?fn({cache:()=>{}}):fn)||{};console.log(JSON.stringify(cfg))"`,
           { cwd: PROJECT_ROOT, stdio: ['ignore', 'pipe', 'pipe'] }
         ).toString();
         return JSON.parse(out);
-      } catch (e2) {
-        // Last resort — return null; caller can text-scan as fallback
+      } catch {
         return null;
       }
     }
@@ -115,16 +107,17 @@ class BundleDiagnostics {
     this.logSection('CHECKING BABEL MODULE RESOLVER ALIASES');
 
     const babelConfigPath = join(PROJECT_ROOT, 'babel.config.js');
+    this.log(`Using babel config: ${babelConfigPath}`, 'cyan');
+
     if (!existsSync(babelConfigPath)) {
       this.issues.push({ type: 'MISSING_CONFIG', message: 'babel.config.js not found' });
       this.log('✗ babel.config.js not found', 'red');
       return;
     }
 
-    // Required aliases (keys) we must find inside module-resolver
     const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
 
-    // 1) Preferred: load and interpret actual Babel config
+    // Preferred: load the real config and read plugins
     const cfg = await this.loadBabelConfig(babelConfigPath);
 
     if (cfg && typeof cfg === 'object') {
@@ -135,6 +128,8 @@ class BundleDiagnostics {
 
       if (moduleResolver) {
         const alias = (moduleResolver[1] && moduleResolver[1].alias) || {};
+        this.log(`Found module-resolver aliases: ${Object.keys(alias).join(', ') || '(none)'}`, 'cyan');
+
         const missing = requiredAliasKeys.filter((k) => !(k in alias));
 
         if (missing.length > 0) {
@@ -153,24 +148,21 @@ class BundleDiagnostics {
           this.log('✓ All required babel aliases present and correct', 'green');
         }
 
-        // ✅ Correct “incorrect alias” check: only flag if the LEGACY alias exists
         if (alias['@rork/toolkit-sdk']) {
           this.issues.push({
             type: 'INCORRECT_ALIAS',
-            message:
-              "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+            message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
             file: 'babel.config.js',
           });
           this.log("✗ Found incorrect legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
           this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
         }
-
         return;
       }
-      // If we got a config but no module-resolver plugin, fall through to text scan for hints
+      // If config loaded but no module-resolver found, fall through to text scan as a hint
     }
 
-    // 2) Fallback: text-search the file (less accurate, but better than nothing)
+    // Fallback: text scan (less accurate)
     try {
       const content = readFileSync(babelConfigPath, 'utf-8');
 
@@ -197,12 +189,10 @@ class BundleDiagnostics {
         this.log('✓ All required babel aliases present and correct (text scan)', 'green');
       }
 
-      // ✅ Fix: Only flag the true legacy alias string
       if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
         this.issues.push({
           type: 'INCORRECT_ALIAS',
-          message:
-            "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+          message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
           file: 'babel.config.js',
         });
         this.log("✗ Found incorrect legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
@@ -222,7 +212,7 @@ class BundleDiagnostics {
 
     const stubFiles = [
       { path: 'stubs/rork-toolkit-sdk.ts', name: '@rork-ai/toolkit-sdk stub' },
-      { path: 'stubs/rork-ai-toolkit-dev-sdk.ts', name: '@rork-ai/toolkit-dev-sdk stub' },
+      { path: 'stubs/rork-ai-toolkit-dev-sdk.ts', name: '@rork-ai-toolkit-dev-sdk stub' },
     ];
 
     let allPresent = true;
@@ -310,7 +300,6 @@ class BundleDiagnostics {
   async checkCommonErrors() {
     this.logSection('CHECKING FOR COMMON BUNDLING ERRORS');
 
-    // ✅ Fix: Patterns should target the legacy path and suggest the correct one.
     const patterns = [
       {
         pattern: /import\s+.*\s+from\s+['"]@rork\/toolkit-sdk['"]/,
@@ -322,7 +311,7 @@ class BundleDiagnostics {
         name: 'Wrong Rork SDK require path',
         fix: "Change '@rork/toolkit-sdk' to '@rork-ai/toolkit-sdk'",
       },
-    ];
+    ]
 
     try {
       const { globSync } = await import('glob');
@@ -486,4 +475,3 @@ diagnostics.run().catch((error) => {
   console.error('Diagnostic failed:', error);
   process.exit(1);
 });
-
