@@ -22,6 +22,9 @@
   "fix": "node scripts/bundle-fix.mjs",
   "fix:quick": "node scripts/bundle-fix.mjs --no-diagnose",
 
+  "doctor": "node scripts/doctor.mjs",
+  "doctor:tunnel": "node scripts/doctor.mjs --tunnel",
+
     "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
     "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
     "start-rork-dev": "dotenv -e .env -- DEBUG=expo* rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
