@@ -44,31 +44,38 @@ class BundleDiagnostics {
     const incorrectImport = '@rork/toolkit-sdk';
     const correctImport = '@rork-ai/toolkit-sdk';
 
+    // Skip if not in a git repo
+    const isGitRepo = existsSync(join(PROJECT_ROOT, '.git'));
+    if (!isGitRepo) {
+      this.log('⚠ Not a git repository, skipping import check', 'yellow');
+      return;
+    }
+
     try {
-      const { globSync } = await import('glob');
-      const files = globSync('{app,components,contexts,services,lib,hooks,providers}/**/*.{ts,tsx,js,jsx}', {
-        cwd: PROJECT_ROOT,
-        ignore: ['**/node_modules/**', '**/.expo/**', '**/dist/**'],
-      });
-
-      const matches = [];
-      for (const file of files) {
-        const fullPath = join(PROJECT_ROOT, file);
-        if (!existsSync(fullPath)) continue;
-
-        const content = readFileSync(fullPath, 'utf-8');
-        const lines = content.split('\n');
-
-        lines.forEach((line, idx) => {
-          if (line.includes(incorrectImport)) {
-            matches.push(`${file}:${idx + 1}: ${line.trim()}`);
-          }
-        });
+      // Use git grep to search for incorrect imports
+      let grepResult;
+      try {
+        grepResult = execSync(
+          `git grep -n "${incorrectImport}" -- "*.ts" "*.tsx" "*.js" "*.jsx"`,
+          { cwd: PROJECT_ROOT, encoding: 'utf-8', stdio: 'pipe' }
+        );
+      } catch (error) {
+        // git grep returns exit code 1 when no matches found
+        if (error.status === 1) {
+          grepResult = '';
+        } else {
+          throw error;
+        }
       }
 
-      if (matches.length > 0) {
-        this.log(`✗ Found ${matches.length} incorrect import(s) '${incorrectImport}'`, 'red');
-        matches.forEach((m) => this.log(`  ${m}`, 'yellow'));
+      if (grepResult && grepResult.trim() !== '') {
+        const matches = grepResult.trim().split('\n').filter(m => m.length > 0);
+        this.log(`✗ Found ${matches.length} incorrect import(s) using '${incorrectImport}'`, 'red');
+        this.log(`  Should be '${correctImport}' instead`, 'yellow');
+        matches.slice(0, 5).forEach((m) => this.log(`  ${m}`, 'yellow'));
+        if (matches.length > 5) {
+          this.log(`  ... and ${matches.length - 5} more`, 'yellow');
+        }
         this.issues.push({
           type: 'INCORRECT_IMPORT',
           message: `Use '${correctImport}' instead of '${incorrectImport}'`,
