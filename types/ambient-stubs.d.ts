@@ -1,5 +1,6 @@
+import React from "react";
 // Ambient module stubs to satisfy TypeScript until real packages are installed.
-declare module '@rork/toolkit-sdk' {
+declare module '@rork-ai/toolkit-sdk' {
   export function generateObject(...args: any[]): Promise<any>;
   export function generateText(...args: any[]): Promise<string>;
   export function useRorkAgent(...args: any[]): any;

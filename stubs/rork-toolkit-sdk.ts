@@ -1,4 +1,4 @@
-// Stub implementation for @rork/toolkit-sdk to satisfy lint and runtime during development.
+// Stub implementation for @rork-ai/toolkit-sdk to satisfy lint and runtime during development.
 // Replace with real SDK when available.
 export async function generateObject(..._args: any[]): Promise<any> {
   return { stub: true };
