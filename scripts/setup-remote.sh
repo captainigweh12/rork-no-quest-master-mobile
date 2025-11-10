@@ -16,6 +16,9 @@ TARGET_DIR="/home/user/rork-app"
 echo "🔧 Remote environment setup for rork"
 echo "======================================"
 
+# Ensure we're in a safe working directory (home)
+cd ~
+
 # 1) Backup existing .env if present
 if [ -f "$TARGET_DIR/.env" ]; then
   echo "📦 Backing up existing .env..."
@@ -32,17 +35,25 @@ fi
 
 # 3) Clone fresh repo
 echo "📥 Cloning repository..."
-git clone "$REPO_URL" "$TARGET_DIR"
-cd "$TARGET_DIR"
+if ! git clone "$REPO_URL" "$TARGET_DIR"; then
+  echo "❌ Git clone failed. Possible causes:"
+  echo "   - Network issue or repo URL incorrect"
+  echo "   - Permission denied (try SSH key if using private repo)"
+  echo "   - Parent directory doesn't exist"
+  exit 1
+fi
 
-# 4) Checkout target branch
+# 4) Change to the cloned directory
+cd "$TARGET_DIR" || { echo "❌ Failed to enter $TARGET_DIR"; exit 1; }
+
+# 5) Checkout target branch
 echo "🔀 Checking out branch: $BRANCH"
 git fetch origin
 git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
 git clean -fd
 
-# 5) Restore .env if backed up
+# 6) Restore .env if backed up
 if [ -f ~/backup/.env.* ]; then
   LATEST_BACKUP=$(ls -t ~/backup/.env.* 2>/dev/null | head -n1)
   if [ -n "$LATEST_BACKUP" ]; then
@@ -52,7 +63,7 @@ if [ -f ~/backup/.env.* ]; then
   fi
 fi
 
-# 6) Ensure Babel config is UTF-8 and has module-resolver
+# 7) Ensure Babel config is UTF-8 and has module-resolver
 echo "🔍 Validating babel.config.js..."
 if [ ! -f babel.config.js ]; then
   echo "⚠️  babel.config.js missing, creating canonical version..."
@@ -97,7 +108,7 @@ EOF
   echo "✓ Created babel.config.js"
 fi
 
-# 7) Install dependencies
+# 8) Install dependencies
 echo "📦 Installing dependencies..."
 if command -v bun &> /dev/null; then
   bun install
@@ -108,7 +119,7 @@ else
   npm install -D babel-plugin-module-resolver
 fi
 
-# 8) Validate Babel config loads correctly
+# 9) Validate Babel config loads correctly
 echo "🧪 Validating Babel configuration..."
 VALIDATION=$(node -e "try { const m=require('./babel.config.js'); const fn=m.default||m; const out=(typeof fn==='function'?fn({cache:()=>{}}):fn)||{}; const mr=(out.plugins||[]).find(p=>Array.isArray(p)&&p[0]==='module-resolver'); console.log(!!mr ? 'OK' : 'MISSING'); } catch(e) { console.log('ERROR'); }")
 
@@ -119,11 +130,11 @@ else
   exit 1
 fi
 
-# 9) Clear caches
+# 10) Clear caches
 echo "🧹 Clearing caches..."
 rm -rf .expo .cache node_modules/.cache
 
-# 10) Final validation
+# 11) Final validation
 echo ""
 echo "✅ Setup complete!"
 echo ""

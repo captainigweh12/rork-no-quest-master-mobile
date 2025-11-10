@@ -128,6 +128,46 @@ Compare branch and commit SHA with your Windows VS Code Git panel.
 
 ## Troubleshooting
 
+### "fatal: Unable to read current working directory"
+
+This happens when you're inside a directory being deleted. Fix:
+
+```bash
+# Run the quick recovery script
+cd ~
+curl -fsSL https://raw.githubusercontent.com/captainigweh12/rork-no-quest-master-mobile/main/scripts/quick-recovery.sh | bash
+```
+
+Or manually:
+```bash
+cd ~
+rm -rf /home/user/rork-app
+git clone https://github.com/captainigweh12/rork-no-quest-master-mobile.git /home/user/rork-app
+cd /home/user/rork-app
+bun install
+```
+
+### "Script not found: start:auto"
+
+The git clone failed or didn't complete. Run the recovery script above, then verify:
+
+```bash
+cd /home/user/rork-app
+cat package.json | grep "start:auto"
+```
+
+You should see: `"start:auto": "node scripts/start-auto.mjs"`
+
+If missing, the clone is incomplete. Delete and re-clone:
+```bash
+cd ~
+rm -rf /home/user/rork-app
+git clone https://github.com/captainigweh12/rork-no-quest-master-mobile.git /home/user/rork-app
+cd /home/user/rork-app
+git log --oneline -1  # Verify latest commit
+bun install
+```
+
 ### UTF-16 encoding error
 If you see UTF-16 errors, the Babel config wasn't synced correctly:
 ```bash
