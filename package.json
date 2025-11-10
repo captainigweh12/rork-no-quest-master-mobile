@@ -14,7 +14,13 @@
     "rork:audit": "node scripts/bundling-audit.mjs",
 
     "start": "dotenv -e .env -- expo start -c",
+    "start:clear": "dotenv -e .env -- expo start -c",
+    "start:tunnel": "dotenv -e .env -- expo start -c --tunnel",
     "start-web": "dotenv -e .env -- expo start --web -c",
+    "start-web:tunnel": "dotenv -e .env -- expo start --web -c --tunnel",
+
+  "fix": "node scripts/bundle-fix.mjs",
+  "fix:quick": "node scripts/bundle-fix.mjs --no-diagnose",
 
     "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
     "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",

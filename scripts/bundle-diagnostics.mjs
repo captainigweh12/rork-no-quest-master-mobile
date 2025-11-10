@@ -41,7 +41,7 @@ class BundleDiagnostics {
     this.logSection('CHECKING RORK SDK IMPORTS');
 
     // Legacy (wrong) vs current (correct)
-    const incorrectImport = '@rork-ai/toolkit-sdk';
+    const incorrectImport = '@rork/toolkit-sdk';
     const correctImport = '@rork-ai/toolkit-sdk';
 
     // Skip if not in a git repo
@@ -122,7 +122,7 @@ class BundleDiagnostics {
       return;
     }
 
-    const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
+  const requiredAliasKeys = ['@', '@rork-ai/toolkit-sdk'];
 
     // Try to load the config
     const cfg = await this.loadBabelConfig(babelConfigPath);
@@ -155,17 +155,21 @@ class BundleDiagnostics {
           this.log('✓ All required babel aliases present and correct', 'green');
         }
 
-        if (alias['@rork-ai/toolkit-sdk']) {
+        // Flag legacy alias if present
+        if (alias['@rork/toolkit-sdk']) {
           this.issues.push({
             type: 'INCORRECT_ALIAS',
-            message: "babel.config.js uses '@rork-ai/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+            message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
             file: 'babel.config.js',
           });
-          this.log("✗ Found incorrect alias '@rork-ai/toolkit-sdk' in babel.config.js", 'red');
+          this.log("✗ Found legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
           this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
         }
         return;
       }
+
+      // If we got here, module-resolver plugin wasn't found in the parsed config
+      this.log('⚠ module-resolver plugin not found in babel.config.js (cannot verify aliases via parsed config)', 'yellow');
     }
 
     // Fallback: if we can't load the config, do a text search
@@ -188,13 +192,13 @@ class BundleDiagnostics {
       }
 
       // Check for incorrect alias (old package name)
-      if (content.includes("'@rork-ai/toolkit-sdk':") || content.includes('"@rork-ai/toolkit-sdk":')) {
+      if (content.includes("'@rork/toolkit-sdk':") || content.includes('"@rork/toolkit-sdk":')) {
         this.issues.push({
           type: 'INCORRECT_ALIAS',
-          message: "babel.config.js uses '@rork-ai/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
+          message: "babel.config.js uses legacy '@rork/toolkit-sdk' (should be '@rork-ai/toolkit-sdk')",
           file: 'babel.config.js',
         });
-        this.log("✗ Found incorrect alias '@rork-ai/toolkit-sdk' in babel.config.js", 'red');
+        this.log("✗ Found legacy alias '@rork/toolkit-sdk' in babel.config.js", 'red');
         this.log("  → Change to '@rork-ai/toolkit-sdk'", 'yellow');
       }
 
