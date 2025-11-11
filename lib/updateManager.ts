@@ -1,6 +1,14 @@
-import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
 import { Alert } from 'react-native';
+
+/* eslint-disable @typescript-eslint/no-require-imports */
+let Updates: any = null;
+try {
+  Updates = require('expo-updates');
+} catch {
+  console.warn('[Updates] expo-updates not installed, update functionality disabled');
+}
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 /**
  * Safely check for and apply OTA updates with proper error handling.
@@ -10,6 +18,12 @@ import { Alert } from 'react-native';
  * to ensure the app is stable before checking for updates.
  */
 export async function checkAndApplyUpdates(): Promise<void> {
+  // Skip if expo-updates not installed
+  if (!Updates) {
+    console.log('[Updates] Skipping - expo-updates not installed');
+    return;
+  }
+  
   // Skip in development mode
   if (__DEV__) {
     console.log('[Updates] Skipping - running in development mode');
