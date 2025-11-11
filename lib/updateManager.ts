@@ -1,84 +1,92 @@
 import Constants from 'expo-constants';
 import { Alert, Platform } from 'react-native';
 
-/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment */
 let Updates: any = null;
-
-if (Platform.OS !== 'web') {
-  try {
-    Updates = require('expo-updates');
-  } catch {
-    console.warn('[Updates] expo-updates not installed, update functionality disabled');
-  }
+try {
+  // Normalize CJS/ESM shape
+  const mod = require('expo-updates');
+  Updates = mod?.default ?? mod;
+} catch {
+  console.warn('[Updates] expo-updates not installed, update functionality disabled');
 }
 /* eslint-enable @typescript-eslint/no-require-imports */
 
+/** Read flags safely (prefer EXPO_PUBLIC_*; fall back to constants/manifest) */
+function getOtaFlags() {
+  const envOtaEnabled = process.env.EXPO_PUBLIC_OTA_ENABLED;
+  const envAlwaysDisable = process.env.EXPO_PUBLIC_ALWAYS_DISABLE_OTA;
+
+  const fromEnv = {
+    otaEnabled: envOtaEnabled ? envOtaEnabled === 'true' : undefined,
+    alwaysDisableOta: envAlwaysDisable ? envAlwaysDisable === 'true' : undefined,
+  };
+
+  // Constants.expoConfig may be undefined in production; guard it.
+  const extra = (Constants?.expoConfig as any)?.extra ?? (Updates?.manifest?.extra ?? {});
+  return {
+    otaEnabled: fromEnv.otaEnabled ?? Boolean(extra?.otaEnabled),
+    alwaysDisableOta: fromEnv.alwaysDisableOta ?? Boolean(extra?.alwaysDisableOta),
+  };
+}
+
 /**
  * Safely check for and apply OTA updates with proper error handling.
- * This function will never crash the app - it fails silently and logs warnings.
- * 
- * Usage: Call this after app initialization, preferably 3-5 seconds after launch
- * to ensure the app is stable before checking for updates.
+ * Call a few seconds after launch.
  */
 export async function checkAndApplyUpdates(): Promise<void> {
-  // Skip on web
-  if (Platform.OS === 'web') {
-    console.log('[Updates] Skipping - not supported on web');
+  // Skip if no module or on web
+  if (!Updates || Platform.OS === 'web') {
+    console.log('[Updates] Skipping - expo-updates not available on this platform');
     return;
   }
-  
-  // Skip if expo-updates not installed
-  if (!Updates) {
-    console.log('[Updates] Skipping - expo-updates not installed');
-    return;
-  }
-  
-  // Skip in development mode
+
+  // Skip in development
   if (__DEV__) {
     console.log('[Updates] Skipping - running in development mode');
     return;
   }
 
-  // Check if OTA is enabled at build time (from app.config.ts)
-  const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
-  const hardOff = Constants.expoConfig?.extra?.alwaysDisableOta;
-  if (hardOff) {
+  const { otaEnabled, alwaysDisableOta } = getOtaFlags();
+  if (alwaysDisableOta) {
     console.log('[Updates] Skipping - ALWAYS_DISABLE_OTA flag set');
     return;
   }
-  
   if (!otaEnabled) {
-    console.log('[Updates] Skipping - OTA updates disabled in config');
+    console.log('[Updates] Skipping - OTA updates disabled');
+    return;
+  }
+
+  // Ensure the API exists (older SDKs)
+  if (typeof Updates.checkForUpdateAsync !== 'function' || typeof Updates.fetchUpdateAsync !== 'function') {
+    console.log('[Updates] Skipping - expo-updates API not available');
     return;
   }
 
   try {
     console.log('[Updates] Checking for available updates...');
-    
-  const updateResult = await Updates.checkForUpdateAsync();
-  if (updateResult.isAvailable) {
-      console.log('[Updates] Update available, fetching...');
-      
+    const updateResult = await Updates.checkForUpdateAsync();
+
+    if (updateResult?.isAvailable) {
+      console.log('[Updates] Update available, fetching…');
       await Updates.fetchUpdateAsync();
-      
       console.log('[Updates] Update fetched successfully');
-      
-      // Optionally show user a prompt to restart
-      // You can customize this or make it silent
+
+      // Prompt user (you can also auto-apply)
       Alert.alert(
         'Update Available',
-        'A new version has been downloaded. Would you like to restart the app to apply it?',
+        'A new version has been downloaded. Restart now to apply it?',
         [
-          {
-            text: 'Later',
-            style: 'cancel',
-            onPress: () => console.log('[Updates] User chose to apply update later'),
-          },
+          { text: 'Later', style: 'cancel', onPress: () => console.log('[Updates] User chose later') },
           {
             text: 'Restart Now',
-            onPress: () => {
-              console.log('[Updates] Restarting app to apply update');
-              Updates.reloadAsync();
+            onPress: async () => {
+              try {
+                console.log('[Updates] Restarting app to apply update');
+                await Updates.reloadAsync();
+              } catch (e) {
+                console.warn('[Updates] reloadAsync failed:', e);
+              }
             },
           },
         ]
@@ -87,85 +95,41 @@ export async function checkAndApplyUpdates(): Promise<void> {
       console.log('[Updates] App is up to date');
     }
   } catch (error) {
-    // Silently fail - NEVER crash the app due to update errors
     console.warn('[Updates] Failed to check/fetch updates:', error);
-    
-    // Optional: Send error to your analytics/monitoring service
-    // trackError('OTA_UPDATE_FAILED', error);
-    
-    // App continues with cached bundle - no user impact
+    // Optionally report to telemetry
   }
 }
 
-/**
- * Check if an update was applied on the last reload.
- * Useful for showing "What's New" or success messages.
- */
+/** Whether an update was just applied (placeholder logic; enhance if you set a flag before reload) */
 export function wasUpdateJustApplied(): boolean {
   try {
-    // Skip on web
-    if (Platform.OS === 'web') return false;
-    
-    // Skip in dev or if OTA disabled
-    if (__DEV__) return false;
-    
-    const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
-    const hardOff = Constants.expoConfig?.extra?.alwaysDisableOta;
-    if (!otaEnabled || hardOff) return false;
+    if (__DEV__ || Platform.OS === 'web') return false;
+    const { otaEnabled, alwaysDisableOta } = getOtaFlags();
+    if (!otaEnabled || alwaysDisableOta) return false;
 
-    // Check if we just loaded a new update
-  // Expo Updates API doesn't expose createdAt; we approximate via recently downloaded manifest metadata.
-  // For now return false (can be enhanced with persistent flag on reloadAsync path).
-  return false;
+    // You can persist a flag before calling reloadAsync() and read it here.
+    return false;
   } catch (error) {
     console.warn('[Updates] Error checking if update was applied:', error);
     return false;
   }
 }
 
-/**
- * Get current update information for debugging/display
- */
-interface UpdateInfoProduction {
-  mode: 'production';
-  otaEnabled: boolean;
-}
-
-interface UpdateInfoDev {
-  mode: 'development';
-  updateId: null;
-  createdAt: null;
-  otaEnabled: boolean;
-}
-
-interface UpdateInfoError {
-  mode: 'unknown';
-  error: string;
-}
+type UpdateInfoProduction = { mode: 'production'; otaEnabled: boolean; channel?: string | null; updateId?: string | null };
+type UpdateInfoDev = { mode: 'development'; otaEnabled: false };
+type UpdateInfoError = { mode: 'unknown'; error: string };
 
 export function getCurrentUpdateInfo(): UpdateInfoProduction | UpdateInfoDev | UpdateInfoError {
   try {
-    // Web returns dev mode info
-    if (Platform.OS === 'web' || __DEV__) {
-      return {
-        mode: 'development',
-        updateId: null,
-        createdAt: null,
-        otaEnabled: false,
-      };
+    if (__DEV__) {
+      return { mode: 'development', otaEnabled: false };
     }
-
-    const otaEnabled = Constants.expoConfig?.extra?.otaEnabled ?? false;
-
-    return {
-      mode: 'production',
-      otaEnabled,
-    };
+    const { otaEnabled } = getOtaFlags();
+    const updateId = Updates?.updateId ?? null;
+    const channel = Updates?.channel ?? null; // newer SDKs
+    return { mode: 'production', otaEnabled, updateId, channel };
   } catch (error) {
     console.warn('[Updates] Error getting update info:', error);
-    return {
-      mode: 'unknown',
-      error: String(error),
-    };
+    return { mode: 'unknown', error: String(error) };
   }
 }
