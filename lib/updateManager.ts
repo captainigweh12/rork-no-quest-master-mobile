@@ -1,12 +1,15 @@
 import Constants from 'expo-constants';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 let Updates: any = null;
-try {
-  Updates = require('expo-updates');
-} catch {
-  console.warn('[Updates] expo-updates not installed, update functionality disabled');
+
+if (Platform.OS !== 'web') {
+  try {
+    Updates = require('expo-updates');
+  } catch {
+    console.warn('[Updates] expo-updates not installed, update functionality disabled');
+  }
 }
 /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -18,6 +21,12 @@ try {
  * to ensure the app is stable before checking for updates.
  */
 export async function checkAndApplyUpdates(): Promise<void> {
+  // Skip on web
+  if (Platform.OS === 'web') {
+    console.log('[Updates] Skipping - not supported on web');
+    return;
+  }
+  
   // Skip if expo-updates not installed
   if (!Updates) {
     console.log('[Updates] Skipping - expo-updates not installed');
@@ -94,12 +103,15 @@ export async function checkAndApplyUpdates(): Promise<void> {
  */
 export function wasUpdateJustApplied(): boolean {
   try {
+    // Skip on web
+    if (Platform.OS === 'web') return false;
+    
     // Skip in dev or if OTA disabled
     if (__DEV__) return false;
     
-  const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
-  const hardOff = Constants.expoConfig?.extra?.alwaysDisableOta;
-  if (!otaEnabled || hardOff) return false;
+    const otaEnabled = Constants.expoConfig?.extra?.otaEnabled;
+    const hardOff = Constants.expoConfig?.extra?.alwaysDisableOta;
+    if (!otaEnabled || hardOff) return false;
 
     // Check if we just loaded a new update
   // Expo Updates API doesn't expose createdAt; we approximate via recently downloaded manifest metadata.
@@ -133,7 +145,8 @@ interface UpdateInfoError {
 
 export function getCurrentUpdateInfo(): UpdateInfoProduction | UpdateInfoDev | UpdateInfoError {
   try {
-    if (__DEV__) {
+    // Web returns dev mode info
+    if (Platform.OS === 'web' || __DEV__) {
       return {
         mode: 'development',
         updateId: null,
