@@ -1,38 +1,30 @@
 /**
- * Daily.co Context Provider
- * 
- * Manages Daily.co call state, room management, and streaming functionality
+ * Daily.co Context Provider (shared)
+ * Uses a platform bridge (./dailyClient) to resolve to the correct SDK.
  */
-
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import Daily, { DailyCall, DailyParticipant } from '@daily-co/react-native-daily-js';
+import Daily, { type DailyCall, type DailyParticipant } from '@/contexts/dailyClient';
 import { createQuestRoom, deleteRoom, type DailyRoom } from '@/services/daily/roomManager';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 interface DailyContextValue {
-  // Room state
   room: DailyRoom | null;
   isInCall: boolean;
   isHost: boolean;
-  
-  // Participants
   participants: DailyParticipant[];
   participantCount: number;
-  
-  // Media state
   isCameraOn: boolean;
   isMicOn: boolean;
   isScreenSharing: boolean;
-  
-  // Actions
+  isSupported: boolean;
+  supportReason?: string | null;
+  capabilities: { canJoin: boolean; canPublish: boolean; canScreenShare: boolean };
   createRoom: (questId: string, userId: string, questTitle: string) => Promise<void>;
   joinRoom: (roomUrl: string, isHost?: boolean) => Promise<void>;
   leaveRoom: () => Promise<void>;
   toggleCamera: () => void;
   toggleMic: () => void;
   toggleScreenShare: () => void;
-  
-  // Status
   isLoading: boolean;
   error: string | null;
 }
@@ -57,121 +49,77 @@ export function DailyProvider({ children }: { children: React.ReactNode }) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [isSupported, setIsSupported] = useState<boolean>(true);
+  const [supportReason, setSupportReason] = useState<string | null>(null);
+
   const callObjectRef = useRef<DailyCall | null>(null);
 
-  // Initialize Daily call object
+  // Feature flag and platform detection
+  const enabledFlag = (process.env.EXPO_PUBLIC_DAILY_ENABLED ?? 'true').toString().toLowerCase();
+  const isEnabled = enabledFlag !== 'false' && enabledFlag !== '0' && enabledFlag !== 'off';
+  const isWeb = Platform.OS === 'web';
+  const defaultCapabilities = { canJoin: isEnabled, canPublish: isEnabled, canScreenShare: isEnabled } as const;
+
   useEffect(() => {
     if (!callObjectRef.current) {
+      if (!isEnabled) {
+        setIsSupported(false);
+        setSupportReason('Daily is disabled by feature flag (EXPO_PUBLIC_DAILY_ENABLED=false).');
+        return;
+      }
       try {
-        callObjectRef.current = Daily.createCallObject({
-          audioSource: true,
-          videoSource: true,
-        });
-        
-        console.log('[Daily.co] Call object created');
+        callObjectRef.current = Daily.createCallObject({ audioSource: true, videoSource: true });
+        setIsSupported(true);
+        setSupportReason(null);
       } catch (err) {
         console.error('[Daily.co] Failed to create call object:', err);
+        setIsSupported(false);
+        setSupportReason(isWeb ? 'Daily web SDK unavailable.' : 'Daily native SDK unavailable. Use a dev build with the native module installed.');
       }
     }
-
     return () => {
-      if (callObjectRef.current) {
-        callObjectRef.current.destroy();
-        callObjectRef.current = null;
+      if (callObjectRef.current && typeof (callObjectRef.current as any).destroy === 'function') {
+        (callObjectRef.current as any).destroy();
       }
+      callObjectRef.current = null;
     };
-  }, []);
+  }, [isEnabled, isWeb]);
 
-  // Set up event listeners
   useEffect(() => {
-    const callObject = callObjectRef.current;
-    if (!callObject) return;
-
-    const handleJoinedMeeting = () => {
-      console.log('[Daily.co] Joined meeting');
-      setIsInCall(true);
-      setIsLoading(false);
-    };
-
-    const handleLeftMeeting = () => {
-      console.log('[Daily.co] Left meeting');
-      setIsInCall(false);
-      setRoom(null);
-      setParticipants([]);
-    };
-
-    const handleParticipantJoined = (event?: { participant?: DailyParticipant }) => {
-      if (event?.participant?.user_id) {
-        console.log('[Daily.co] Participant joined:', event.participant.user_id);
+    const callObject: any = callObjectRef.current;
+    if (!callObject || typeof callObject.on !== 'function') return;
+    const handleJoinedMeeting = () => { setIsInCall(true); setIsLoading(false); };
+    const handleLeftMeeting = () => { setIsInCall(false); setRoom(null); setParticipants([]); };
+    const updateParticipants = () => {
+      if (typeof callObject.participants === 'function') {
+        const participantsObj = callObject.participants();
+        const participantsList = Object.values(participantsObj ?? {}) as DailyParticipant[];
+        setParticipants(participantsList);
       }
-      updateParticipants();
     };
-
-    const handleParticipantLeft = (event?: { participant?: DailyParticipant }) => {
-      if (event?.participant?.user_id) {
-        console.log('[Daily.co] Participant left:', event.participant.user_id);
-      }
-      updateParticipants();
-    };
-
-    const handleParticipantUpdated = () => {
-      updateParticipants();
-    };
-
-    const handleError = (event?: { errorMsg?: string }) => {
-      console.error('[Daily.co] Error:', event?.errorMsg);
-      setError(event?.errorMsg ?? 'Unknown Daily error');
-      setIsLoading(false);
-    };
-
-    callObject.on('joined-meeting', handleJoinedMeeting);
-    callObject.on('left-meeting', handleLeftMeeting);
-    callObject.on('participant-joined', handleParticipantJoined);
-    callObject.on('participant-left', handleParticipantLeft);
-    callObject.on('participant-updated', handleParticipantUpdated);
-    callObject.on('error', handleError);
-
+    const handleError = (event?: { errorMsg?: string }) => { setError(event?.errorMsg ?? 'Unknown Daily error'); setIsLoading(false); };
+    callObject.on?.('joined-meeting', handleJoinedMeeting);
+    callObject.on?.('left-meeting', handleLeftMeeting);
+    callObject.on?.('participant-joined', updateParticipants);
+    callObject.on?.('participant-left', updateParticipants);
+    callObject.on?.('participant-updated', updateParticipants);
+    callObject.on?.('error', handleError);
     return () => {
-      callObject.off('joined-meeting', handleJoinedMeeting);
-      callObject.off('left-meeting', handleLeftMeeting);
-      callObject.off('participant-joined', handleParticipantJoined);
-      callObject.off('participant-left', handleParticipantLeft);
-      callObject.off('participant-updated', handleParticipantUpdated);
-      callObject.off('error', handleError);
+      callObject.off?.('joined-meeting', handleJoinedMeeting);
+      callObject.off?.('left-meeting', handleLeftMeeting);
+      callObject.off?.('participant-joined', updateParticipants);
+      callObject.off?.('participant-left', updateParticipants);
+      callObject.off?.('participant-updated', updateParticipants);
+      callObject.off?.('error', handleError);
     };
-  }, []);
-
-  const updateParticipants = useCallback(() => {
-    const callObject = callObjectRef.current;
-    if (!callObject) return;
-
-    const participantsObj = callObject.participants();
-    const participantsList = Object.values(participantsObj);
-    setParticipants(participantsList);
-    
-    console.log('[Daily.co] Participants updated:', participantsList.length);
   }, []);
 
   const createRoom = useCallback(async (questId: string, userId: string, questTitle: string) => {
-    setIsLoading(true);
-    setError(null);
-    
+    if (!isSupported) { Alert.alert('Live streaming unavailable', supportReason ?? 'Daily not supported here.'); return; }
+    setIsLoading(true); setError(null);
     try {
-      console.log('[Daily.co] Creating room for quest:', questId);
-      
-      const newRoom = await createQuestRoom({
-        questId,
-        userId,
-        questTitle,
-        maxParticipants: 50,
-        enableRecording: true,
-      });
-      
+      const newRoom = await createQuestRoom({ questId, userId, questTitle, maxParticipants: 50, enableRecording: true });
       setRoom(newRoom);
-      console.log('[Daily.co] Room created successfully:', newRoom.url);
-      
-      // Automatically join as host
       await joinRoom(newRoom.url, true);
     } catch (err: any) {
       console.error('[Daily.co] Create room failed:', err);
@@ -182,25 +130,12 @@ export function DailyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const joinRoom = useCallback(async (roomUrl: string, asHost: boolean = false) => {
-    const callObject = callObjectRef.current;
-    if (!callObject) {
-      setError('Call object not initialized');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setIsHost(asHost);
-    
+    const callObject = callObjectRef.current as any;
+    if (!isSupported) { Alert.alert('Live streaming unavailable', supportReason ?? 'Daily not supported here.'); return; }
+    if (!callObject) { setError('Call object not initialized'); return; }
+    setIsLoading(true); setError(null); setIsHost(asHost);
     try {
-      console.log('[Daily.co] Joining room:', roomUrl, '| As host:', asHost);
-      
-      await callObject.join({
-        url: roomUrl,
-        userName: asHost ? 'Host' : 'Viewer',
-      });
-      
-      console.log('[Daily.co] Successfully joined room');
+      await callObject.join?.({ url: roomUrl, userName: asHost ? 'Host' : 'Viewer' });
     } catch (err: any) {
       console.error('[Daily.co] Join room failed:', err);
       setError(err.message || 'Failed to join room');
@@ -210,89 +145,23 @@ export function DailyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const leaveRoom = useCallback(async () => {
-    const callObject = callObjectRef.current;
-    if (!callObject) return;
-
+    const callObject = callObjectRef.current as any; if (!callObject) return;
     try {
-      console.log('[Daily.co] Leaving room');
-      
-      await callObject.leave();
-      
-      // If host, delete the room
-      if (isHost && room) {
-        console.log('[Daily.co] Host leaving - deleting room');
-        await deleteRoom(room.name);
-      }
-      
-      setRoom(null);
-      setIsInCall(false);
-      setIsHost(false);
-      setParticipants([]);
+      await callObject.leave?.();
+      if (isHost && room) await deleteRoom(room.name);
+      setRoom(null); setIsInCall(false); setIsHost(false); setParticipants([]);
     } catch (err) {
       console.error('[Daily.co] Leave room failed:', err);
     }
   }, [isHost, room]);
 
-  const toggleCamera = useCallback(() => {
-    const callObject = callObjectRef.current;
-    if (!callObject) return;
+  const toggleCamera = useCallback(() => { if (!isSupported) { Alert.alert('Camera unavailable', supportReason ?? 'Daily not supported here.'); return; } const callObject = callObjectRef.current as any; if (!callObject) return; const next = !isCameraOn; callObject.setLocalVideo?.(next); setIsCameraOn(next); }, [isCameraOn, isSupported, supportReason]);
+  const toggleMic = useCallback(() => { if (!isSupported) { Alert.alert('Microphone unavailable', supportReason ?? 'Daily not supported here.'); return; } const callObject = callObjectRef.current as any; if (!callObject) return; const next = !isMicOn; callObject.setLocalAudio?.(next); setIsMicOn(next); }, [isMicOn, isSupported, supportReason]);
+  const toggleScreenShare = useCallback(async () => { if (!isSupported) { Alert.alert('Screen share unavailable', supportReason ?? 'Daily not supported here.'); return; } const callObject = callObjectRef.current as any; if (!callObject) return; try { if (isScreenSharing) { await callObject.stopScreenShare?.(); setIsScreenSharing(false); } else { await callObject.startScreenShare?.(); setIsScreenSharing(true); } } catch (err) { console.error('[Daily.co] Screen share toggle failed:', err); Alert.alert('Error', 'Failed to toggle screen share'); } }, [isScreenSharing, isSupported, supportReason]);
 
-    const newState = !isCameraOn;
-    callObject.setLocalVideo(newState);
-    setIsCameraOn(newState);
-    
-    console.log('[Daily.co] Camera toggled:', newState ? 'ON' : 'OFF');
-  }, [isCameraOn]);
-
-  const toggleMic = useCallback(() => {
-    const callObject = callObjectRef.current;
-    if (!callObject) return;
-
-    const newState = !isMicOn;
-    callObject.setLocalAudio(newState);
-    setIsMicOn(newState);
-    
-    console.log('[Daily.co] Mic toggled:', newState ? 'ON' : 'OFF');
-  }, [isMicOn]);
-
-  const toggleScreenShare = useCallback(async () => {
-    const callObject = callObjectRef.current;
-    if (!callObject) return;
-
-    try {
-      if (isScreenSharing) {
-        await callObject.stopScreenShare();
-        setIsScreenSharing(false);
-        console.log('[Daily.co] Screen share stopped');
-      } else {
-        await callObject.startScreenShare();
-        setIsScreenSharing(true);
-        console.log('[Daily.co] Screen share started');
-      }
-    } catch (err) {
-      console.error('[Daily.co] Screen share toggle failed:', err);
-      Alert.alert('Error', 'Failed to toggle screen share');
-    }
-  }, [isScreenSharing]);
-
-  const value: DailyContextValue = {
-    room,
-    isInCall,
-    isHost,
-    participants,
-    participantCount: participants.length,
-    isCameraOn,
-    isMicOn,
-    isScreenSharing,
-    createRoom,
-    joinRoom,
-    leaveRoom,
-    toggleCamera,
-    toggleMic,
-    toggleScreenShare,
-    isLoading,
-    error,
-  };
-
+  const value: DailyContextValue = { room, isInCall, isHost, participants, participantCount: participants.length, isCameraOn, isMicOn, isScreenSharing, isSupported, supportReason, capabilities: defaultCapabilities, createRoom, joinRoom, leaveRoom, toggleCamera, toggleMic, toggleScreenShare, isLoading, error };
   return <DailyContext.Provider value={value}>{children}</DailyContext.Provider>;
 }
+
+export type { DailyContextValue };
+ 

@@ -11,12 +11,14 @@
     "paths": {
       "@/*": ["./*"],
       "@rork-ai/toolkit-sdk": ["./stubs/rork-toolkit-sdk.ts"],
-      "@rork-ai/toolkit-dev-sdk": ["./stubs/rork-ai-toolkit-dev-sdk.ts"]
+      "@rork-ai/toolkit-dev-sdk": ["./stubs/rork-ai-toolkit-dev-sdk.ts"],
+      "@/contexts/dailyClient": ["./contexts/dailyClient.web.ts"]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "**/*.d.ts",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ],

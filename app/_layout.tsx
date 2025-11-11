@@ -15,6 +15,7 @@ import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
+// DailyProvider is platform-specific: native uses full implementation, web uses stub.
 import { DailyProvider } from '@/contexts/DailyContext';
 
 function OptionalRorkDev({ children }: { children: React.ReactNode }) {
