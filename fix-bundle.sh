@@ -1,30 +1,30 @@
 #!/bin/bash
 
-echo "🔧 Fixing bundle issues..."
+echo "🧹 Clearing all caches..."
 
-# 1. Clear all caches
-echo "📦 Clearing caches..."
+# Kill any running Metro bundler processes
+pkill -f "metro" || true
+pkill -f "expo start" || true
+pkill -f "react-native start" || true
+
+# Clear Expo caches
 rm -rf .expo
+rm -rf .cache
+
+# Clear Metro cache
+rm -rf $TMPDIR/metro-*
+rm -rf $TMPDIR/haste-map-*
+rm -rf $TMPDIR/react-*
+
+# Clear node_modules cache
 rm -rf node_modules/.cache
-rm -rf $TMPDIR/metro-* 2>/dev/null || true
-rm -rf $TMPDIR/haste-* 2>/dev/null || true
 
-# 2. Clear watchman if available
+# Clear watchman (if installed)
 if command -v watchman &> /dev/null; then
-    echo "👁️ Clearing watchman..."
-    watchman watch-del-all 2>/dev/null || true
+    echo "📡 Clearing watchman..."
+    watchman watch-del-all || true
 fi
 
-# 3. Reinstall node_modules if needed
-if [ "$1" == "--full" ]; then
-    echo "🗑️ Full reset - removing node_modules..."
-    rm -rf node_modules
-    echo "📥 Reinstalling dependencies..."
-    bun install
-fi
-
-# 4. Start with clean cache
-echo "🚀 Starting Expo with clean cache..."
-bun x expo start --clear
-
-echo "✅ Done! If the issue persists, run with --full flag"
+echo "✅ All caches cleared!"
+echo ""
+echo "Now run: bun x expo start -c"
