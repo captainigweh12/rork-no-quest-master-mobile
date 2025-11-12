@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { checkAndApplyUpdates, getCurrentUpdateInfo } from '@/lib/updateManager';
+import { checkAndApplyUpdates, getCurrentUpdateInfo } from '@/lib/updateManager.native';
 import Constants from 'expo-constants';
 
 interface UpdateInfoDisplay {
