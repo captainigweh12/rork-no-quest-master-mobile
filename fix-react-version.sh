@@ -1,0 +1,181 @@
+#!/bin/bash
+
+echo "🔧 Fixing React version compatibility..."
+
+# Step 1: Clear all caches and node_modules
+echo "📦 Removing node_modules and caches..."
+rm -rf node_modules
+rm -rf .expo
+rm -rf .cache
+rm -rf bun.lock
+rm -rf package-lock.json
+
+# Step 2: Update package.json with correct React versions for Expo SDK 54
+echo "📝 Updating package.json..."
+cat > temp_package.json << 'EOF'
+{
+  "name": "expo-app",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "bun@1.2.20",
+  "scripts": {
+    "audit:bundle": "node scripts/bundling-audit.mjs",
+    "diagnose": "node scripts/bundle-diagnostics.mjs",
+    "rork:guard": "node scripts/rork-health-guard.mjs",
+    "rork:guard:fix": "node scripts/rork-health-guard.mjs --fix",
+    "rork:clean": "node scripts/rork-health-guard.mjs --clean-only",
+    "rork:audit": "node scripts/bundling-audit.mjs",
+    "start": "dotenv -e .env -- expo start -c",
+    "start:clear": "dotenv -e .env -- expo start -c",
+    "start:tunnel": "dotenv -e .env -- expo start -c --tunnel",
+    "start-web": "dotenv -e .env -- expo start --web -c",
+    "start-web:tunnel": "dotenv -e .env -- expo start --web -c --tunnel",
+    "fix": "node scripts/bundle-fix.mjs",
+    "fix:quick": "node scripts/bundle-fix.mjs --no-diagnose",
+    "doctor": "node scripts/doctor.mjs",
+    "doctor:tunnel": "node scripts/doctor.mjs --tunnel",
+    "doctor:force": "node scripts/doctor.mjs --force",
+    "doctor:tunnel:force": "node scripts/doctor.mjs --tunnel --force",
+    "sync": "node scripts/auto-sync.mjs",
+    "sync:diagnose": "node scripts/auto-sync.mjs --diagnose",
+    "fix:babel": "node scripts/babel-fixer.mjs",
+    "fix:babel:force": "node scripts/babel-fixer.mjs --force",
+    "start:auto": "node scripts/start-auto.mjs",
+    "dev:auto": "bun run rork:guard && node scripts/start-auto.mjs",
+    "start-rork": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --tunnel",
+    "start-rork-web": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
+    "start-rork-android": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --android --tunnel",
+    "start-rork-ios": "dotenv -e .env -- rork start -p c23bcbuqrsjmkdoaxiu6y --ios --tunnel",
+    "start-rork-dev": "dotenv -e .env -- DEBUG=expo* rork start -p c23bcbuqrsjmkdoaxiu6y --web --tunnel",
+    "dev": "bun run rork:guard && dotenv -e .env -- expo start -c",
+    "dev:fix": "bun run rork:guard:fix && dotenv -e .env -- expo start -c",
+    "backend": "cd backend && tsx server.ts",
+    "backend:simple": "node start-backend.js",
+    "backend:tsx": "cd backend && tsx server.ts",
+    "backend:bun": "cd backend && bun run server.ts",
+    "backend:dev": "cd backend && tsx watch server.ts",
+    "test:backend": "node test-backend-connection.js",
+    "test:jest": "jest --config jest.config.cjs",
+    "test": "vitest",
+    "test:ci": "vitest run",
+    "lint": "expo lint",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "prebuild:clean": "expo prebuild --clean"
+  },
+  "dependencies": {
+    "@ai-sdk/react": "^2.0.87",
+    "@daily-co/daily-js": "^0.85.0",
+    "@expo/vector-icons": "^15.0.3",
+    "@hono/node-server": "^1.19.6",
+    "@hono/trpc-server": "^0.4.0",
+    "@nkzw/create-context-hook": "^1.1.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@stardazed/streams-text-encoding": "^1.0.2",
+    "@supabase/supabase-js": "^2.76.1",
+    "@tanstack/eslint-plugin-query": "^5.91.2",
+    "@tanstack/react-query": "^5.90.7",
+    "@trpc/client": "^11.7.1",
+    "@trpc/react-query": "^11.7.1",
+    "@trpc/server": "^11.7.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@ungap/structured-clone": "^1.3.0",
+    "@videosdk.live/react-native-sdk": "^0.3.4",
+    "dotenv": "^17.2.3",
+    "dotenv-cli": "^10.0.0",
+    "esbuild": "^0.25.12",
+    "expo": "54.0.23",
+    "expo-auth-session": "~7.0.8",
+    "expo-blur": "~15.0.7",
+    "expo-camera": "~17.0.9",
+    "expo-clipboard": "~8.0.7",
+    "expo-constants": "~18.0.10",
+    "expo-crypto": "~15.0.7",
+    "expo-font": "~14.0.9",
+    "expo-haptics": "~15.0.7",
+    "expo-image": "~3.0.10",
+    "expo-image-picker": "~17.0.8",
+    "expo-linear-gradient": "~15.0.7",
+    "expo-linking": "~8.0.8",
+    "expo-location": "~19.0.7",
+    "expo-notifications": "~0.32.12",
+    "expo-router": "~6.0.14",
+    "expo-secure-store": "~15.0.7",
+    "expo-splash-screen": "~31.0.10",
+    "expo-status-bar": "~3.0.8",
+    "expo-symbols": "~1.0.7",
+    "expo-system-ui": "~6.0.8",
+    "expo-web-browser": "^15.0.9",
+    "hono": "^4.10.3",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react-native": "^0.475.0",
+    "nativewind": "^4.1.23",
+    "openai": "^6.7.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.76.3",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-maps": "1.20.1",
+    "react-native-mmkv": "^4.0.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-web": "^0.21.0",
+    "react-native-webview": "13.15.0",
+    "resend": "^6.2.2",
+    "superjson": "^2.2.3",
+    "zod": "^4.1.12",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-typescript": "^7.28.5",
+    "@expo/ngrok": "^4.1.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/node": "20",
+    "@types/react": "~19.1.10",
+    "@vitest/ui": "^4.0.7",
+    "babel-jest": "^30.2.0",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-preset-expo": "^54.0.6",
+    "eslint": "9.31.0",
+    "eslint-config-expo": "10.0.0",
+    "happy-dom": "^20.0.10",
+    "jest-environment-jsdom": "^30.2.0",
+    "react-test-renderer": "^19.2.0",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.7"
+  },
+  "expo": {
+    "install": {
+      "exclude": []
+    }
+  }
+}
+EOF
+
+mv temp_package.json package.json
+
+# Step 3: Install dependencies
+echo "📦 Installing dependencies with bun..."
+bun install
+
+# Step 4: Clear Expo cache
+echo "🧹 Clearing Expo cache..."
+bun x expo start -c &
+sleep 3
+pkill -f "expo start" || true
+
+echo ""
+echo "✅ React version fixed!"
+echo ""
+echo "📋 Next steps:"
+echo "   1. Run: bun run dev"
+echo "   2. Test the app in browser or device"
+echo ""
