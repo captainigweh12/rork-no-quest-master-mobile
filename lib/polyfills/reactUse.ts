@@ -48,5 +48,20 @@ if (reactModule.default) {
   ensureUseImplementation(reactModule.default);
 }
 
+// Also patch the CJS require cache if it exists
+if (typeof require !== 'undefined') {
+  try {
+    const reactCached = require.cache[require.resolve('react')];
+    if (reactCached && reactCached.exports) {
+      ensureUseImplementation(reactCached.exports);
+      if (reactCached.exports.default) {
+        ensureUseImplementation(reactCached.exports.default);
+      }
+    }
+  } catch (e) {
+    // Ignore - require might not be available in all environments
+  }
+}
+
 console.log('[Polyfill] React.use() polyfill applied successfully. React.use exists:', typeof React.use === 'function');
 console.log('[Polyfill] ReactNamespace.use exists:', typeof ReactNamespace.use === 'function');
