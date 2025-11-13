@@ -19,8 +19,14 @@ Notifications.setNotificationHandler({
 });
 
 export const [NotificationsProvider, useNotifications] = createContextHook(() => {
-  const authContext = useAuth();
-  const user = authContext?.user;
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (e) {
+    console.warn('[NotificationsContext] Auth not yet initialized, will use null user');
+    authContext = null;
+  }
+  const user = authContext?.user ?? null;
   const queryClient = useQueryClient();
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');

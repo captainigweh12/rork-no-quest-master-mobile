@@ -27,7 +27,7 @@ interface User {
 
 const ADMIN_EMAILS = new Set<string>(['rizn.management@gmail.com']);
 
-const [AuthProviderRaw, useAuthRaw] = createContextHook(() => {
+const [AuthProviderComponent, useAuthRaw] = createContextHook(() => {
   const [session, setSession] = useState<SupabaseSession | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -517,7 +517,7 @@ const [AuthProviderRaw, useAuthRaw] = createContextHook(() => {
   );
 });
 
-export const AuthProvider = AuthProviderRaw;
+export const AuthProvider = AuthProviderComponent;
 
 export function useAuth() {
   const context = useAuthRaw();

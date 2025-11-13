@@ -20,8 +20,14 @@ import {
 export type StreamVisibility = 'public' | 'private' | 'group';
 
 export const [StreamProvider, useStream] = createContextHook(() => {
-  const authContext = useAuth();
-  const user = authContext?.user;
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (e) {
+    console.warn('[StreamContext] Auth not yet initialized, will use null user');
+    authContext = null;
+  }
+  const user = authContext?.user ?? null;
   const queryClient = useQueryClient();
   const [activeStreamId, setActiveStreamId] = useState<string | null>(null);
   const liveStreamConfigInitialized = useRef(false);
