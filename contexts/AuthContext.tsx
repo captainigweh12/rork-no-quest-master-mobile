@@ -27,7 +27,7 @@ interface User {
 
 const ADMIN_EMAILS = new Set<string>(['rizn.management@gmail.com']);
 
-export const [AuthProvider, useAuth] = createContextHook(() => {
+const [AuthProviderRaw, useAuthRaw] = createContextHook(() => {
   const [session, setSession] = useState<SupabaseSession | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -516,3 +516,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     [session, user, isLoading, signUp, signIn, signOut, resetPassword, resendConfirmationEmail, signInWithGoogle, updateRelationshipStatus, updatePreferredLanguage, updateUsername, updateAvatarUrl]
   );
 });
+
+export const AuthProvider = AuthProviderRaw;
+
+export function useAuth() {
+  const context = useAuthRaw();
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+}

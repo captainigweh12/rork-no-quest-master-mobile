@@ -27,7 +27,7 @@ interface JournalsState {
 
 const STORAGE_KEY = 'journals:v2';
 
-export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(() => {
+const [JournalsProviderRaw, useJournalsRaw] = createContextHook<JournalsState>(() => {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -106,3 +106,13 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
 
   return useMemo(() => ({ journals, addJournal, removeJournal, clearAll, isLoading, error }), [journals, addJournal, removeJournal, clearAll, isLoading, error]);
 });
+
+export const JournalsProvider = JournalsProviderRaw;
+
+export function useJournals() {
+  const context = useJournalsRaw();
+  if (!context) {
+    throw new Error('useJournals must be used within JournalsProvider');
+  }
+  return context;
+}
