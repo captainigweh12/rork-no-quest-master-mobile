@@ -1,20 +1,30 @@
-import React, { Context } from 'react';
+import * as ReactNamespace from 'react';
+import React from "react";
 
-type ReactWithUse = typeof React & {
+type ReactWithUse = {
   use?: <T>(usable: unknown) => T;
-  useContext: <T>(ctx: Context<T>) => T;
+  useContext: <T>(ctx: ReactNamespace.Context<T>) => T;
+};
+
+type ReactModule = ReactWithUse & {
+  default?: ReactWithUse;
 };
 
 type Thenable<T> = {
   then: (onfulfilled?: ((value: T) => void) | null, onrejected?: ((reason: unknown) => void) | null) => unknown;
 };
 
-const reactWithUse = React as ReactWithUse;
+const reactModule = ReactNamespace as ReactModule;
+const reactDefault = (reactModule.default ?? reactModule) as ReactWithUse;
 
-if (typeof reactWithUse.use !== 'function') {
-  reactWithUse.use = <T>(usable: unknown): T => {
+const ensureUseImplementation = (target: ReactWithUse) => {
+  if (typeof target.use === 'function') {
+    return;
+  }
+
+  target.use = <T>(usable: unknown): T => {
     if (usable && typeof usable === 'object' && 'Provider' in (usable as Record<string, unknown>)) {
-      return reactWithUse.useContext(usable as Context<T>);
+      return target.useContext(usable as ReactNamespace.Context<T>);
     }
 
     if (usable && typeof (usable as Thenable<T>).then === 'function') {
@@ -27,4 +37,10 @@ if (typeof reactWithUse.use !== 'function') {
 
     return usable as T;
   };
+};
+
+ensureUseImplementation(reactModule);
+ensureUseImplementation(reactDefault);
+if (reactModule.default) {
+  ensureUseImplementation(reactModule.default);
 }
