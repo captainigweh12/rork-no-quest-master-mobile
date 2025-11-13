@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import type { Quest, QuestDifficulty, UserProfile } from '@/types';
 import { generateQuest, type CategoryId } from '@/services/questAI';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,9 +90,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   const [isLoading, setIsLoading] = useState(true);
   const [progressMap, setProgressMap] = useState<Record<string, { noCount: number; yesCount: number; startedAt: string }>>({});
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadData();
+    return () => { mountedRef.current = false; };
   }, []);
 
   useEffect(() => {
@@ -108,7 +111,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         await new Promise(resolve => setTimeout(resolve, 100));
         if (!isStorageReady()) {
           console.warn('[GameContext] ⚠️ Storage not ready, using initial data');
-          setIsLoading(false);
+          if (mountedRef.current) setIsLoading(false);
           return;
         }
       }
@@ -119,15 +122,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
       const savedQuests = await typedStorage.getJSON<Quest[]>('quests', INITIAL_QUESTS);
       const savedProgress = await typedStorage.getJSON<Record<string, { noCount: number; yesCount: number; startedAt: string }>>('questProgress', {});
 
-      if (savedProfile && savedProfile !== INITIAL_PROFILE) {
+      if (mountedRef.current && savedProfile && savedProfile !== INITIAL_PROFILE) {
         console.log('[GameContext] ✓ Loaded saved profile');
         setProfile(savedProfile);
       }
-      if (savedQuests && savedQuests.length > 0 && savedQuests !== INITIAL_QUESTS) {
+      if (mountedRef.current && savedQuests && savedQuests.length > 0 && savedQuests !== INITIAL_QUESTS) {
         console.log('[GameContext] ✓ Loaded saved quests');
         setQuests(savedQuests);
       }
-      if (savedProgress && Object.keys(savedProgress).length > 0) {
+      if (mountedRef.current && savedProgress && Object.keys(savedProgress).length > 0) {
         console.log('[GameContext] ✓ Loaded saved quest progress');
         setProgressMap(savedProgress);
       }
@@ -136,7 +139,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       console.warn('[GameContext] ⚠️ Using initial game data:', error instanceof Error ? error.message : 'unknown error');
     } finally {
       console.log('[GameContext] Initialization complete');
-      setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   };
 

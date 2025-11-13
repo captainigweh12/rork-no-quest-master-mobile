@@ -1,6 +1,6 @@
 import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 export interface AppCategory {
   id: string;
@@ -42,8 +42,10 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
   const [all] = useState<AppCategory[]>(ALL_CATEGORIES);
   const [selectedIds, setSelectedIdsState] = useState<string[]>(DEFAULT_SELECTED_IDS);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     const load = async () => {
       try {
         const timeoutPromise = new Promise<null>((_, reject) => {
@@ -57,7 +59,7 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
           try {
             const parsed = JSON.parse(raw) as string[];
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setSelectedIdsState(parsed);
+              if (mountedRef.current) setSelectedIdsState(parsed);
             }
           } catch (parseError) {
             console.error('[CategoriesContext] Invalid JSON in storage, clearing corrupted data:', parseError);
@@ -67,10 +69,11 @@ export const [CategoriesProvider, useCategories] = createContextHook(() => {
       } catch (e) {
         console.log('Failed to load categories, using defaults:', e instanceof Error ? e.message : 'unknown');
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) setIsLoading(false);
       }
     };
     load();
+    return () => { mountedRef.current = false; };
   }, []);
 
   const persist = useCallback(async (ids: string[]) => {

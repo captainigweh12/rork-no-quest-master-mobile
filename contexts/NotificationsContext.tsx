@@ -1,6 +1,6 @@
 import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -24,6 +24,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(false);
+  const mountedRef = useRef(true);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const notificationsQuery = useQuery({
     queryKey: ['notifications', user?.id],
@@ -45,7 +47,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
 
     if (Platform.OS === 'android' && Constants.appOwnership === 'expo') {
       console.log('Skipping push registration: Expo Go on Android does not support remote push since SDK 53');
-      setPermissionStatus('denied');
+      if (mountedRef.current) setPermissionStatus('denied');
       return;
     }
 
@@ -58,6 +60,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         finalStatus = status;
       }
 
+      if (!mountedRef.current) return;
       setPermissionStatus(finalStatus as 'granted' | 'denied');
 
       if (finalStatus !== 'granted') {
@@ -73,7 +76,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
 
       const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       console.log('Expo Push Token:', token);
-      setExpoPushToken(token);
+      if (mountedRef.current) setExpoPushToken(token);
     } catch (error: any) {
       const errorMessage = error?.message || String(error);
       console.error('Error registering for push notifications:', errorMessage);
@@ -84,7 +87,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         if (retryCount < 3) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
           console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1}/3)...`);
-          setTimeout(() => registerForPushNotifications(retryCount + 1), delay);
+          if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = setTimeout(() => {
+            if (mountedRef.current) registerForPushNotifications(retryCount + 1);
+          }, delay);
         } else {
           console.log('Max retries reached. Push notifications will be unavailable.');
         }
@@ -108,7 +114,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
         },
         trigger: { type: 'calendar', hour: 9, minute: 0, repeats: true } as Notifications.CalendarTriggerInput,
       });
-      setRemindersEnabled(true);
+      if (mountedRef.current) setRemindersEnabled(true);
   await storage.setItem('questReminders', 'enabled');
     } catch (e) {
       console.error('Failed to schedule reminder', e);
@@ -118,13 +124,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
   const disableDailyQuestReminder = useCallback(async () => {
     if (Platform.OS === 'web') {
       console.log('Scheduling not supported on web');
-      setRemindersEnabled(false);
+      if (mountedRef.current) setRemindersEnabled(false);
   await storage.setItem('questReminders', 'disabled');
       return;
     }
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
-      setRemindersEnabled(false);
+      if (mountedRef.current) setRemindersEnabled(false);
   await storage.setItem('questReminders', 'disabled');
     } catch (e) {
       console.error('Failed to cancel reminders', e);
@@ -152,10 +158,19 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
   }, [registerForPushNotifications, scheduleDailyQuestReminder]);
 
   useEffect(() => {
-  storage.getItem('questReminders').then((v) => {
+    mountedRef.current = true;
+    storage.getItem('questReminders').then((v) => {
+      if (!mountedRef.current) return;
       const enabled = v === 'enabled';
       setRemindersEnabled(enabled);
     }).catch(() => {});
+    return () => {
+      mountedRef.current = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {

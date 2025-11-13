@@ -1,6 +1,6 @@
 import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import type { ThemeMode } from '@/types';
 
@@ -94,23 +94,26 @@ export const [ThemeProvider, useTheme] = createContextHook(() => {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [isLoading, setIsLoading] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     const initTheme = async () => {
       try {
   const savedTheme = await storage.getItem('theme');
         if (savedTheme === 'light' || savedTheme === 'dark') {
-          setThemeMode(savedTheme);
+          if (mountedRef.current) setThemeMode(savedTheme);
         } else if (systemColorScheme) {
-          setThemeMode(systemColorScheme);
+          if (mountedRef.current) setThemeMode(systemColorScheme);
         }
       } catch (error) {
         console.error('Error loading theme:', error);
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) setIsLoading(false);
       }
     };
     initTheme();
+    return () => { mountedRef.current = false; };
   }, [systemColorScheme]);
 
   const toggleTheme = useCallback(async () => {

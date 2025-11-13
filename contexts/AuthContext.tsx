@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
@@ -30,9 +30,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<SupabaseSession | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     console.log('🔑 Initializing Supabase Auth...');
+    mountedRef.current = true;
 
     const initializeAuth = async () => {
       try {
@@ -40,32 +42,35 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         const session = data.session;
         
         console.log('📦 Initial session:', session ? 'Found' : 'None');
+        if (!mountedRef.current) return;
         setSession(session);
         if (session?.user) {
-          loadUserProfile(session.user);
+          await loadUserProfile(session.user);
         }
       } catch (error) {
         console.log('❌ Auth initialization error:', error instanceof Error ? error.message : 'unknown error');
+        if (!mountedRef.current) return;
         setSession(null);
         setUser(null);
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) setIsLoading(false);
       }
     };
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('🔄 Auth state changed:', _event, session ? 'Session active' : 'No session');
+      if (!mountedRef.current) return;
       setSession(session);
       if (session?.user) {
-        loadUserProfile(session.user);
+        await loadUserProfile(session.user);
       } else {
         setUser(null);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { mountedRef.current = false; subscription.unsubscribe(); };
   }, []);
 
   const runOneTimeBackfillForExistingUser = async (uid: string) => {

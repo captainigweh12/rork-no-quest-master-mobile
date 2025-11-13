@@ -1,6 +1,6 @@
 import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 export type Skill = 'charisma' | 'intellect' | 'courage' | 'empathy' | 'creativity' | 'discipline';
 
@@ -31,17 +31,19 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     const load = async () => {
-      setIsLoading(true);
+      if (mountedRef.current) setIsLoading(true);
       try {
   const raw = await storage.getItem(STORAGE_KEY);
         if (raw) {
           try {
             const parsed = JSON.parse(raw) as JournalEntry[];
             if (Array.isArray(parsed)) {
-              setJournals(parsed);
+              if (mountedRef.current) setJournals(parsed);
             } else {
               console.warn('[JournalsContext] Parsed data is not an array, clearing');
               await storage.removeItem(STORAGE_KEY);
@@ -49,17 +51,18 @@ export const [JournalsProvider, useJournals] = createContextHook<JournalsState>(
           } catch (parseError) {
             console.error('[JournalsContext] Invalid JSON in storage, clearing corrupted data:', parseError);
             await storage.removeItem(STORAGE_KEY);
-            setError('Corrupted data cleared');
+            if (mountedRef.current) setError('Corrupted data cleared');
           }
         }
       } catch (e) {
-        setError('Failed to load journals');
+        if (mountedRef.current) setError('Failed to load journals');
         console.error('Journals load error', e);
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) setIsLoading(false);
       }
     };
     load();
+    return () => { mountedRef.current = false; };
   }, []);
 
   const persist = useCallback(async (data: JournalEntry[]) => {

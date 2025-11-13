@@ -1,6 +1,6 @@
 import { storage } from '@/lib/storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 
 export type Personality = 'introvert' | 'extrovert' | 'ambivert';
 export type PreferredTime = 'morning' | 'afternoon' | 'evening' | 'anytime';
@@ -24,8 +24,11 @@ const DEFAULT_PREFS: OnboardingPreferences = {
 export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
   const [prefs, setPrefs] = useState<OnboardingPreferences>(DEFAULT_PREFS);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const load = async () => {
       try {
         const timeoutPromise = new Promise<string | null>((_, reject) => {
@@ -39,7 +42,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
         if (raw) {
           try {
             const parsed = JSON.parse(raw as string) as OnboardingPreferences;
-            setPrefs({ ...DEFAULT_PREFS, ...parsed });
+            if (mountedRef.current) setPrefs({ ...DEFAULT_PREFS, ...parsed });
           } catch (parseError) {
             console.error('[OnboardingContext] Invalid JSON in storage, clearing corrupted data:', parseError);
             await storage.removeItem('onboarding');
@@ -48,11 +51,16 @@ export const [OnboardingProvider, useOnboarding] = createContextHook(() => {
       } catch (e) {
         console.log('Using default onboarding prefs:', e instanceof Error ? e.message : 'unknown error');
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) setIsLoading(false);
       }
     };
     
-    setTimeout(load, 0);
+    timeoutId = setTimeout(load, 0);
+
+    return () => {
+      mountedRef.current = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   const update = useCallback(async (patch: Partial<OnboardingPreferences>) => {
