@@ -1,3 +1,6 @@
+// IMPORTANT: This must run BEFORE expo-router loads
+console.log('[Polyfill] Applying React.use() polyfill for React 18.x...');
+
 import * as ReactNamespace from 'react';
 import React from "react";
 
@@ -44,3 +47,6 @@ ensureUseImplementation(reactDefault);
 if (reactModule.default) {
   ensureUseImplementation(reactModule.default);
 }
+
+console.log('[Polyfill] React.use() polyfill applied successfully. React.use exists:', typeof React.use === 'function');
+console.log('[Polyfill] ReactNamespace.use exists:', typeof ReactNamespace.use === 'function');

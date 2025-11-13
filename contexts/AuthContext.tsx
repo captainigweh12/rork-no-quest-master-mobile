@@ -1,3 +1,4 @@
+import '@/lib/polyfills/reactUse.js';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Platform } from 'react-native';
