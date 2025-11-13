@@ -34,6 +34,8 @@ export function SafeImage({ uri, style, fallback, testID }: SafeImageProps) {
   return (
     <ExpoImage
       testID={testID}
+      accessible={!!testID}
+      accessibilityLabel={testID}
       source={{ uri: clean }}
       style={style}
       contentFit="cover"
