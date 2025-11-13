@@ -19,7 +19,8 @@ Notifications.setNotificationHandler({
 });
 
 export const [NotificationsProvider, useNotifications] = createContextHook(() => {
-  const { user } = useAuth();
+  const authContext = useAuth();
+  const user = authContext?.user;
   const queryClient = useQueryClient();
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');

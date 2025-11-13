@@ -85,7 +85,8 @@ const INITIAL_QUESTS: Quest[] = [
 ];
 
 export const [GameProvider, useGame] = createContextHook(() => {
-  const { user } = useAuth();
+  const authContext = useAuth();
+  const user = authContext?.user;
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   const [isLoading, setIsLoading] = useState(true);

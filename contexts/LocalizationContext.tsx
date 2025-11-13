@@ -4,7 +4,8 @@ import { translate, getTranslations, SupportedLanguage } from '@/lib/i18n';
 import { useMemo } from 'react';
 
 export const [LocalizationProvider, useLocalization] = createContextHook(() => {
-  const { user } = useAuth();
+  const authContext = useAuth();
+  const user = authContext?.user;
   const language = (user?.preferredLanguage || 'en') as SupportedLanguage;
 
   const t = useMemo(() => {

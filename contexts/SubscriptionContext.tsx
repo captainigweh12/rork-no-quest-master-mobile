@@ -74,7 +74,8 @@ const SUBSCRIPTION_PRICES = {
 };
 
 export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
-  const { user } = useAuth();
+  const authContext = useAuth();
+  const user = authContext?.user;
 
   const isAdmin = !!user?.isAdmin;
 
