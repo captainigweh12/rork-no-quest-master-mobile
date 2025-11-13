@@ -1,3 +1,4 @@
+import '@/lib/polyfills/reactUse';
 
 import React, { useEffect, useMemo } from 'react';
 import { Stack } from 'expo-router';
