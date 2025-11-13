@@ -17,6 +17,7 @@ import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { YouTubeProvider } from '@/contexts/YouTubeContext';
 import { StreamProvider } from '@/contexts/StreamContext';
 import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
+import { JournalsProvider } from '@/contexts/JournalsContext';
 // DailyProvider is platform-specific: native uses full implementation, web uses stub.
 import { DailyProvider } from '@/contexts/DailyContext';
 
@@ -50,13 +51,14 @@ export default function RootLayout() {
               <AuthProvider>
                 <GameProvider>
                   <CategoriesProvider>
-                    <NotificationsProvider>
-                      <SubscriptionProvider>
-                        <OnboardingProvider>
-                          <YouTubeProvider>
-                            <StreamProvider>
-                              <VideoSDKContextProvider>
-                                <DailyProvider>
+                    <JournalsProvider>
+                      <NotificationsProvider>
+                        <SubscriptionProvider>
+                          <OnboardingProvider>
+                            <YouTubeProvider>
+                              <StreamProvider>
+                                <VideoSDKContextProvider>
+                                  <DailyProvider>
                                   <Stack
                                     screenOptions={{
                                       headerShown: false,
@@ -73,13 +75,14 @@ export default function RootLayout() {
                                     <Stack.Screen name="stream" options={{ presentation: 'modal', title: 'Start Stream' }} />
                                     <Stack.Screen name="invite/[code]" options={{ title: 'Accept Invite' }} />
                                   </Stack>
-                                </DailyProvider>
-                              </VideoSDKContextProvider>
-                            </StreamProvider>
-                          </YouTubeProvider>
-                        </OnboardingProvider>
-                      </SubscriptionProvider>
-                    </NotificationsProvider>
+                                  </DailyProvider>
+                                </VideoSDKContextProvider>
+                              </StreamProvider>
+                            </YouTubeProvider>
+                          </OnboardingProvider>
+                        </SubscriptionProvider>
+                      </NotificationsProvider>
+                    </JournalsProvider>
                   </CategoriesProvider>
                 </GameProvider>
               </AuthProvider>
