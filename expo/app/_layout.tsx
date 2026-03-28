@@ -1,6 +1,6 @@
 import '@/lib/polyfills/reactUse';
 
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Stack } from 'expo-router';
 import { LogBox } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import { VideoSDKContextProvider } from '@/contexts/VideoSDKContext';
 import { JournalsProvider } from '@/contexts/JournalsContext';
 // DailyProvider is platform-specific: native uses full implementation, web uses stub.
 import { DailyProvider } from '@/contexts/DailyContext';
+import React from "react";
 
 function OptionalRorkDev({ children }: { children: React.ReactNode }) {
   const Wrapper = useMemo(() => {

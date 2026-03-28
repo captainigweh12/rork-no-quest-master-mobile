@@ -67,7 +67,7 @@ export function DailyProvider({ children }: { children: React.ReactNode }) {
     if (!callObject) return;
     const updateParticipants = () => {
       const participantsObj = callObject.participants();
-      const list = Object.values(participantsObj);
+      const list = Object.values(participantsObj) as DailyParticipant[];
       setParticipants(list);
       console.log('[Daily.co] Participants updated:', list.length);
     };
